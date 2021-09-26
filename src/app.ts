@@ -22,17 +22,13 @@ const port = 8000;
   const db = client.db();
 
   console.log("Creating collection indexes.");
-  db.collection("steam-accounts").createIndex(
-    { accountName: 1 },
-    { unique: true }
-  );
+  db.collection("steam-accounts").createIndex({ accountName: 1 }, { unique: true });
   db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
   db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
   db.collection("users").createIndex({ userId: 1 }, { unique: true });
-  db.collection("invites").createIndex(
-    { email: 1, invite: 1 },
-    { unique: true }
-  );
+  db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
+  db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
+  db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
 
   console.log("Fetching proxies...");
   await fetchProxies();

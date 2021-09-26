@@ -1,10 +1,6 @@
 import axios from "axios";
 import { getClient } from "../db";
-
-interface Proxy {
-  ip: string;
-  port: number;
-}
+import { Proxy } from "@types";
 
 /**
  * Fetches proxies from proxies provider
@@ -13,13 +9,14 @@ export async function fetchProxies(): Promise<void> {
   const collection = getClient().db().collection("proxies");
 
   try {
-    const res = await axios.get(
-      "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?format=json&cellid=0"
-    );
+    const res = await axios.get(process.env.PROXYSERVICE_URL);
+
+    let proxies = res.data;
+    proxies = [...new Set(proxies)];
 
     const documents = [];
 
-    for (const item of res.data.response.serverlist) {
+    for (const item of proxies) {
       const split = item.split(":");
       const ip = split[0];
       const port = Number(split[1]);

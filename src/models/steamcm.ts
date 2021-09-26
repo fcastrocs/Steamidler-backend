@@ -1,10 +1,6 @@
+import { SteamCM } from "@types";
 import axios from "axios";
 import { getClient } from "../db";
-
-interface SteamCM {
-  ip: string;
-  port: number;
-}
 
 /**
  * Fetches Steam CMs from the steam api and saves them to 'steam-cms' collection
