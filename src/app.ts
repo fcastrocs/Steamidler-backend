@@ -75,7 +75,7 @@ function appMiddleWare() {
 
   // logged in
   app.use((req, res, next) => {
-    if (req.path === "/user" && req.method === "POST") {
+    if (req.path === "/user/login" && req.method === "POST") {
       return next();
     }
 

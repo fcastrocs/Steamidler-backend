@@ -4,7 +4,7 @@ const app = express();
 import * as User from "../models/user";
 import * as Invite from "../models/invite";
 
-app.post("", async (req, res) => {
+app.post("/login", async (req, res) => {
   // user is already logged in
   if (req.session.loggedId) {
     return res.sendStatus(403);
@@ -72,6 +72,14 @@ app.post("", async (req, res) => {
   // remove tempSession cookie
   res.clearCookie("tempSession");
   res.redirect(process.env.FRONTEND_URL);
+});
+
+app.post("/logout", async (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("session");
+    res.clearCookie("user-data");
+    res.sendStatus(200);
+  });
 });
 
 async function verifyToken(credential: string, clientId: string) {
