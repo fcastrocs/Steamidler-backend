@@ -5,7 +5,7 @@ import { SteamAccount, Encrypted } from "@types";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
-  const collection = getClient().db().collection(collectionName);
+  const collection = (await getClient()).db().collection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
   if (doc) throw "Account already exists.";
   if (typeof steamAccount.password !== "string") {
@@ -19,12 +19,12 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
 }
 
 export async function remove(userId: string, username: string): Promise<void> {
-  const collection = getClient().db().collection(collectionName);
+  const collection = (await getClient()).db().collection(collectionName);
   await collection.deleteOne({ userId, username });
 }
 
 export async function exists(userId: string, username: string): Promise<boolean> {
-  const collection = getClient().db().collection(collectionName);
+  const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
     userId,
     username,
@@ -33,7 +33,7 @@ export async function exists(userId: string, username: string): Promise<boolean>
 }
 
 export async function get(userId: string, username: string): Promise<Document> {
-  const collection = getClient().db().collection(collectionName);
+  const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
     userId,
     username,

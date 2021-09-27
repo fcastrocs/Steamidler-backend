@@ -6,7 +6,7 @@ import { getClient } from "../db";
  * Fetches Steam CMs from the steam api and saves them to 'steam-cms' collection
  */
 export async function fetchSteamCms(): Promise<void> {
-  const collection = getClient().db().collection("steam-cms");
+  const collection = (await getClient()).db().collection("steam-cms");
 
   try {
     const res = await axios.get(process.env.STEAMCMS_URL);
@@ -33,7 +33,7 @@ export async function fetchSteamCms(): Promise<void> {
  * @returns random SteamCM
  */
 export async function getOne(): Promise<SteamCM> {
-  const collection = getClient().db().collection("proxies");
+  const collection = (await getClient()).db().collection("proxies");
   const cursor = collection.aggregate([{ $sample: { size: 1 } }]);
   const document = await cursor.next();
 

@@ -6,7 +6,7 @@ import { Proxy } from "@types";
  * Fetches proxies from proxies provider
  */
 export async function fetchProxies(): Promise<void> {
-  const collection = getClient().db().collection("proxies");
+  const collection = (await getClient()).db().collection("proxies");
 
   try {
     const res = await axios.get(process.env.PROXYSERVICE_URL);
@@ -36,7 +36,7 @@ export async function fetchProxies(): Promise<void> {
  * @returns random proxy
  */
 export async function getOne(): Promise<Proxy> {
-  const collection = getClient().db().collection("proxies");
+  const collection = (await getClient()).db().collection("proxies");
   const cursor = collection.aggregate([{ $sample: { size: 1 } }]);
   const document = await cursor.next();
 

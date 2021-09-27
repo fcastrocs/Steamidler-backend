@@ -1,12 +1,12 @@
 import { getClient } from "../db";
 
 export async function exists(invite: string, email: string): Promise<boolean> {
-  const collection = getClient().db().collection("invites");
+  const collection = (await getClient()).db().collection("invites");
   const doc = await collection.findOne({ invite, email });
   return !!doc;
 }
 
 export async function remove(email: string): Promise<void> {
-  const collection = getClient().db().collection("invites");
+  const collection = (await getClient()).db().collection("invites");
   await collection.deleteMany({ email });
 }

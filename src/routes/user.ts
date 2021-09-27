@@ -5,66 +5,81 @@ import * as User from "../models/user";
 import * as Invite from "../models/invite";
 
 app.post("", async (req, res) => {
-  const token = req.body.credential;
-  const clientId = req.body.clientId;
+  // user is already logged in
+  if (req.session.loggedId) {
+    return res.sendStatus(403);
+  }
+
+  let credential = req.body.credential;
+  let clientId = req.body.clientId;
   const invite = req.body.invite;
 
-  if (!token && !clientId) {
-    return res.sendStatus(401);
+  // tempSession serves as a holder for google credentials until user
+  // enters invite code
+  const tempSession = req.signedCookies.tempSession;
+
+  if (tempSession) {
+    if (!tempSession.credential && !tempSession.clientId) {
+      return res.sendStatus(400);
+    }
+    credential = tempSession.credential;
+    clientId = tempSession.clientId;
+  }
+
+  if (!credential && !clientId) {
+    return res.sendStatus(400);
   }
 
   // verify token
-  const payload = await verifyToken(token, clientId);
-  if (!payload) return res.sendStatus(401);
+  const payload = await verifyToken(credential, clientId);
+  if (!payload) return res.sendStatus(400);
 
   const userId = payload.sub;
   const user = await User.get(userId);
 
-  // this must be a new user registration request
+  // new user
   if (!user) {
     // request came from google, redirect to invite page
     if (!invite) {
-      res.cookie(
-        "tempSession",
-        JSON.stringify({ clientId, credential: token })
-      );
-      return res.redirect("http://localhost:3000/invite");
+      res.cookie("tempSession", { credential, clientId }, { signed: true });
+      return res.redirect(process.env.FRONTEND_URL + "/invite"); // user can continue to send invite
     } else {
       //request came from invite page
-      const exists = await Invite.exists(invite, payload.email || "");
       // invite doesn't exist
-      if (!exists) {
-        return res.sendStatus(404);
+      if (!(await Invite.exists(invite, payload.email))) {
+        return res.sendStatus(403);
       } else {
-        await Invite.remove(payload.email || "");
+        // await Invite.remove(payload.email);
       }
     }
   }
 
-  // good signin or invite, authenticate user
-
-  const cookieValue = JSON.stringify({
-    name: payload.name,
-    avatar: payload.picture,
-    token,
-  });
+  // good login or invite, authenticate user
+  req.session.loggedId = true;
+  req.session.userId = userId;
+  res.cookie(
+    "user-data",
+    { name: payload.name, avatar: payload.picture },
+    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  );
 
   await User.upsert(userId, {
     userId,
-    name: payload.name || "",
-    email: payload.email || "",
-    token,
+    name: payload.name,
+    email: payload.email,
   });
-  res.cookie("session", cookieValue);
-  return res.redirect("http://localhost:3000");
+
+  // remove tempSession cookie
+  res.clearCookie("tempSession");
+  res.sendStatus(200);
 });
 
-async function verifyToken(token: string, clientId: string) {
+async function verifyToken(credential: string, clientId: string) {
   const client = new OAuth2Client();
   let payload;
   try {
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken: credential,
       audience: clientId,
     });
     payload = ticket.getPayload();

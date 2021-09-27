@@ -19,7 +19,7 @@ export async function connect(): Promise<MongoClient> {
   return client;
 }
 
-export function getClient(): MongoClient {
-  if (!client) throw "Not connected to database.";
+export async function getClient(): Promise<MongoClient> {
+  if (!client) throw Error("Not connected to database.");
   return client;
 }

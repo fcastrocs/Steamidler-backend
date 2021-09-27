@@ -1,6 +1,13 @@
 import { Cookie, FarmData, Item } from "steamcommunity";
 import { AccountAuth, AccountData } from "ts-steam";
 
+declare module "express-session" {
+  interface SessionData {
+    loggedId: boolean;
+    userId: string;
+  }
+}
+
 // steamAccount Controller
 interface Options {
   userId: string;
