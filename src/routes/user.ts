@@ -71,7 +71,7 @@ app.post("", async (req, res) => {
 
   // remove tempSession cookie
   res.clearCookie("tempSession");
-  res.sendStatus(200);
+  res.redirect(process.env.FRONTEND_URL);
 });
 
 async function verifyToken(credential: string, clientId: string) {
