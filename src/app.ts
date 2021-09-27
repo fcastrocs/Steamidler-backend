@@ -2,8 +2,6 @@ import path from "path";
 import { config } from "dotenv";
 config({ path: path.join(__dirname, "../.env") });
 
-import cors from "cors";
-
 import * as mongodb from "./db";
 
 import { fetchSteamCms } from "./models/steamcm";
