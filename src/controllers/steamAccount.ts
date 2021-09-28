@@ -64,8 +64,9 @@ export async function add(options: AddOptions): Promise<void> {
         userId,
         username,
         proxy,
-        authType: error === "AccountLogonDenied" || error === "InvalidLoginAuthCode" ? "email" : "mobile",
+        authType: error === "AccountLogonDenied" || error === "AccountLoginDeniedNeedTwoFactor" ? "email" : "mobile",
       });
+      throw "GuardCodeNeeded";
     }
     throw error;
   }
