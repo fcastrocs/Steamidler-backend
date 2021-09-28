@@ -1,10 +1,10 @@
-import express from "express";
+import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
-const app = express();
 import * as User from "../models/user";
 import * as Invite from "../models/invite";
+const router = Router();
 
-app.post("/login", async (req, res) => {
+router.post("/login", async (req, res) => {
   // user is already logged in
   if (req.session.loggedId) {
     return res.sendStatus(403);
@@ -74,7 +74,7 @@ app.post("/login", async (req, res) => {
   res.redirect(process.env.FRONTEND_URL);
 });
 
-app.post("/logout", async (req, res) => {
+router.post("/logout", async (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("session");
     res.clearCookie("user-data");
@@ -104,4 +104,4 @@ async function verifyToken(credential: string, clientId: string) {
   return payload;
 }
 
-export default app;
+export default router;

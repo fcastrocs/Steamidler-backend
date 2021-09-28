@@ -9,6 +9,7 @@ import { fetchProxies } from "./models/proxy";
 
 import express from "express";
 import userRoutes from "./routes/user";
+import steamAccountRoutes from "./routes/steamaccount";
 import { Db } from "mongodb";
 
 import session from "express-session";
@@ -85,6 +86,7 @@ function appMiddleWare() {
   });
 
   app.use("/user", userRoutes);
+  app.use("/steamaccount", steamAccountRoutes);
 }
 
 async function createCollectionIndexes(db: Db) {

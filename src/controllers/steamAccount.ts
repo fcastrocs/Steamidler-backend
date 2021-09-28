@@ -1,5 +1,5 @@
 import Steam, { LoginOptions } from "ts-steam";
-import * as SteamCommunity from "steamcommunity";
+import SteamCommunity from "steamcommunity";
 import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
@@ -51,15 +51,12 @@ export async function add(options: AddOptions): Promise<void> {
     }
   }
 
-  // attempt login
+  // attempt CM login
   let loginRes: LoginRes;
   try {
     // login
     loginRes = await login(loginOptions, proxy, steamcm);
-    // get inventory
-    loginRes.accountData.items = await getInventory(loginRes, proxy);
-    // get farm data
-    loginRes.accountData.farmData = await getFarmData(loginRes, proxy);
+    console.log("steamcm logged in");
   } catch (error) {
     // Steam is asking for guard code, save this config to reuse when user enters the code
     if (isVerificationError(error)) {
@@ -70,7 +67,20 @@ export async function add(options: AddOptions): Promise<void> {
         authType: error === "AccountLogonDenied" || error === "InvalidLoginAuthCode" ? "email" : "mobile",
       });
     }
+    throw error;
   }
+
+  // attempt steamcommunity login
+  const webNonce = loginRes.accountAuth.webNonce;
+  const steamId = loginRes.accountData.steamId;
+
+  const steamcommunity = new SteamCommunity(steamId, webNonce, proxy, 10000);
+  loginRes.accountAuth.cookie = await steamcommunity.login();
+  console.log("steamcommunity logged in");
+
+  // get inventory and farm data
+  loginRes.accountData.items = await steamcommunity.getCardsInventory();
+  loginRes.accountData.farmData = await steamcommunity.getFarmingData();
 
   const steamAccount: SteamAccount = {
     userId,
@@ -109,7 +119,7 @@ async function login(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM)
   // connect to steam
   const steam = new Steam();
   // connect can throw 'dead proxy or steamcm' or 'encryption failed'
-  await steam.connect(socksOptions);
+  await steam.connect(socksOptions, 10000);
 
   // listen and handle steam events
   // listenToSteamEvents(userId, loginOptions.accountName, steam);
@@ -117,32 +127,11 @@ async function login(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM)
   // attempt cm login
   const res = await steam.login(loginOptions);
 
-  // attempt steamcommunity login
-  const webNonce = res.auth.webNonce;
-  const steamId = res.data.steamId;
-  const cookie = await SteamCommunity.login(steamId, webNonce, proxy);
-
-  const loginRes = {
+  return {
     accountAuth: <ExtendedAccountAuth>res.auth,
     accountData: <ExtendedAccountData>res.data,
     steam,
   };
-
-  loginRes.accountAuth.cookie = cookie;
-
-  return loginRes;
-}
-
-async function getFarmData(loginRes: LoginRes, proxy: Proxy) {
-  const steamId = loginRes.accountData.steamId;
-  const cookie = loginRes.accountAuth.cookie;
-  return await SteamCommunity.getFarmingData(steamId, cookie, proxy);
-}
-
-async function getInventory(loginRes: LoginRes, proxy: Proxy): Promise<SteamCommunity.Item[]> {
-  const steamId = loginRes.accountData.steamId;
-  const cookie = loginRes.accountAuth.cookie;
-  return await SteamCommunity.getCardsInventory(steamId, cookie, proxy);
 }
 
 /**

@@ -20,7 +20,7 @@ interface AddOptions extends Options {
 }
 
 interface ExtendedAccountAuth extends AccountAuth {
-  cookie: Cookie;
+  cookie: string;
 }
 
 interface ExtendedAccountData extends AccountData {

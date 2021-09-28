@@ -1,14 +1,23 @@
-import express, { Request, Response } from "express";
-const app = express();
+import { Router } from "express";
+import * as SteamAccount from "../controllers/steamAccount";
+const router = Router();
 
-app.post("", async (req: Request, res: Response) => {
+router.post("", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
-  if (!username && !password) {
+  if (!username || !password) {
     return res.sendStatus(400);
   }
-  return res.send();
+
+  try {
+    await SteamAccount.add({ userId: req.session.userId, username, password });
+  } catch (error) {
+    const errorStr = normalizeError(error);
+    return res.status(400).send(errorStr);
+  }
+
+  return res.sendStatus(200);
 });
 
 /**
@@ -26,3 +35,5 @@ function normalizeError(error: unknown): string {
 
   return err;
 }
+
+export default router;

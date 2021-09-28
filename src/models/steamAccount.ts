@@ -8,11 +8,10 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
   if (doc) throw "Account already exists.";
-  if (typeof steamAccount.password !== "string") {
-    throw Error("Password must be a string");
-  }
+
   // encrypt sensitive data
-  steamAccount.password = encrypt(steamAccount.password);
+  const password = `${steamAccount.password}`;
+  steamAccount.password = encrypt(password);
   const authString = JSON.stringify(steamAccount.auth);
   steamAccount.auth = encrypt(authString);
   await collection.insertOne(steamAccount);

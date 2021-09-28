@@ -11,9 +11,9 @@ export async function fetchProxies(): Promise<void> {
   try {
     const res = await axios.get(process.env.PROXYSERVICE_URL);
 
-    let proxies = res.data;
+    let proxies = res.data.split(/\r\n/);
     proxies = [...new Set(proxies)];
-
+    
     const documents = [];
 
     for (const item of proxies) {
