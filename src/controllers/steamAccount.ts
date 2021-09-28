@@ -5,6 +5,7 @@ import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
 import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
+import * as AutoLogin from "../models/autoLogin";
 import SteamStore from "./SteamStore";
 // import types
 import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, ExtendedAccountData, Proxy } from "@types";
@@ -156,6 +157,7 @@ async function logout(userId: string, username: string) {
   }
 
   //remove from autologin
+  await AutoLogin.remove(userId, username);
 
   //change necessary steamaccount states
 }

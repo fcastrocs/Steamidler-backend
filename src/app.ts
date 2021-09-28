@@ -97,4 +97,5 @@ async function createCollectionIndexes(db: Db) {
   await db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
   await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
   await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
+  await db.collection("auto-login").createIndex({ userId: 1, username: 1 }, { unique: true });
 }
