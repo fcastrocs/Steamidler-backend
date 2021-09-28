@@ -34,9 +34,6 @@ export async function add(options: AddOptions): Promise<void> {
     password: password,
   };
 
-  let proxy = await ProxyModel.getOne();
-  const steamcm = await SteamcmModel.getOne();
-
   // check if account is waiting for steam guard code
   const steamVerify = await SteamVerifyModel.get(userId, username);
   if (steamVerify) {
@@ -44,9 +41,6 @@ export async function add(options: AddOptions): Promise<void> {
     if (!options.code) {
       throw "Steam guard code is needed.";
     }
-
-    // reuse proxy, otherwise steam will reject login
-    proxy = steamVerify.proxy;
 
     // set code to loginOptions
     if (steamVerify.authType === "email") {
@@ -56,38 +50,10 @@ export async function add(options: AddOptions): Promise<void> {
     }
   }
 
+  const proxy = steamVerify.proxy || (await ProxyModel.getOne());
+
   // attempt CM login
-  let loginRes: LoginRes;
-  try {
-    // login
-    loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
-    console.log("steamcm logged in");
-  } catch (error) {
-    // Steam is asking for guard code
-    if (isVerificationError(error)) {
-      // save this config to reuse when user enters the code
-      SteamVerifyModel.add({
-        userId,
-        username,
-        proxy,
-        authType: error === "AccountLogonDenied" || error === "AccountLoginDeniedNeedTwoFactor" ? "email" : "mobile",
-      });
-      throw "GuardCodeNeeded";
-    }
-    throw error;
-  }
-
-  // attempt steamcommunity login
-  const webNonce = loginRes.accountAuth.webNonce;
-  const steamId = loginRes.accountData.steamId;
-
-  const steamcommunity = new SteamCommunity(steamId, webNonce, proxy, 10000);
-  loginRes.accountAuth.cookie = await steamcommunity.login();
-  console.log("steamcommunity logged in");
-
-  // get inventory and farm data
-  loginRes.accountData.items = await steamcommunity.getCardsInventory();
-  loginRes.accountData.farmData = await steamcommunity.getFarmingData();
+  const loginRes = await fullyLogin(userId, loginOptions, proxy);
 
   const steamAccount: SteamAccount = {
     userId,
@@ -102,7 +68,7 @@ export async function add(options: AddOptions): Promise<void> {
   // save to store
   SteamStore.add(userId, username, loginRes.steam);
   // Save autologin
-  // todo
+  await AutoLogin.add(userId, username);
 
   disconnectListener(steamAccount, loginRes.steam);
 
@@ -123,6 +89,48 @@ async function login(userId: string, username: string) {
   if (!SteamAccount) {
     throw "This Steam account does not exist";
   }
+}
+
+/**
+ * Fully logs in a steam account
+ * Logs in to steamcm, steamcommunity, then gets inventory and farmData
+ */
+async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Proxy): Promise<LoginRes> {
+  const steamcm = await SteamcmModel.getOne();
+  // attempt CM login
+  let loginRes: LoginRes;
+  try {
+    // login
+    loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
+    console.log("steamcm logged in");
+  } catch (error) {
+    // Steam is asking for guard code
+    if (isVerificationError(error)) {
+      // save this config to reuse when user enters the code
+      SteamVerifyModel.add({
+        userId,
+        username: loginOptions.accountName,
+        proxy,
+        authType: error === "AccountLogonDenied" || error === "AccountLoginDeniedNeedTwoFactor" ? "email" : "mobile",
+      });
+      throw "GuardCodeNeeded";
+    }
+    throw error;
+  }
+
+  // attempt steamcommunity login
+  const webNonce = loginRes.accountAuth.webNonce;
+  const steamId = loginRes.accountData.steamId;
+
+  const steamcommunity = new SteamCommunity(steamId, webNonce, proxy, 10000);
+  loginRes.accountAuth.cookie = await steamcommunity.login();
+  console.log("steamcommunity logged in");
+
+  // get inventory and farm data
+  loginRes.accountData.items = await steamcommunity.getCardsInventory();
+  loginRes.accountData.farmData = await steamcommunity.getFarmingData();
+
+  return loginRes;
 }
 
 /**
