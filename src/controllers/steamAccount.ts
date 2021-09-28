@@ -12,6 +12,7 @@ import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, Exten
 
 /**
  * Add new account
+ * @controller
  */
 export async function add(options: AddOptions): Promise<void> {
   const userId = options.userId;
@@ -62,8 +63,9 @@ export async function add(options: AddOptions): Promise<void> {
     loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
     console.log("steamcm logged in");
   } catch (error) {
-    // Steam is asking for guard code, save this config to reuse when user enters the code
+    // Steam is asking for guard code
     if (isVerificationError(error)) {
+      // save this config to reuse when user enters the code
       SteamVerifyModel.add({
         userId,
         username,
@@ -109,7 +111,23 @@ export async function add(options: AddOptions): Promise<void> {
 }
 
 /**
+ * logs in a steam account
+ * @controller
+ */
+async function login(userId: string, username: string) {
+  if (SteamStore.has(userId, username)) {
+    throw "This steam account is already online";
+  }
+
+  const SteamAccount = await SteamAccountModel.get(userId, username);
+  if (!SteamAccount) {
+    throw "This Steam account does not exist";
+  }
+}
+
+/**
  * Logins to steam via cm
+ * @helper
  */
 async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
   // setup socks options
@@ -144,6 +162,10 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
   };
 }
 
+/**
+ * Logs out a steam account
+ * @controller
+ */
 async function logout(userId: string, username: string) {
   if (!(await SteamAccountModel.exists(userId, username))) {
     throw "This Steam account doesn't exists.";
@@ -160,6 +182,7 @@ async function logout(userId: string, username: string) {
   await AutoLogin.remove(userId, username);
 
   //change necessary steamaccount states
+  //stop farming
 }
 
 /**
