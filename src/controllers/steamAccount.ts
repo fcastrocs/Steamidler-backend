@@ -59,7 +59,7 @@ export async function add(options: AddOptions): Promise<void> {
   let loginRes: LoginRes;
   try {
     // login
-    loginRes = await login(loginOptions, proxy, steamcm);
+    loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
     console.log("steamcm logged in");
   } catch (error) {
     // Steam is asking for guard code, save this config to reuse when user enters the code
@@ -109,9 +109,9 @@ export async function add(options: AddOptions): Promise<void> {
 }
 
 /**
- * Logins to steam via cm and web
+ * Logins to steam via cm
  */
-async function login(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
+async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
   // setup socks options
   const socksOptions: SocksClientOptions = {
     proxy: {
