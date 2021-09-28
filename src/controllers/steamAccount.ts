@@ -5,6 +5,7 @@ import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
 import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
+import SteamStore from "./SteamStore";
 // import types
 import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, ExtendedAccountData, Proxy } from "@types";
 
@@ -17,7 +18,9 @@ export async function add(options: AddOptions): Promise<void> {
   const password = options.password;
 
   // check if account is already online.
-  // todo
+  if (SteamStore.has(userId, username)) {
+    throw "This Steam account is already online.";
+  }
 
   if (await SteamAccountModel.exists(userId, username)) {
     throw "This Steam account already exists.";
@@ -93,10 +96,15 @@ export async function add(options: AddOptions): Promise<void> {
 
   // save to db
   await SteamAccountModel.add(steamAccount);
+  // save to store
+  SteamStore.add(userId, username, loginRes.steam);
+  // Save autologin
+  // todo
 
   disconnectListener(steamAccount, loginRes.steam);
 
-  //await afterLoginSteps(userId, accountName, loginRes);
+  //restore states
+  // todo
 }
 
 /**
@@ -135,6 +143,23 @@ async function login(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM)
   };
 }
 
+async function logout(userId: string, username: string) {
+  if (!(await SteamAccountModel.exists(userId, username))) {
+    throw "This Steam account doesn't exists.";
+  }
+
+  // remove from SteamStore
+  const steam = SteamStore.get(userId, username);
+  if (steam) {
+    steam.destroyConnection(true);
+    SteamStore.remove(userId, username);
+  }
+
+  //remove from autologin
+
+  //change necessary steamaccount states
+}
+
 /**
  * @listener
  */
@@ -168,8 +193,8 @@ async function restoreState(steamAccount: SteamAccount) {
 function isVerificationError(error: string): boolean {
   if (
     error === "AccountLogonDenied" || // need email code
-    error === "TwoFactorCodeMismatch" ||
-    error === "AccountLoginDeniedNeedTwoFactor" ||
+    error === "TwoFactorCodeMismatch" || // invalid mobile code ?
+    error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
     error === "InvalidLoginAuthCode" // invalid email code
   ) {
     return true;
