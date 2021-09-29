@@ -27,7 +27,6 @@ export async function add(options: AddOptions): Promise<void> {
   const username = options.username;
   const password = options.password;
 
-  // check if account is already online.
   if (SteamStore.has(userId, username)) {
     throw "This Steam account is already online.";
   }
@@ -62,9 +61,9 @@ export async function add(options: AddOptions): Promise<void> {
 
   // attempt CM login
   const loginRes = await fullyLogin(userId, loginOptions, proxy);
-  // save to store
+  // add to store
   SteamStore.add(userId, username, loginRes.steam);
-  // Save autologin
+  // add autologin
   await AutoLogin.add(userId, username);
 
   // Create account model
@@ -86,10 +85,8 @@ export async function add(options: AddOptions): Promise<void> {
   // save to db
   await SteamAccountModel.add(steamAccount);
 
+  // listen to disconnects
   disconnectListener(steamAccount, loginRes.steam);
-
-  //restore states
-  // todo
 }
 
 /**
@@ -98,16 +95,15 @@ export async function add(options: AddOptions): Promise<void> {
  */
 export async function login(userId: string, username: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
-    throw "This steam account is already online";
+    throw "This steam account is already online.";
   }
 
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw "This Steam account does not exist";
+    throw "This Steam account does not exist.";
   }
 
   // set login options
-  const auth = steamAccount.auth
   const loginOptions: LoginOptions = {
     accountName: username,
     password: <string>steamAccount.password,
@@ -135,8 +131,7 @@ export async function login(userId: string, username: string): Promise<void> {
     // got verification or InvalidPassword error
     if (isVerificationError(error) || error === "InvalidPassword") {
       steamAccount.state.error = error;
-      // need to save error to db
-      // todo
+      await SteamAccountModel.update(steamAccount);
     }
     throw error;
   }
@@ -150,10 +145,11 @@ export async function login(userId: string, username: string): Promise<void> {
   steamAccount.auth = loginRes.accountAuth;
   steamAccount.data = loginRes.accountData;
   steamAccount.state.status = "online";
-  delete steamAccount.state.error
-
+  delete steamAccount.state.error;
+  await SteamAccountModel.update(steamAccount);
 
   // listen to disconnects
+  disconnectListener(steamAccount, loginRes.steam);
 }
 
 /**
@@ -175,7 +171,8 @@ async function logout(userId: string, username: string) {
   await AutoLogin.remove(userId, username);
 
   //change necessary steamaccount states
-  steamAccount.
+  steamAccount.state.status = "offline";
+  await SteamAccountModel.update(steamAccount);
 
   //stop farming
 }

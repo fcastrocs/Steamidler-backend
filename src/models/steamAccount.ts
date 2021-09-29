@@ -7,18 +7,19 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
   if (doc) throw "Account already exists.";
+  const encrypedAccount = encryptSteamAccount(steamAccount);
+  await collection.insertOne(encrypedAccount);
+}
 
-  // encrypt sensitive data
-  const encryptedSteamAccount: SteamAccountEncrypted = {
-    userId: steamAccount.userId,
-    username: steamAccount.password,
-    password: encrypt(steamAccount.password),
-    auth: encrypt(JSON.stringify(steamAccount.auth)),
-    data: steamAccount.data,
-    state: steamAccount.state,
-  };
-
-  await collection.insertOne(encryptedSteamAccount);
+export async function update(steamAccount: SteamAccount): Promise<void> {
+  const collection = (await getClient()).db().collection(collectionName);
+  const encrypedAccount = encryptSteamAccount(steamAccount);
+  await collection.updateOne(
+    { userId: steamAccount.userId, username: steamAccount.username },
+    {
+      $set: encrypedAccount,
+    }
+  );
 }
 
 export async function remove(userId: string, username: string): Promise<void> {
@@ -56,6 +57,18 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
     state: doc.state,
   };
   return steamaccount;
+}
+
+function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted {
+  const encrypedAccount: SteamAccountEncrypted = {
+    userId: steamAccount.userId,
+    username: steamAccount.password,
+    password: encrypt(steamAccount.password),
+    auth: encrypt(JSON.stringify(steamAccount.auth)),
+    data: steamAccount.data,
+    state: steamAccount.state,
+  };
+  return encrypedAccount;
 }
 
 function encrypt(text: string): Encrypted {
