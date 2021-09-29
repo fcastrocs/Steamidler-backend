@@ -62,6 +62,8 @@ interface SteamAccountEncrypted extends Omit<SteamAccount, "password" | "auth"> 
   auth: Encrypted;
 }
 
+type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "password" | "auth">;
+
 // model - steamcm
 
 interface SteamCM {

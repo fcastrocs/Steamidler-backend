@@ -86,7 +86,7 @@ function appMiddleWare() {
   });
 
   app.use("/user", userRoutes);
-  app.use("/steamaccount", steamAccountRoutes);
+  app.use("/", steamAccountRoutes);
 }
 
 async function createCollectionIndexes(db: Db) {

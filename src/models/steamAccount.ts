@@ -1,6 +1,6 @@
 import { getClient } from "../db";
 import crypto from "crypto";
-import { SteamAccount, SteamAccountEncrypted, Encrypted } from "@types";
+import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
@@ -57,6 +57,24 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
     state: doc.state,
   };
   return steamaccount;
+}
+
+export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
+  const collection = (await getClient()).db().collection(collectionName);
+  const cursor = collection.find({ userId });
+  const documents = await cursor.toArray();
+
+  const steamAccounts: SteamAccNonSensitive[] = [];
+
+  for (const doc of documents) {
+    const steamAccount: SteamAccNonSensitive = {
+      username: doc.username,
+      data: doc.data,
+      state: doc.state,
+    };
+    steamAccounts.push(steamAccount);
+  }
+  return steamAccounts;
 }
 
 function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted {
