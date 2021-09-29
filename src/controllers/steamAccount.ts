@@ -150,13 +150,17 @@ export async function login(userId: string, username: string): Promise<void> {
 
   // listen to disconnects
   disconnectListener(steamAccount, loginRes.steam);
+
+  // restore personastate
+  // retore farming...
+  // restore idling games if any
 }
 
 /**
  * Logs out a steam account
  * @controller
  */
-async function logout(userId: string, username: string) {
+export async function logout(userId: string, username: string): Promise<void> {
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
     throw "This Steam account doesn't exists.";
@@ -273,15 +277,6 @@ function disconnectListener(steamAccount: SteamAccount, steam: Steam) {
     // attempt reconnect
     // await attempReconnect(userId, accountName);
   });
-}
-
-/**
- * Restore account state: status, idling and farming
- */
-async function restoreState(steamAccount: SteamAccount) {
-  // restore epersonastate
-  //retore farming...
-  // restore idling games if any
 }
 
 /**
