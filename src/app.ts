@@ -90,7 +90,6 @@ function appMiddleWare() {
 }
 
 async function createCollectionIndexes(db: Db) {
-  await db.collection("steam-accounts").createIndex({ accountName: 1 }, { unique: true });
   await db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("users").createIndex({ userId: 1 }, { unique: true });
