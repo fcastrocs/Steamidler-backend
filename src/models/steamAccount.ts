@@ -80,7 +80,7 @@ export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
 function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted {
   const encrypedAccount: SteamAccountEncrypted = {
     userId: steamAccount.userId,
-    username: steamAccount.password,
+    username: steamAccount.username,
     password: encrypt(steamAccount.password),
     auth: encrypt(JSON.stringify(steamAccount.auth)),
     data: steamAccount.data,

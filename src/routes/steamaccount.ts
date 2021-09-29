@@ -3,7 +3,7 @@ import * as SteamAccount from "../controllers/steamAccount";
 import { getAll } from "../models/steamAccount";
 const router = Router();
 
-router.post("steamaccount/add", async (req, res) => {
+router.post("/steamaccount/add", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
@@ -21,7 +21,7 @@ router.post("steamaccount/add", async (req, res) => {
   return res.sendStatus(200);
 });
 
-router.post("steamaccount/login", async (req, res) => {
+router.post("/steamaccount/login", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
@@ -38,7 +38,7 @@ router.post("steamaccount/login", async (req, res) => {
   return res.sendStatus(200);
 });
 
-router.post("steamaccount/logout", async (req, res) => {
+router.post("/steamaccount/logout", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
@@ -58,7 +58,7 @@ router.post("steamaccount/logout", async (req, res) => {
 /**
  * Returns all steam accounts for this user.
  */
-router.get("steamaccounts", async (req, res) => {
+router.get("/steamaccounts", async (req, res) => {
   const accounts = await getAll(req.session.userId);
   res.send(accounts);
 });
