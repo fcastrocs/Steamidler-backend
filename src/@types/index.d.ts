@@ -1,5 +1,5 @@
-import { Cookie, FarmData, Item } from "steamcommunity";
-import { AccountAuth, AccountData } from "ts-steam";
+import { FarmData, Item } from "steamcommunity";
+import Steam, { AccountAuth, AccountData } from "ts-steam";
 
 declare module "express-session" {
   interface SessionData {
@@ -31,7 +31,7 @@ interface ExtendedAccountData extends AccountData {
 interface LoginRes {
   accountAuth: ExtendedAccountAuth;
   accountData: ExtendedAccountData;
-  steam: import("ts-steam").default;
+  steam: Steam;
 }
 
 // models - steamaccount
@@ -44,9 +44,22 @@ interface Encrypted {
 interface SteamAccount {
   userId: string;
   username: string;
-  password: string | Encrypted;
-  auth: ExtendedAccountAuth | Encrypted;
+  password: string;
+  auth: ExtendedAccountAuth;
   data: ExtendedAccountData;
+  state: {
+    error?: string;
+    isFarming: boolean;
+    status: "online" | "offline";
+    personaState: number;
+    gamesIdling: number[];
+    gamesFarming: number[];
+  };
+}
+
+interface SteamAccountEncrypted extends Omit<SteamAccount, "password" | "auth"> {
+  password: Encrypted;
+  auth: Encrypted;
 }
 
 // model - steamcm

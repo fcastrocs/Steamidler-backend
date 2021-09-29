@@ -1,7 +1,6 @@
-import { Document } from "mongodb";
 import { getClient } from "../db";
 import crypto from "crypto";
-import { SteamAccount, Encrypted } from "@types";
+import { SteamAccount, SteamAccountEncrypted, Encrypted } from "@types";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
@@ -10,11 +9,16 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
   if (doc) throw "Account already exists.";
 
   // encrypt sensitive data
-  const password = `${steamAccount.password}`;
-  steamAccount.password = encrypt(password);
-  const authString = JSON.stringify(steamAccount.auth);
-  steamAccount.auth = encrypt(authString);
-  await collection.insertOne(steamAccount);
+  const encryptedSteamAccount: SteamAccountEncrypted = {
+    userId: steamAccount.userId,
+    username: steamAccount.password,
+    password: encrypt(steamAccount.password),
+    auth: encrypt(JSON.stringify(steamAccount.auth)),
+    data: steamAccount.data,
+    state: steamAccount.state,
+  };
+
+  await collection.insertOne(encryptedSteamAccount);
 }
 
 export async function remove(userId: string, username: string): Promise<void> {
@@ -31,7 +35,7 @@ export async function exists(userId: string, username: string): Promise<boolean>
   return !!doc;
 }
 
-export async function get(userId: string, username: string): Promise<Document> {
+export async function get(userId: string, username: string): Promise<SteamAccount> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
     userId,
@@ -42,7 +46,16 @@ export async function get(userId: string, username: string): Promise<Document> {
   doc.password = decrypt(doc.password);
   // decrypt auth
   doc.auth = JSON.parse(decrypt(doc.auth));
-  return doc;
+
+  const steamaccount: SteamAccount = {
+    userId,
+    username,
+    password: doc.password,
+    auth: doc.auth,
+    data: doc.data,
+    state: doc.state,
+  };
+  return steamaccount;
 }
 
 function encrypt(text: string): Encrypted {

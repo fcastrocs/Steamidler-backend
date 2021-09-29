@@ -10,6 +10,14 @@ import SteamStore from "./SteamStore";
 // import types
 import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, ExtendedAccountData, Proxy } from "@types";
 
+const PersonaState = {
+  Offline: 0,
+  Online: 1,
+  Busy: 2,
+  Away: 3,
+  Snooze: 4,
+};
+
 /**
  * Add new account
  * @controller
@@ -50,25 +58,33 @@ export async function add(options: AddOptions): Promise<void> {
     }
   }
 
-  const proxy = steamVerify.proxy || (await ProxyModel.getOne());
+  const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOne();
 
   // attempt CM login
   const loginRes = await fullyLogin(userId, loginOptions, proxy);
+  // save to store
+  SteamStore.add(userId, username, loginRes.steam);
+  // Save autologin
+  await AutoLogin.add(userId, username);
 
+  // Create account model
   const steamAccount: SteamAccount = {
     userId,
     username,
     password,
     auth: loginRes.accountAuth,
     data: loginRes.accountData,
+    state: {
+      status: "online",
+      personaState: PersonaState.Online,
+      isFarming: false,
+      gamesIdling: [],
+      gamesFarming: [],
+    },
   };
 
   // save to db
   await SteamAccountModel.add(steamAccount);
-  // save to store
-  SteamStore.add(userId, username, loginRes.steam);
-  // Save autologin
-  await AutoLogin.add(userId, username);
 
   disconnectListener(steamAccount, loginRes.steam);
 
@@ -80,20 +96,94 @@ export async function add(options: AddOptions): Promise<void> {
  * logs in a steam account
  * @controller
  */
-async function login(userId: string, username: string) {
+export async function login(userId: string, username: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
     throw "This steam account is already online";
   }
 
-  const SteamAccount = await SteamAccountModel.get(userId, username);
-  if (!SteamAccount) {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
     throw "This Steam account does not exist";
   }
+
+  // set login options
+  const auth = steamAccount.auth
+  const loginOptions: LoginOptions = {
+    accountName: username,
+    password: <string>steamAccount.password,
+    machineName: steamAccount.auth.machineName,
+    loginKey: steamAccount.auth.loginKey,
+    shaSentryfile: Buffer.from(steamAccount.auth.sentry.buffer),
+  };
+
+  // re-obtain sentry and loginKey after a verification or InvalidPassword error
+  if (
+    steamAccount.state.error &&
+    (isVerificationError(steamAccount.state.error) || steamAccount.state.error === "InvalidPassword")
+  ) {
+    delete loginOptions.loginKey;
+    delete loginOptions.shaSentryfile;
+  }
+
+  const proxy = await ProxyModel.getOne();
+
+  // attempt CM login
+  let loginRes: LoginRes;
+  try {
+    loginRes = await fullyLogin(userId, loginOptions, proxy);
+  } catch (error) {
+    // got verification or InvalidPassword error
+    if (isVerificationError(error) || error === "InvalidPassword") {
+      steamAccount.state.error = error;
+      // need to save error to db
+      // todo
+    }
+    throw error;
+  }
+
+  // save to store
+  SteamStore.add(userId, username, loginRes.steam);
+  // Save autologin
+  await AutoLogin.add(userId, username);
+
+  // update steam account
+  steamAccount.auth = loginRes.accountAuth;
+  steamAccount.data = loginRes.accountData;
+  steamAccount.state.status = "online";
+  delete steamAccount.state.error
+
+
+  // listen to disconnects
+}
+
+/**
+ * Logs out a steam account
+ * @controller
+ */
+async function logout(userId: string, username: string) {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account doesn't exists.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (steam) {
+    steam.destroyConnection(true);
+    SteamStore.remove(userId, username);
+  }
+
+  await AutoLogin.remove(userId, username);
+
+  //change necessary steamaccount states
+  steamAccount.
+
+  //stop farming
 }
 
 /**
  * Fully logs in a steam account
  * Logs in to steamcm, steamcommunity, then gets inventory and farmData
+ * Creates a SteamVerify if Steam asks for a code
  */
 async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Proxy): Promise<LoginRes> {
   const steamcm = await SteamcmModel.getOne();
@@ -168,29 +258,6 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
     accountData: <ExtendedAccountData>res.data,
     steam,
   };
-}
-
-/**
- * Logs out a steam account
- * @controller
- */
-async function logout(userId: string, username: string) {
-  if (!(await SteamAccountModel.exists(userId, username))) {
-    throw "This Steam account doesn't exists.";
-  }
-
-  // remove from SteamStore
-  const steam = SteamStore.get(userId, username);
-  if (steam) {
-    steam.destroyConnection(true);
-    SteamStore.remove(userId, username);
-  }
-
-  //remove from autologin
-  await AutoLogin.remove(userId, username);
-
-  //change necessary steamaccount states
-  //stop farming
 }
 
 /**
