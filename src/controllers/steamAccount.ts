@@ -109,7 +109,7 @@ export async function login(userId: string, username: string): Promise<void> {
     password: <string>steamAccount.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
-    shaSentryfile: Buffer.from(steamAccount.auth.sentry.buffer),
+    shaSentryfile: steamAccount.auth.sentry ? Buffer.from(steamAccount.auth.sentry.buffer) : undefined,
   };
 
   // re-obtain sentry and loginKey after a verification or InvalidPassword error

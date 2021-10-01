@@ -5,7 +5,7 @@ const collectionName = "auto-login";
 export async function add(userId: string, username: string): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   if (await exists(userId, username)) {
-    throw `auto-login for ${username} already exits.`;
+    throw Error(`auto-login for ${username} already exits.`);
   }
   await collection.insertOne({ userId, username });
 }

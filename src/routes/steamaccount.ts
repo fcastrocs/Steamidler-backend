@@ -23,9 +23,8 @@ router.post("/steamaccount/add", async (req, res) => {
 
 router.post("/steamaccount/login", async (req, res) => {
   const username = req.body.username;
-  const password = req.body.password;
 
-  if (!username || !password) {
+  if (!username) {
     return res.sendStatus(400);
   }
 
@@ -40,9 +39,8 @@ router.post("/steamaccount/login", async (req, res) => {
 
 router.post("/steamaccount/logout", async (req, res) => {
   const username = req.body.username;
-  const password = req.body.password;
 
-  if (!username || !password) {
+  if (!username) {
     return res.sendStatus(400);
   }
 
@@ -68,9 +66,10 @@ router.get("/steamaccounts", async (req, res) => {
  * @helper
  */
 function normalizeError(error: unknown): string {
+  console.error(error);
+
   let err = "";
   if (typeof error !== "string") {
-    console.error(error);
     err = "An unexpected error occured.";
   } else {
     err = error;
