@@ -52,11 +52,11 @@ export default class SteamStore {
   /**
    * Remove an account from user store
    */
-  static remove(userId: string, username: string): Steam | null {
+  static remove(userId: string, username: string): Steam {
     const accounts = Store.get(userId);
     if (!accounts) return null;
     const steam = accounts.get(username);
     accounts.delete(username);
-    return steam || null;
+    return steam;
   }
 }

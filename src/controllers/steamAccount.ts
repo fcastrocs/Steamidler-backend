@@ -181,6 +181,21 @@ export async function logout(userId: string, username: string): Promise<void> {
   //stop farming
 }
 
+export async function remove(userId: string, username: string): Promise<void> {
+  if (!(await SteamAccountModel.remove(userId, username))) {
+    throw "This Steam account does not exits.";
+  }
+
+  const steam = SteamStore.remove(userId, username);
+  if (steam) {
+    steam.destroyConnection(true);
+    // stop farming
+    // todo
+  }
+
+  await AutoLogin.remove(userId, username);
+}
+
 /**
  * Fully logs in a steam account
  * Logs in to steamcm, steamcommunity, then gets inventory and farmData

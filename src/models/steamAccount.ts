@@ -1,6 +1,7 @@
 import { getClient } from "../db";
 import crypto from "crypto";
 import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
+import { DeleteResult } from "mongodb";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
@@ -22,9 +23,10 @@ export async function update(steamAccount: SteamAccount): Promise<void> {
   );
 }
 
-export async function remove(userId: string, username: string): Promise<void> {
+export async function remove(userId: string, username: string): Promise<boolean> {
   const collection = (await getClient()).db().collection(collectionName);
-  await collection.deleteOne({ userId, username });
+  const deleteResult = await collection.deleteOne({ userId, username });
+  return deleteResult.acknowledged;
 }
 
 export async function exists(userId: string, username: string): Promise<boolean> {

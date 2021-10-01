@@ -62,6 +62,24 @@ router.get("/steamaccounts", async (req, res) => {
 });
 
 /**
+ * Remove a steam account.
+ */
+router.delete("/steamaccount", async (req, res) => {
+  const username = req.body.username;
+
+  if (!username) {
+    return res.sendStatus(400);
+  }
+
+  try {
+    await SteamAccount.remove(req.session.userId, username);
+  } catch (error) {
+    res.sendStatus(400);
+  }
+  return res.send();
+});
+
+/**
  * Make sure not to show user stack trace, normalize error to a string
  * @helper
  */
