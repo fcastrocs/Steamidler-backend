@@ -79,6 +79,7 @@ export async function add(options: AddOptions): Promise<void> {
       isFarming: false,
       gamesIdling: [],
       gamesFarming: [],
+      proxy: proxy,
     },
   };
 
@@ -145,6 +146,7 @@ export async function login(userId: string, username: string): Promise<void> {
   steamAccount.auth = loginRes.accountAuth;
   steamAccount.data = loginRes.accountData;
   steamAccount.state.status = "online";
+  steamAccount.state.proxy = proxy;
   delete steamAccount.state.error;
   await SteamAccountModel.update(steamAccount);
 
@@ -197,6 +199,53 @@ export async function remove(userId: string, username: string): Promise<void> {
 }
 
 /**
+ * Change steam account nickname
+ * @controller
+ */
+export async function changeNick(userId: string, username: string, nick: string): Promise<void> {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account does not exist.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (!steam) {
+    throw "This Steam account is not online";
+  }
+
+  steam.clientChangeStatus({ playerName: nick });
+
+  // update db
+  steamAccount.data.nickname = nick;
+  await SteamAccountModel.update(steamAccount);
+}
+
+/**
+ * Change steam account nickname
+ * @controller
+ */
+export async function changeAvatar(userId: string, username: string, avatar: Express.Multer.File): Promise<void> {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account does not exist.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (!steam) {
+    throw "This Steam account is not online";
+  }
+
+  const steamcommunity = new SteamCommunity(steamAccount.data.steamId, steamAccount.state.proxy, 10000);
+  steamcommunity.cookie = steamAccount.auth.cookie;
+
+  const avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
+
+  // update db
+  steamAccount.data.avatar = avatarUrl;
+  await SteamAccountModel.update(steamAccount);
+}
+
+/**
  * Fully logs in a steam account
  * Logs in to steamcm, steamcommunity, then gets inventory and farmData
  * Creates a SteamVerify if Steam asks for a code
@@ -228,7 +277,7 @@ async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Pro
   const webNonce = loginRes.accountAuth.webNonce;
   const steamId = loginRes.accountData.steamId;
 
-  const steamcommunity = new SteamCommunity(steamId, webNonce, proxy, 10000);
+  const steamcommunity = new SteamCommunity(steamId, proxy, 10000, webNonce);
   loginRes.accountAuth.cookie = await steamcommunity.login();
   console.log("steamcommunity logged in");
 

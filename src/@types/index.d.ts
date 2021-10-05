@@ -54,6 +54,7 @@ interface SteamAccount {
     personaState: number;
     gamesIdling: number[];
     gamesFarming: number[];
+    proxy: Proxy;
   };
 }
 

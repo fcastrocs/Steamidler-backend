@@ -13,7 +13,9 @@
     "@types/cookie-parser": "^1.4.2",
     "@types/express": "^4.17.11",
     "@types/express-session": "^1.17.4",
+    "@types/formidable": "^1.2.4",
     "@types/mongodb": "^4.0.7",
+    "@types/multer": "^1.4.7",
     "@types/node": "^14.17.18",
     "@typescript-eslint/eslint-plugin": "^4.32.0",
     "@typescript-eslint/parser": "^4.32.0",
@@ -30,6 +32,7 @@
     "express-session": "^1.17.2",
     "google-auth-library": "^7.9.2",
     "mongodb": "^4.1.2",
+    "multer": "^1.4.3",
     "steamcommunity": "git+https://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:x-oauth-basic@github.com/fcastrocs/steamcommunity.git",
     "ts-steam": "git+https://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:x-oauth-basic@github.com/fcastrocs/ts-steam.git"
   }
