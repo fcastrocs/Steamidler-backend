@@ -232,7 +232,7 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
 
   const steam = SteamStore.get(userId, username);
   if (!steam) {
-    throw "This Steam account is not online";
+    throw "This Steam account is not online.";
   }
 
   const steamcommunity = new SteamCommunity(steamAccount.data.steamId, steamAccount.state.proxy, 10000);
@@ -243,6 +243,27 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
   // update db
   steamAccount.data.avatar = avatarUrl;
   await SteamAccountModel.update(steamAccount);
+}
+
+/**
+ * Clear aliases
+ * @controller
+ */
+export async function clearAliases(userId: string, username: string): Promise<void> {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account does not exist.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (!steam) {
+    throw "This Steam account is not online.";
+  }
+
+  const steamcommunity = new SteamCommunity(steamAccount.data.steamId, steamAccount.state.proxy, 10000);
+  steamcommunity.cookie = steamAccount.auth.cookie;
+
+  await steamcommunity.clearAliases();
 }
 
 /**

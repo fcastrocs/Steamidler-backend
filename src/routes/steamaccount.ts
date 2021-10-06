@@ -149,8 +149,9 @@ router.post("/steamaccount/clearaliases", async (req, res) => {
   }
 
   try {
-    //
+    await SteamAccount.clearAliases(req.session.userId, username);
   } catch (error) {
+    console.log(error);
     res.sendStatus(400);
   }
   return res.send();
