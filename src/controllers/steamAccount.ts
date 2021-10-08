@@ -202,6 +202,28 @@ export async function remove(userId: string, username: string): Promise<void> {
  * Change steam account nickname
  * @controller
  */
+export async function idleGames(userId: string, username: string, appids: number[]): Promise<void> {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account does not exist.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (!steam) {
+    throw "This Steam account is not online";
+  }
+
+  steam.clientGamesPlayed(appids);
+
+  // update db
+  steamAccount.state.gamesIdling = appids;
+  await SteamAccountModel.update(steamAccount);
+}
+
+/**
+ * Change steam account nickname
+ * @controller
+ */
 export async function changeNick(userId: string, username: string, nick: string): Promise<void> {
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {

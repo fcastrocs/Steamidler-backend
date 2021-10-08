@@ -81,6 +81,34 @@ router.delete("/steamaccount", async (req, res) => {
   return res.send();
 });
 
+router.post("/steamaccount/idlegames", async (req, res) => {
+  const username = req.body.username;
+  const appids = req.body.appIds;
+
+  if (!username || !appids) {
+    return res.status(400).send("username and appids fields required.");
+  }
+
+  if (!Array.isArray(appids)) {
+    return res.status(400).send("appids must be an array.");
+  }
+
+  if (appids.some((i) => !Number.isInteger(i))) {
+    return res.status(400).send("appids must be an integer array.");
+  }
+
+  if (appids.length > 32) {
+    return res.status(400).send("Only 32 games are allowed per game.");
+  }
+
+  try {
+    await SteamAccount.idleGames(req.session.userId, username, appids);
+  } catch (error) {
+    return res.status(400).send(error);
+  }
+  return res.send();
+});
+
 router.post("/steamaccount/changeavatar", upload.single("avatar"), async (req, res) => {
   const body = JSON.parse(JSON.stringify(req.body)); //multer is trash.
   const username = body.username;
