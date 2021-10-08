@@ -128,15 +128,17 @@ router.post("/steamaccount/changenick", async (req, res) => {
 
 router.post("/steamaccount/changeprivacy", async (req, res) => {
   const username = req.body.username;
+  const settings = req.body.settings;
 
-  if (!username) {
-    return res.sendStatus(400);
+  if (!username || !settings) {
+    return res.status(400).send("username and settings fields required.");
   }
 
   try {
-    //
+    await SteamAccount.changePrivacy(req.session.userId, username, settings);
   } catch (error) {
-    res.sendStatus(400);
+    console.log(error);
+    return res.status(400).send(error);
   }
   return res.send();
 });

@@ -29,10 +29,10 @@ const port = 8000;
   await createCollectionIndexes(db);
 
   console.log("Fetching proxies...");
-  await fetchProxies();
+  //await fetchProxies();
 
   console.log("Fetchings steamcms...");
-  await fetchSteamCms();
+  //await fetchSteamCms();
 
   console.log("Applying app middleware...");
   appMiddleWare();

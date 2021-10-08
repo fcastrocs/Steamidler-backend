@@ -1,5 +1,5 @@
 import Steam, { LoginOptions } from "ts-steam";
-import SteamCommunity from "steamcommunity";
+import SteamCommunity, { PrivacySettings } from "steamcommunity";
 import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
@@ -264,6 +264,27 @@ export async function clearAliases(userId: string, username: string): Promise<vo
   steamcommunity.cookie = steamAccount.auth.cookie;
 
   await steamcommunity.clearAliases();
+}
+
+/**
+ * Clear aliases
+ * @controller
+ */
+export async function changePrivacy(userId: string, username: string, settings: PrivacySettings): Promise<void> {
+  const steamAccount = await SteamAccountModel.get(userId, username);
+  if (!steamAccount) {
+    throw "This Steam account does not exist.";
+  }
+
+  const steam = SteamStore.get(userId, username);
+  if (!steam) {
+    throw "This Steam account is not online.";
+  }
+
+  const steamcommunity = new SteamCommunity(steamAccount.data.steamId, steamAccount.state.proxy, 10000);
+  steamcommunity.cookie = steamAccount.auth.cookie;
+
+  await steamcommunity.changePrivacy(settings);
 }
 
 /**
