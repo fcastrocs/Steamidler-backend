@@ -9,7 +9,8 @@ import { fetchProxies } from "./models/proxy";
 
 import express from "express";
 import userRoutes from "./routes/user";
-import steamAccountRoutes from "./routes/steamaccount";
+import SteamAccount from "./routes/SteamAccount";
+import SteamAccountAction from "./routes/SteamAccountAction";
 import { Db } from "mongodb";
 
 import session from "express-session";
@@ -85,7 +86,8 @@ function appMiddleWare() {
   });
 
   app.use("/user", userRoutes);
-  app.use("/", steamAccountRoutes);
+  app.use("/", SteamAccount);
+  app.use("/", SteamAccountAction);
 }
 
 async function createCollectionIndexes(db: Db) {
