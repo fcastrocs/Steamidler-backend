@@ -83,7 +83,7 @@ router.delete("/steamaccount", async (req, res) => {
 
 router.post("/steamaccount/idlegames", async (req, res) => {
   const username = req.body.username;
-  const appids = req.body.appIds;
+  const appids = req.body.appids;
 
   if (!username || !appids) {
     return res.status(400).send("username and appids fields required.");

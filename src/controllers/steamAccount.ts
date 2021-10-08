@@ -210,7 +210,7 @@ export async function idleGames(userId: string, username: string, appids: number
 
   const steam = SteamStore.get(userId, username);
   if (!steam) {
-    throw "This Steam account is not online";
+    throw "This Steam account is not online.";
   }
 
   steam.clientGamesPlayed(appids);
