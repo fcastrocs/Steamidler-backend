@@ -1,5 +1,5 @@
 import { FarmData, Item } from "steamcommunity";
-import Steam, { AccountAuth, AccountData } from "ts-steam";
+import Steam, { AccountAuth, AccountData, PersonaState } from "ts-steam";
 
 declare module "express-session" {
   interface SessionData {
@@ -50,8 +50,8 @@ interface SteamAccount {
   state: {
     error?: string;
     isFarming: boolean;
-    status: "online" | "offline";
-    personaState: number;
+    status: "online" | "offline" | "reconnecting";
+    personaState: PersonaState;
     gamesIdling: number[];
     gamesFarming: number[];
     proxy: Proxy;

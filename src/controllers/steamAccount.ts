@@ -1,4 +1,4 @@
-import Steam, { LoginOptions } from "ts-steam";
+import Steam, { LoginOptions, PersonaState } from "ts-steam";
 import SteamCommunity from "steamcommunity";
 import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount";
@@ -7,6 +7,7 @@ import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
 import * as AutoLogin from "../models/autoLogin";
 import SteamStore from "./SteamStore";
+import retry from "retry";
 import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, ExtendedAccountData, Proxy } from "@types";
 const ONLINE = "This Steam account is already online.";
 const EXIST = "This Steam account already exists.";
@@ -76,7 +77,7 @@ export async function add(options: AddOptions): Promise<void> {
     data: loginRes.accountData,
     state: {
       status: "online",
-      personaState: PERSONASTATE.Online,
+      personaState: PERSONASTATE.Online as PersonaState,
       isFarming: false,
       gamesIdling: [],
       gamesFarming: [],
@@ -108,13 +109,14 @@ export async function login(userId: string, username: string): Promise<void> {
   // set login options
   const loginOptions: LoginOptions = {
     accountName: username,
-    password: <string>steamAccount.password,
+    password: steamAccount.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
     shaSentryfile: steamAccount.auth.sentry ? Buffer.from(steamAccount.auth.sentry.buffer) : undefined,
   };
 
-  // re-obtain sentry and loginKey after a verification or InvalidPassword error
+  // previous login attempt failed due to 'InvalidPassword" or verification error
+  // don't pass loginKey or sentry
   if (
     steamAccount.state.error &&
     (isVerificationError(steamAccount.state.error) || steamAccount.state.error === "InvalidPassword")
@@ -151,12 +153,28 @@ export async function login(userId: string, username: string): Promise<void> {
   delete steamAccount.state.error;
   await SteamAccountModel.update(steamAccount);
 
+  await restoreAccountState(loginRes.steam, steamAccount);
+
   // listen to disconnects
   accountDisconnectListener(userId, username, loginRes.steam);
+}
 
-  // restore personastate
-  // retore farming...
-  // restore idling games if any
+/**
+ * Restore accounts personastate, farming, and idling after login
+ * @helper
+ */
+async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Promise<void> {
+  steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
+
+  if (steamAccount.state.isFarming) {
+    // restore farming
+    return;
+  }
+
+  // restore idling
+  if (steamAccount.state.gamesIdling.length) {
+    steam.clientGamesPlayed(steamAccount.state.gamesIdling);
+  }
 }
 
 /**
@@ -208,6 +226,7 @@ export async function remove(userId: string, username: string): Promise<void> {
  * Fully logs in a steam account
  * Logs in to steamcm, steamcommunity, then gets inventory and farmData
  * Creates a SteamVerify if Steam asks for a code
+ * @helper
  */
 async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Proxy): Promise<LoginRes> {
   const steamcm = await SteamcmModel.getOne();
@@ -236,7 +255,7 @@ async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Pro
   const webNonce = loginRes.accountAuth.webNonce;
   const steamId = loginRes.accountData.steamId;
 
-  const steamcommunity = new SteamCommunity(steamId, proxy, 10000, webNonce);
+  const steamcommunity = new SteamCommunity(steamId, proxy, Number(process.env.SOCKET_TIMEOUT), webNonce);
   loginRes.accountAuth.cookie = await steamcommunity.login();
   console.log("steamcommunity logged in");
 
@@ -269,7 +288,7 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
   // connect to steam
   const steam = new Steam();
   // connect can throw 'dead proxy or steamcm' or 'encryption failed'
-  await steam.connect(socksOptions, 10000);
+  await steam.connect(socksOptions, Number(process.env.SOCKET_TIMEOUT));
 
   // listen and handle steam events
   // listenToSteamEvents(userId, loginOptions.accountName, steam);
@@ -296,8 +315,32 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
     // stop farming interval if exists
     //stopFarmingInterval(userId, accountName);
 
-    // attempt reconnect
-    // await attempReconnect(userId, accountName);
+    const operation = retry.operation({
+      retries: 3,
+      minTimeout: 1500,
+    });
+
+    // set state.status to 'reconnecting'
+    const account = await SteamAccountModel.get(userId, username);
+    account.state.status = "reconnecting";
+    await SteamAccountModel.update(account);
+
+    // attemp login
+    operation.attempt(async () => {
+      try {
+        await login(userId, username);
+      } catch (error) {
+        if (operation.retry(error)) {
+          return;
+        }
+
+        // login failed, set status to offline.
+        // set state.status to 'reconnecting'
+        const account = await SteamAccountModel.get(userId, username);
+        account.state.status = "offline";
+        await SteamAccountModel.update(account);
+      }
+    });
   });
 }
 
@@ -305,13 +348,10 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
  * @helper
  */
 function isVerificationError(error: string): boolean {
-  if (
+  return (
     error === "AccountLogonDenied" || // need email code
-    error === "TwoFactorCodeMismatch" || // invalid mobile code ?
+    error === "TwoFactorCodeMismatch" || // invalid mobile code
     error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
     error === "InvalidLoginAuthCode" // invalid email code
-  ) {
-    return true;
-  }
-  return false;
+  );
 }

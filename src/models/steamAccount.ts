@@ -1,7 +1,6 @@
 import { getClient } from "../db";
 import crypto from "crypto";
 import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
-import { DeleteResult } from "mongodb";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
