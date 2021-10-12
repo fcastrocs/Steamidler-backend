@@ -8,13 +8,14 @@ const ROUTE = "/steamaccount/";
 router.post(ROUTE + "add", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
+  const code = req.body.code;
 
   if (!username || !password) {
     return res.sendStatus(400);
   }
 
   try {
-    await SteamAccount.add({ userId: req.session.userId, username, password });
+    await SteamAccount.add(req.session.userId, username, password, code);
   } catch (error) {
     const errorStr = normalizeError(error);
     return res.status(400).send(errorStr);

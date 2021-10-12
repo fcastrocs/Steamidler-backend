@@ -64,7 +64,12 @@ export async function clearAliases(userId: string, username: string): Promise<vo
  */
 export async function changePrivacy(userId: string, username: string, settings: PrivacySettings): Promise<void> {
   const res = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(res.steamAccount.data.steamId, res.steamAccount.state.proxy, 10000);
+  const proxy = res.steamAccount.state.proxy;
+  const steamcommunity = new SteamCommunity(
+    res.steamAccount.data.steamId,
+    { host: proxy.ip, port: proxy.port, type: 5, userId: process.env.PROXY_USER, password: process.env.PROXY_PASS },
+    10000
+  );
   steamcommunity.cookie = res.steamAccount.auth.cookie;
   await steamcommunity.changePrivacy(settings);
 }

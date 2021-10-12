@@ -5,10 +5,17 @@ import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
 import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
-import * as AutoLogin from "../models/autoLogin";
 import SteamStore from "./SteamStore";
 import retry from "retry";
-import { AddOptions, LoginRes, SteamAccount, SteamCM, ExtendedAccountAuth, ExtendedAccountData, Proxy } from "@types";
+import {
+  LoginRes,
+  SteamAccount,
+  SteamCM,
+  ExtendedAccountAuth,
+  ExtendedAccountData,
+  Proxy,
+  ExtendedLoginRes,
+} from "@types";
 const ONLINE = "This Steam account is already online.";
 const EXIST = "This Steam account already exists.";
 const NOTEXIST = "This Steam account does not exist.";
@@ -24,11 +31,7 @@ const PERSONASTATE = {
  * Add new account
  * @controller
  */
-export async function add(options: AddOptions): Promise<void> {
-  const userId = options.userId;
-  const username = options.username;
-  const password = options.password;
-
+export async function add(userId: string, username: string, password: string, code?: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
     throw ONLINE;
   }
@@ -47,34 +50,51 @@ export async function add(options: AddOptions): Promise<void> {
   const steamVerify = await SteamVerifyModel.get(userId, username);
   if (steamVerify) {
     // steam guard code was not provided
-    if (!options.code) {
+    if (!code) {
       throw "Steam guard code is needed.";
     }
 
     // set code to loginOptions
     if (steamVerify.authType === "email") {
-      loginOptions.authCode = options.code;
+      loginOptions.authCode = code;
     } else {
-      loginOptions.twoFactorCode = options.code;
+      loginOptions.twoFactorCode = code;
     }
   }
 
   const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOne();
 
-  // attempt CM login
-  const loginRes = await fullyLogin(userId, loginOptions, proxy);
+  // attempt login
+  let loginRes: ExtendedLoginRes;
+  try {
+    loginRes = await fullyLogin(loginOptions, proxy);
+  } catch (error) {
+    // Steam is asking for guard code
+    if (isVerificationError(error)) {
+      // save this config to reuse when user enters the code
+      SteamVerifyModel.add({
+        userId,
+        username: loginOptions.accountName,
+        proxy,
+        authType: error === "AccountLogonDenied" ? "email" : "mobile",
+      });
+      throw "GuardCodeNeeded";
+    }
+    throw error;
+  }
+
+  // remove steam-verify
+  await SteamVerifyModel.remove(userId, username);
   // add to store
   SteamStore.add(userId, username, loginRes.steam);
-  // add autologin
-  await AutoLogin.add(userId, username);
 
   // Create account model
   const steamAccount: SteamAccount = {
     userId,
     username,
     password,
-    auth: loginRes.accountAuth,
-    data: loginRes.accountData,
+    auth: loginRes.auth,
+    data: loginRes.data,
     state: {
       status: "online",
       personaState: PERSONASTATE.Online as PersonaState,
@@ -87,6 +107,8 @@ export async function add(options: AddOptions): Promise<void> {
 
   // save to db
   await SteamAccountModel.add(steamAccount);
+  // update proxy load
+  await ProxyModel.updateLoad(proxy);
 
   // listen to disconnects
   accountDisconnectListener(userId, username, loginRes.steam);
@@ -112,25 +134,30 @@ export async function login(userId: string, username: string): Promise<void> {
     password: steamAccount.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
-    shaSentryfile: steamAccount.auth.sentry ? Buffer.from(steamAccount.auth.sentry.buffer) : undefined,
+    shaSentryfile: steamAccount.auth.sentry as Buffer,
   };
 
-  // previous login attempt failed due to 'InvalidPassword" or verification error
-  // don't pass loginKey or sentry
+  // have to use password instead of loginKey when account has these error states
   if (
     steamAccount.state.error &&
     (isVerificationError(steamAccount.state.error) || steamAccount.state.error === "InvalidPassword")
   ) {
     delete loginOptions.loginKey;
-    delete loginOptions.shaSentryfile;
   }
 
-  const proxy = await ProxyModel.getOne();
+  // don't use password if loginKey is present
+  if (loginOptions.loginKey) {
+    delete loginOptions.password;
+  }
+
+  console.log(loginOptions);
+
+  const proxy = steamAccount.state.proxy;
 
   // attempt CM login
-  let loginRes: LoginRes;
+  let loginRes: ExtendedLoginRes;
   try {
-    loginRes = await fullyLogin(userId, loginOptions, proxy);
+    loginRes = await fullyLogin(loginOptions, proxy);
   } catch (error) {
     // got verification or InvalidPassword error
     if (isVerificationError(error) || error === "InvalidPassword") {
@@ -142,12 +169,10 @@ export async function login(userId: string, username: string): Promise<void> {
 
   // save to store
   SteamStore.add(userId, username, loginRes.steam);
-  // Save autologin
-  await AutoLogin.add(userId, username);
 
   // update steam account
-  steamAccount.auth = loginRes.accountAuth;
-  steamAccount.data = loginRes.accountData;
+  steamAccount.auth = loginRes.auth;
+  steamAccount.data = loginRes.data;
   steamAccount.state.status = "online";
   steamAccount.state.proxy = proxy;
   delete steamAccount.state.error;
@@ -193,8 +218,6 @@ export async function logout(userId: string, username: string): Promise<void> {
     SteamStore.remove(userId, username);
   }
 
-  await AutoLogin.remove(userId, username);
-
   //change necessary steamaccount states
   steamAccount.state.status = "offline";
   await SteamAccountModel.update(steamAccount);
@@ -218,8 +241,6 @@ export async function remove(userId: string, username: string): Promise<void> {
     // stop farming
     // todo
   }
-
-  await AutoLogin.remove(userId, username);
 }
 
 /**
@@ -228,42 +249,36 @@ export async function remove(userId: string, username: string): Promise<void> {
  * Creates a SteamVerify if Steam asks for a code
  * @helper
  */
-async function fullyLogin(userId: string, loginOptions: LoginOptions, proxy: Proxy): Promise<LoginRes> {
+async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<ExtendedLoginRes> {
   const steamcm = await SteamcmModel.getOne();
   // attempt CM login
-  let loginRes: LoginRes;
-  try {
-    // login
-    loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
-    console.log("steamcm logged in");
-  } catch (error) {
-    // Steam is asking for guard code
-    if (isVerificationError(error)) {
-      // save this config to reuse when user enters the code
-      SteamVerifyModel.add({
-        userId,
-        username: loginOptions.accountName,
-        proxy,
-        authType: error === "AccountLogonDenied" || error === "AccountLoginDeniedNeedTwoFactor" ? "email" : "mobile",
-      });
-      throw "GuardCodeNeeded";
-    }
-    throw error;
-  }
+  const loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
+  console.log("steamcm logged in");
 
   // attempt steamcommunity login
-  const webNonce = loginRes.accountAuth.webNonce;
-  const steamId = loginRes.accountData.steamId;
+  const webNonce = loginRes.auth.webNonce;
+  const steamId = loginRes.data.steamId;
 
-  const steamcommunity = new SteamCommunity(steamId, proxy, Number(process.env.SOCKET_TIMEOUT), webNonce);
-  loginRes.accountAuth.cookie = await steamcommunity.login();
+  const steamcommunity = new SteamCommunity(
+    steamId,
+    { host: proxy.ip, port: proxy.port, type: 5, userId: process.env.PROXY_USER, password: process.env.PROXY_PASS },
+    Number(process.env.SOCKET_TIMEOUT),
+    webNonce
+  );
+  const cookie = await steamcommunity.login();
   console.log("steamcommunity logged in");
 
   // get inventory and farm data
-  loginRes.accountData.items = await steamcommunity.getCardsInventory();
-  loginRes.accountData.farmData = await steamcommunity.getFarmingData();
+  const items = await steamcommunity.getCardsInventory();
+  const farmData = await steamcommunity.getFarmingData();
 
-  return loginRes;
+  const auth = loginRes.auth as ExtendedAccountAuth;
+  auth.cookie = cookie;
+  const data = loginRes.data as ExtendedAccountData;
+  data.items = items;
+  data.farmData = farmData;
+
+  return { auth, data, steam: loginRes.steam };
 }
 
 /**
@@ -277,6 +292,8 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
       host: proxy.ip,
       port: proxy.port,
       type: 5,
+      userId: process.env.PROXY_USER,
+      password: process.env.PROXY_PASS,
     },
     destination: {
       host: steamcm.ip,
@@ -290,15 +307,12 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
   // connect can throw 'dead proxy or steamcm' or 'encryption failed'
   await steam.connect(socksOptions, Number(process.env.SOCKET_TIMEOUT));
 
-  // listen and handle steam events
-  // listenToSteamEvents(userId, loginOptions.accountName, steam);
-
   // attempt cm login
   const res = await steam.login(loginOptions);
 
   return {
-    accountAuth: <ExtendedAccountAuth>res.auth,
-    accountData: <ExtendedAccountData>res.data,
+    auth: res.auth,
+    data: res.data,
     steam,
   };
 }
@@ -307,8 +321,9 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
  * @listener
  */
 function accountDisconnectListener(userId: string, username: string, steam: Steam) {
-  steam.on("disconnected", async () => {
-    console.log(`STEAM ACCOUNT DISCONNECTED: ${username}`);
+  steam.on("disconnected", async (err: Error) => {
+    console.log(`DISCONNECTED: ${username}`);
+    console.log(err);
     // remove from online accounts
     SteamStore.remove(userId, username);
 
@@ -316,8 +331,8 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
     //stopFarmingInterval(userId, accountName);
 
     const operation = retry.operation({
-      retries: 3,
-      minTimeout: 1500,
+      retries: 5,
+      minTimeout: 10000,
     });
 
     // set state.status to 'reconnecting'
@@ -327,9 +342,11 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
 
     // attemp login
     operation.attempt(async () => {
+      console.log(` Attempting reconnect: ${username}`);
       try {
         await login(userId, username);
       } catch (error) {
+        console.log(error);
         if (operation.retry(error)) {
           return;
         }

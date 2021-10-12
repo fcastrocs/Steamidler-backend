@@ -1,6 +1,9 @@
-import axios from "axios";
 import { getClient } from "../db";
 import { Proxy } from "@types";
+
+interface ProxyModel extends Proxy {
+  load: number;
+}
 
 /**
  * Fetches proxies from proxies provider
@@ -9,18 +12,15 @@ export async function fetchProxies(): Promise<void> {
   const collection = (await getClient()).db().collection("proxies");
 
   try {
-    const res = await axios.get(process.env.PROXYSERVICE_URL);
-
-    let proxies = res.data.split(/\r\n/);
-    proxies = [...new Set(proxies)];
-    
     const documents = [];
+
+    const proxies = ["proxies array"];
 
     for (const item of proxies) {
       const split = item.split(":");
       const ip = split[0];
       const port = Number(split[1]);
-      const proxy: Proxy = { ip, port };
+      const proxy: ProxyModel = { ip, port, load: 0 };
       documents.push(proxy);
     }
 
@@ -33,19 +33,27 @@ export async function fetchProxies(): Promise<void> {
 }
 
 /**
- * @returns random proxy
+ * increases load value by one
+ */
+export async function updateLoad(proxy: Proxy): Promise<void> {
+  const collection = (await getClient()).db().collection("proxies");
+  await collection.updateOne(proxy, { $inc: { load: 1 } });
+}
+
+/**
+ * @returns random proxy with less than process.env.PROXYLOAD
  */
 export async function getOne(): Promise<Proxy> {
   const collection = (await getClient()).db().collection("proxies");
-  const cursor = collection.aggregate([{ $sample: { size: 1 } }]);
+  const cursor = collection.aggregate([
+    { $match: { load: { $lt: Number(process.env.PROXYLOAD) } } },
+    { $sample: { size: 1 } },
+  ]);
   const document = await cursor.next();
-
   if (document == null) throw "Could fetch a proxy from db.";
-
   const proxy: Proxy = {
     ip: document.ip,
     port: document.port,
   };
-
   return proxy;
 }

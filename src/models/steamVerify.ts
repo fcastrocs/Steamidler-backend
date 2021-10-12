@@ -6,7 +6,7 @@ const collectionName = "steam-verify";
 export async function add(steamVerify: SteamVerify): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   if (await exists(steamVerify.userId, steamVerify.username)) {
-    throw `Steam-verify for ${steamVerify.username} already exits.`;
+    return;
   }
   await collection.insertOne(steamVerify);
 }
@@ -19,6 +19,11 @@ export async function get(userId: string, username: string): Promise<Document> {
   });
   if (!doc) return null;
   return doc;
+}
+
+export async function remove(userId: string, username: string): Promise<void> {
+  const collection = (await getClient()).db().collection(collectionName);
+  await collection.deleteOne({ userId, username });
 }
 
 async function exists(userId: string, username: string): Promise<boolean> {

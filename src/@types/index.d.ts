@@ -13,14 +13,9 @@ interface Options {
   userId: string;
 }
 
-interface AddOptions extends Options {
-  username: string;
-  password: string;
-  code?: string;
-}
-
-interface ExtendedAccountAuth extends AccountAuth {
+interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
   cookie: string;
+  sentry: Buffer | string;
 }
 
 interface ExtendedAccountData extends AccountData {
@@ -29,8 +24,14 @@ interface ExtendedAccountData extends AccountData {
 }
 
 interface LoginRes {
-  accountAuth: ExtendedAccountAuth;
-  accountData: ExtendedAccountData;
+  auth: AccountAuth;
+  data: AccountData;
+  steam: Steam;
+}
+
+interface ExtendedLoginRes {
+  auth: ExtendedAccountAuth;
+  data: ExtendedAccountData;
   steam: Steam;
 }
 
