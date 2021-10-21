@@ -11,11 +11,12 @@ import express from "express";
 import userRoutes from "./routes/user";
 import SteamAccount from "./routes/SteamAccount";
 import SteamAccountAction from "./routes/SteamAccountAction";
-import { Db } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 
 import session from "express-session";
 import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
+import rateLimiter from "@machiavelli/express-rate-limiter";
 
 const app = express();
 const port = 8000;
@@ -36,7 +37,7 @@ const port = 8000;
   //await fetchSteamCms();
 
   console.log("Applying app middleware...");
-  appMiddleWare();
+  appMiddleWare(client);
 
   console.log("Starting HTTP server...");
   const res = await startExpress();
@@ -51,11 +52,10 @@ function startExpress() {
   });
 }
 
-function appMiddleWare() {
+function appMiddleWare(client: MongoClient) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: 1048576 })); //1024 kb
   app.use(cookieParser(process.env.SESSION_SECRET, {}));
-
   // sessions
   app.use(
     session({
@@ -85,6 +85,8 @@ function appMiddleWare() {
     return res.sendStatus(401);
   });
 
+  app.use(rateLimiter({ client, excludePaths: ["/steamaccounts"], expireAfterSeconds: 5 * 60 }));
+
   app.use("/user", userRoutes);
   app.use("/", SteamAccount);
   app.use("/", SteamAccountAction);
@@ -98,5 +100,4 @@ async function createCollectionIndexes(db: Db) {
   await db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
   await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
   await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("auto-login").createIndex({ userId: 1, username: 1 }, { unique: true });
 }

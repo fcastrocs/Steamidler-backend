@@ -1,12 +1,13 @@
 import Steam, { LoginOptions, PersonaState } from "ts-steam";
-import SteamCommunity from "steamcommunity";
+import SteamCommunity from "steamcommunity-api";
 import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount";
 import * as ProxyModel from "../models/proxy";
 import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
 import SteamStore from "./SteamStore";
-import retry from "retry";
+import retry from "@machiavelli/retry";
+
 import {
   LoginRes,
   SteamAccount,
@@ -137,20 +138,12 @@ export async function login(userId: string, username: string): Promise<void> {
     shaSentryfile: steamAccount.auth.sentry as Buffer,
   };
 
-  // have to use password instead of loginKey when account has these error states
-  if (
-    steamAccount.state.error &&
-    (isVerificationError(steamAccount.state.error) || steamAccount.state.error === "InvalidPassword")
-  ) {
+  // have to use password instead of loginKey after auth error
+  if (isAuthError(steamAccount.state.error)) {
     delete loginOptions.loginKey;
-  }
-
-  // don't use password if loginKey is present
-  if (loginOptions.loginKey) {
+  } else {
     delete loginOptions.password;
   }
-
-  console.log(loginOptions);
 
   const proxy = steamAccount.state.proxy;
 
@@ -159,10 +152,9 @@ export async function login(userId: string, username: string): Promise<void> {
   try {
     loginRes = await fullyLogin(loginOptions, proxy);
   } catch (error) {
-    // got verification or InvalidPassword error
-    if (isVerificationError(error) || error === "InvalidPassword") {
-      steamAccount.state.error = error;
-      await SteamAccountModel.update(steamAccount);
+    if (isAuthError(error)) {
+      // set error
+      await SteamAccountModel.updateField(userId, username, { "state.error": error });
     }
     throw error;
   }
@@ -182,24 +174,6 @@ export async function login(userId: string, username: string): Promise<void> {
 
   // listen to disconnects
   accountDisconnectListener(userId, username, loginRes.steam);
-}
-
-/**
- * Restore accounts personastate, farming, and idling after login
- * @helper
- */
-async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Promise<void> {
-  steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
-
-  if (steamAccount.state.isFarming) {
-    // restore farming
-    return;
-  }
-
-  // restore idling
-  if (steamAccount.state.gamesIdling.length) {
-    steam.clientGamesPlayed(steamAccount.state.gamesIdling);
-  }
 }
 
 /**
@@ -253,7 +227,6 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
   const steamcm = await SteamcmModel.getOne();
   // attempt CM login
   const loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
-  console.log("steamcm logged in");
 
   // attempt steamcommunity login
   const webNonce = loginRes.auth.webNonce;
@@ -266,7 +239,6 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
     webNonce
   );
   const cookie = await steamcommunity.login();
-  console.log("steamcommunity logged in");
 
   // get inventory and farm data
   const items = await steamcommunity.getCardsInventory();
@@ -278,6 +250,7 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
   data.items = items;
   data.farmData = farmData;
 
+  console.log(`CONNECTED: ${loginOptions.accountName}`);
   return { auth, data, steam: loginRes.steam };
 }
 
@@ -318,52 +291,72 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
 }
 
 /**
+ * Restore accounts personastate, farming, and idling after login
+ * @helper
+ */
+async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Promise<void> {
+  steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
+
+  if (steamAccount.state.isFarming) {
+    // restore farming
+    return;
+  }
+
+  // restore idling
+  if (steamAccount.state.gamesIdling.length) {
+    steam.clientGamesPlayed(steamAccount.state.gamesIdling);
+  }
+}
+
+/**
  * @listener
  */
 function accountDisconnectListener(userId: string, username: string, steam: Steam) {
-  steam.on("disconnected", async (err: Error) => {
+  steam.on("disconnected", async (err) => {
     console.log(`DISCONNECTED: ${username}`);
-    console.log(err);
+    console.log(`\t error: ${err.syscall} ${err.code}`);
+    
     // remove from online accounts
     SteamStore.remove(userId, username);
 
     // stop farming interval if exists
     //stopFarmingInterval(userId, accountName);
 
-    const operation = retry.operation({
-      retries: 5,
-      minTimeout: 10000,
-    });
-
     // set state.status to 'reconnecting'
-    const account = await SteamAccountModel.get(userId, username);
-    account.state.status = "reconnecting";
-    await SteamAccountModel.update(account);
+    await SteamAccountModel.updateField(userId, username, { "state.status": "reconnecting" });
 
-    // attemp login
-    operation.attempt(async () => {
-      console.log(` Attempting reconnect: ${username}`);
+    const operation = new retry({ retries: 10, interval: 5000 });
+
+    // attempt login
+    operation.attempt(async (currentAttempt: number) => {
+      console.log(`Attempting reconnect #${currentAttempt}: ${username}`);
+
       try {
         await login(userId, username);
       } catch (error) {
-        console.log(error);
-        if (operation.retry(error)) {
+        console.log(`Reconnect attempt #${currentAttempt} failed: ${username} - error: ${error}`);
+
+        if (currentAttempt > 1) {
+          // got auth error after first try, stop trying to reconnect.
+          if (isAuthError(error)) {
+            return;
+          }
+        }
+
+        // retry operation
+        if (operation.retry()) {
           return;
         }
 
-        // login failed, set status to offline.
-        // set state.status to 'reconnecting'
-        const account = await SteamAccountModel.get(userId, username);
-        account.state.status = "offline";
-        await SteamAccountModel.update(account);
+        console.log(error);
+
+        // reconnect failed, set status to offline
+        await SteamAccountModel.updateField(userId, username, { "state.status": "offline" });
       }
     });
   });
 }
 
-/**
- * @helper
- */
 function isVerificationError(error: string): boolean {
   return (
     error === "AccountLogonDenied" || // need email code
@@ -371,4 +364,8 @@ function isVerificationError(error: string): boolean {
     error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
     error === "InvalidLoginAuthCode" // invalid email code
   );
+}
+
+function isAuthError(error: string): boolean {
+  return isVerificationError(error) || error === "InvalidPassword";
 }

@@ -1,6 +1,7 @@
 import { getClient } from "../db";
 import crypto from "crypto";
 import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
+import { UpdateFilter } from "mongodb";
 const collectionName = "steam-accounts";
 
 export async function add(steamAccount: SteamAccount): Promise<void> {
@@ -18,6 +19,20 @@ export async function update(steamAccount: SteamAccount): Promise<void> {
     { userId: steamAccount.userId, username: steamAccount.username },
     {
       $set: encrypedAccount,
+    }
+  );
+}
+
+export async function updateField(
+  userId: string,
+  username: string,
+  update: UpdateFilter<Document> | Partial<Document>
+): Promise<void> {
+  const collection = (await getClient()).db().collection(collectionName);
+  await collection.updateOne(
+    { userId, username },
+    {
+      $set: update,
     }
   );
 }

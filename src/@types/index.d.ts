@@ -1,4 +1,4 @@
-import { FarmData, Item } from "steamcommunity";
+import { FarmData, Item } from "steamcommunity-api";
 import Steam, { AccountAuth, AccountData, PersonaState } from "ts-steam";
 
 declare module "express-session" {

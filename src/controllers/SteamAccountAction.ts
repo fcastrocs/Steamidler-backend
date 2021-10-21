@@ -1,4 +1,4 @@
-import SteamCommunity, { PrivacySettings } from "steamcommunity";
+import SteamCommunity, { PrivacySettings } from "steamcommunity-api";
 import * as SteamAccountModel from "../models/steamAccount";
 import SteamStore from "./SteamStore";
 import { SteamAccount } from "@types";
