@@ -4,57 +4,37 @@ import * as User from "../models/user";
 import * as Invite from "../models/invite";
 const router = Router();
 
-router.post("/login", async (req, res) => {
-  // user is already logged in
+/**
+ * Catches google login response. If user is not registered, it sets a tempSession cookie.
+ * Otherwise logs user in.
+ * tempSession cookie is used by the font-end to show invite code form.
+ */
+router.post("/googleresponse", async (req, res) => {
   if (req.session.loggedId) {
-    return res.sendStatus(403);
+    return res.status(403).send("already logged in");
   }
 
-  let credential = req.body.credential;
-  let clientId = req.body.clientId;
-  const invite = req.body.invite;
+  const credential = req.body.credential;
+  const clientId = req.body.clientId;
 
-  // tempSession serves as a holder for google credentials until user
-  // enters invite code
-  const tempSession = req.signedCookies.tempSession;
-
-  if (tempSession) {
-    if (!tempSession.credential && !tempSession.clientId) {
-      return res.sendStatus(400);
-    }
-    credential = tempSession.credential;
-    clientId = tempSession.clientId;
-  }
-
-  if (!credential && !clientId) {
-    return res.sendStatus(400);
+  if (!credential || !clientId) {
+    return res.status(400).send("invalid body");
   }
 
   // verify token
   const payload = await verifyToken(credential, clientId);
-  if (!payload) return res.sendStatus(400);
+  if (!payload) return res.status(400).send("invalid token");
 
   const userId = payload.sub;
   const user = await User.get(userId);
 
-  // new user
+  // new user, set tempSession cookie
   if (!user) {
-    // request came from google, redirect to invite page
-    if (!invite) {
-      res.cookie("tempSession", { credential, clientId }, { signed: true });
-      return res.redirect(process.env.FRONTEND_URL + "/invite"); // user can continue to send invite
-    } else {
-      //request came from invite page
-      // invite doesn't exist
-      if (!(await Invite.exists(invite, payload.email))) {
-        return res.sendStatus(403);
-      } else {
-        // await Invite.remove(payload.email);
-      }
-    }
+    res.cookie("tempSession", { credential, clientId }, { signed: true });
+    return res.redirect(process.env.FRONTEND_URL + "/invite");
   }
 
-  // good login or invite, authenticate user
+  // authenticate user
   req.session.loggedId = true;
   req.session.userId = userId;
   res.cookie(
@@ -69,16 +49,63 @@ router.post("/login", async (req, res) => {
     email: payload.email,
   });
 
-  // remove tempSession cookie
-  res.clearCookie("tempSession");
   res.redirect(process.env.FRONTEND_URL);
+});
+
+router.post("/register", async (req, res) => {
+  const invite = req.body.invite;
+  if (!invite) {
+    return res.status(400).send("invalid body");
+  }
+
+  const tempSession = req.signedCookies.tempSession;
+  if (!tempSession) {
+    return res.status(400).send("tempSession cookie not set");
+  }
+
+  const credential = tempSession.credential;
+  const clientId = tempSession.clientId;
+
+  if (!credential || !clientId) {
+    return res.status(400).send("invalid tempSession cookie");
+  }
+
+  // verify token
+  const payload = await verifyToken(credential, clientId);
+  if (!payload) return res.status(400).send("invalid token");
+
+  // verify invite code
+  if (!(await Invite.exists(invite, payload.email))) {
+    return res.status(400).send("invalid invite");
+  }
+
+  // authenticate user
+  await Invite.remove(payload.email);
+  res.clearCookie("tempSession");
+
+  const userId = payload.sub;
+  req.session.loggedId = true;
+  req.session.userId = userId;
+  res.cookie(
+    "user-data",
+    { name: payload.name, avatar: payload.picture },
+    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  );
+
+  await User.upsert(userId, {
+    userId,
+    name: payload.name,
+    email: payload.email,
+  });
+
+  return res.redirect(process.env.FRONTEND_URL);
 });
 
 router.post("/logout", async (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("session");
     res.clearCookie("user-data");
-    res.sendStatus(200);
+    res.send();
   });
 });
 

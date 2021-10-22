@@ -72,9 +72,10 @@ function appMiddleWare(client: MongoClient) {
     })
   );
 
-  // logged in
+  // check if logged in, middleware
   app.use((req, res, next) => {
-    if (req.path === "/user/login" && req.method === "POST") {
+    // skip this route
+    if (req.path === "/user/googleresponse") {
       return next();
     }
 
@@ -82,10 +83,16 @@ function appMiddleWare(client: MongoClient) {
       return next();
     }
 
-    return res.sendStatus(401);
+    return res.status(401).send("not authenticated");
   });
 
-  app.use(rateLimiter({ client, excludePaths: ["/steamaccounts"], expireAfterSeconds: 5 * 60 }));
+  app.use(
+    rateLimiter({
+      client,
+      excludePaths: ["/steamaccounts", "/user/googleresponse", "/user/register"],
+      expireAfterSeconds: 5 * 60,
+    })
+  );
 
   app.use("/user", userRoutes);
   app.use("/", SteamAccount);
