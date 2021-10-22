@@ -17,12 +17,6 @@ router.post(ROUTE + "add", async (req, res) => {
   try {
     await SteamAccount.add(req.session.userId, username, password, code);
   } catch (error) {
-    // this route should absolutly only throw string errors, which are expected
-    if (typeof error !== "string") {
-      console.error(error);
-      return res.status(500).send("Unexpected error occurred, try again.");
-    }
-
     return res.status(400).send(error);
   }
 
@@ -54,14 +48,9 @@ router.post(ROUTE + "logout", async (req, res) => {
   try {
     await SteamAccount.logout(req.session.userId, username);
   } catch (error) {
-    // this route should absolutly only throw string errors, which are expected
-    if (typeof error !== "string") {
-      console.error(error);
-      return res.status(500).send("Unexpected error occurred, try again.");
-    }
-
     return res.status(400).send(error);
   }
+
   return res.send();
 });
 

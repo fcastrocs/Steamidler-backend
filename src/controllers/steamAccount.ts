@@ -52,7 +52,7 @@ export async function add(userId: string, username: string, password: string, co
   if (steamVerify) {
     // steam guard code was not provided
     if (!code) {
-      throw "Steam guard code is needed.";
+      throw "SteamGuardCodeNeeded";
     }
 
     // set code to loginOptions
@@ -79,9 +79,10 @@ export async function add(userId: string, username: string, password: string, co
         proxy,
         authType: error === "AccountLogonDenied" ? "email" : "mobile",
       });
-      throw "GuardCodeNeeded";
+      throw "SteamGuardCodeNeeded";
     }
-    throw error;
+
+    throw normalizeLoginErrors(error);
   }
 
   // remove steam-verify
@@ -156,7 +157,8 @@ export async function login(userId: string, username: string): Promise<void> {
       // set error
       await SteamAccountModel.updateField(userId, username, { "state.error": error });
     }
-    throw error;
+
+    throw normalizeLoginErrors(error);
   }
 
   // save to store
@@ -188,7 +190,7 @@ export async function logout(userId: string, username: string): Promise<void> {
 
   const steam = SteamStore.get(userId, username);
   if (steam) {
-    steam.destroyConnection(true);
+    steam.disconnect();
     SteamStore.remove(userId, username);
   }
 
@@ -211,7 +213,7 @@ export async function remove(userId: string, username: string): Promise<void> {
 
   const steam = SteamStore.remove(userId, username);
   if (steam) {
-    steam.destroyConnection(true);
+    steam.disconnect();
     // stop farming
     // todo
   }
@@ -219,8 +221,6 @@ export async function remove(userId: string, username: string): Promise<void> {
 
 /**
  * Fully logs in a steam account
- * Logs in to steamcm, steamcommunity, then gets inventory and farmData
- * Creates a SteamVerify if Steam asks for a code
  * @helper
  */
 async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<ExtendedLoginRes> {
@@ -228,6 +228,20 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
   // attempt CM login
   const loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
 
+  // attempt steamcommunity login
+  const webRes = await steamWebLogin(loginRes, proxy);
+
+  const auth = loginRes.auth as ExtendedAccountAuth;
+  auth.cookie = webRes.cookie;
+  const data = loginRes.data as ExtendedAccountData;
+  data.items = webRes.items;
+  data.farmData = webRes.farmData;
+
+  console.log(`CONNECTED: ${loginOptions.accountName}`);
+  return { auth, data, steam: loginRes.steam };
+}
+
+async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
   // attempt steamcommunity login
   const webNonce = loginRes.auth.webNonce;
   const steamId = loginRes.data.steamId;
@@ -238,20 +252,16 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
     Number(process.env.SOCKET_TIMEOUT),
     webNonce
   );
-  const cookie = await steamcommunity.login();
 
-  // get inventory and farm data
+  const cookie = await steamcommunity.login();
   const items = await steamcommunity.getCardsInventory();
   const farmData = await steamcommunity.getFarmingData();
 
-  const auth = loginRes.auth as ExtendedAccountAuth;
-  auth.cookie = cookie;
-  const data = loginRes.data as ExtendedAccountData;
-  data.items = items;
-  data.farmData = farmData;
-
-  console.log(`CONNECTED: ${loginOptions.accountName}`);
-  return { auth, data, steam: loginRes.steam };
+  return {
+    cookie,
+    items,
+    farmData,
+  };
 }
 
 /**
@@ -277,7 +287,6 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
 
   // connect to steam
   const steam = new Steam();
-  // connect can throw 'dead proxy or steamcm' or 'encryption failed'
   await steam.connect(socksOptions, Number(process.env.SOCKET_TIMEOUT));
 
   // attempt cm login
@@ -312,15 +321,17 @@ async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Pr
  * @listener
  */
 function accountDisconnectListener(userId: string, username: string, steam: Steam) {
+  steam.on("loginKey", () => console.log(`loginKey: ${username}`));
+
   steam.on("disconnected", async (err) => {
     console.log(`DISCONNECTED: ${username}`);
-    console.log(`\t error: ${err.syscall} ${err.code}`);
-    
+    if (err) console.log(`\t error: ${err.message}`);
+
     // remove from online accounts
     SteamStore.remove(userId, username);
 
     // stop farming interval if exists
-    //stopFarmingInterval(userId, accountName);
+    // stopFarmingInterval(userId, accountName);
 
     // set state.status to 'reconnecting'
     await SteamAccountModel.updateField(userId, username, { "state.status": "reconnecting" });
@@ -368,4 +379,15 @@ function isVerificationError(error: string): boolean {
 
 function isAuthError(error: string): boolean {
   return isVerificationError(error) || error === "InvalidPassword";
+}
+
+/**
+ * Normalizes error so that only string errors are thrown
+ */
+function normalizeLoginErrors(error: string | Error) {
+  if (typeof error !== "string") {
+    console.error(error);
+    return "Could not connect to steam.";
+  }
+  return error;
 }
