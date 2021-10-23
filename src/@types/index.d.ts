@@ -14,8 +14,10 @@ interface Options {
 }
 
 interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
+  password: string;
   cookie: string;
   sentry: Buffer | string;
+  type: "email" | "mobile" | "none";
 }
 
 interface ExtendedAccountData extends AccountData {
@@ -45,7 +47,6 @@ interface Encrypted {
 interface SteamAccount {
   userId: string;
   username: string;
-  password: string;
   auth: ExtendedAccountAuth;
   data: ExtendedAccountData;
   state: {
@@ -59,12 +60,11 @@ interface SteamAccount {
   };
 }
 
-interface SteamAccountEncrypted extends Omit<SteamAccount, "password" | "auth"> {
-  password: Encrypted;
+interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
   auth: Encrypted;
 }
 
-type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "password" | "auth">;
+type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "auth">;
 
 // model - steamcm
 

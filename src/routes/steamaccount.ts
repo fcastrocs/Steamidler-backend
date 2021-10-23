@@ -27,6 +27,8 @@ router.post(ROUTE + "add", async (req, res) => {
 
 router.post(ROUTE + "login", async (req, res) => {
   const username = req.body.username;
+  const password = req.body.password;
+  const code = req.body.code;
 
   if (!username) {
     res.statusMessage = "invalid body";
@@ -34,7 +36,7 @@ router.post(ROUTE + "login", async (req, res) => {
   }
 
   try {
-    await SteamAccount.login(req.session.userId, username);
+    await SteamAccount.login(req.session.userId, username, code, password);
   } catch (error) {
     res.statusMessage = error;
     return res.status(400).send(error);

@@ -1,5 +1,4 @@
 import { SteamVerify } from "@types";
-import { Document } from "mongodb";
 import { getClient } from "../db";
 const collectionName = "steam-verify";
 
@@ -11,14 +10,14 @@ export async function add(steamVerify: SteamVerify): Promise<void> {
   await collection.insertOne(steamVerify);
 }
 
-export async function get(userId: string, username: string): Promise<Document> {
+export async function get(userId: string, username: string): Promise<SteamVerify> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
     userId,
     username,
   });
   if (!doc) return null;
-  return doc;
+  return doc as SteamVerify;
 }
 
 export async function remove(userId: string, username: string): Promise<void> {

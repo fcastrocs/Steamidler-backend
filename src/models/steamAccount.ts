@@ -59,22 +59,12 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
     username,
   });
   if (!doc) return null;
-  // decrypt password
-  doc.password = decrypt(doc.password);
   // decrypt auth
   doc.auth = JSON.parse(decrypt(doc.auth));
 
-  const steamaccount: SteamAccount = {
-    userId,
-    username,
-    password: doc.password,
-    auth: doc.auth,
-    data: doc.data,
-    state: doc.state,
-  };
   // convert string sentry to buffer
-  steamaccount.auth.sentry = Buffer.from(steamaccount.auth.sentry as string, "hex");
-  return steamaccount;
+  doc.auth.sentry = Buffer.from(doc.auth.sentry as string, "hex");
+  return doc as SteamAccount;
 }
 
 export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
@@ -101,7 +91,6 @@ function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted 
   const encrypedAccount: SteamAccountEncrypted = {
     userId: steamAccount.userId,
     username: steamAccount.username,
-    password: encrypt(steamAccount.password),
     auth: encrypt(JSON.stringify(steamAccount.auth)),
     data: steamAccount.data,
     state: steamAccount.state,

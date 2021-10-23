@@ -7,7 +7,6 @@ import * as SteamcmModel from "../models/steamcm";
 import * as SteamVerifyModel from "../models/steamVerify";
 import SteamStore from "./SteamStore";
 import retry from "@machiavelli/retry";
-
 import {
   LoginRes,
   SteamAccount,
@@ -73,7 +72,7 @@ export async function add(userId: string, username: string, password: string, co
     // Steam is asking for guard code
     if (isCodeNeededError(error)) {
       // save this config to reuse when user enters the code
-      SteamVerifyModel.add({
+      await SteamVerifyModel.add({
         userId,
         username: loginOptions.accountName,
         proxy,
@@ -89,6 +88,7 @@ export async function add(userId: string, username: string, password: string, co
 
   // remove steam-verify
   await SteamVerifyModel.remove(userId, username);
+
   // add to store
   SteamStore.add(userId, username, loginRes.steam);
 
@@ -96,8 +96,7 @@ export async function add(userId: string, username: string, password: string, co
   const steamAccount: SteamAccount = {
     userId,
     username,
-    password,
-    auth: loginRes.auth,
+    auth: { ...loginRes.auth, password, type: steamVerify.authType ?? "none" },
     data: loginRes.data,
     state: {
       status: "online",
@@ -122,7 +121,7 @@ export async function add(userId: string, username: string, password: string, co
  * logs in a steam account
  * @controller
  */
-export async function login(userId: string, username: string): Promise<void> {
+export async function login(userId: string, username: string, code?: string, password?: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
     throw ONLINE;
   }
@@ -135,17 +134,24 @@ export async function login(userId: string, username: string): Promise<void> {
   // set login options
   const loginOptions: LoginOptions = {
     accountName: username,
-    password: steamAccount.password,
+    password: password ? password : steamAccount.auth.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
     shaSentryfile: steamAccount.auth.sentry as Buffer,
   };
 
-  // have to use password instead of loginKey after auth error
+  // don't use loginkey after auth error
   if (isAuthError(steamAccount.state.error)) {
     delete loginOptions.loginKey;
-  } else {
-    delete loginOptions.password;
+  }
+
+  // code passed
+  if (code) {
+    if (steamAccount.auth.type === "email") {
+      loginOptions.authCode = code;
+    } else {
+      loginOptions.twoFactorCode = code;
+    }
   }
 
   const proxy = steamAccount.state.proxy;
@@ -173,7 +179,11 @@ export async function login(userId: string, username: string): Promise<void> {
   SteamStore.add(userId, username, loginRes.steam);
 
   // update steam account
-  steamAccount.auth = loginRes.auth;
+  steamAccount.auth = {
+    ...loginRes.auth,
+    type: steamAccount.auth.type,
+    password: password ? password : steamAccount.auth.password,
+  };
   steamAccount.data = loginRes.data;
   steamAccount.state.status = "online";
   steamAccount.state.proxy = proxy;
