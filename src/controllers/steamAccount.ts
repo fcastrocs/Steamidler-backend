@@ -114,11 +114,11 @@ export async function add(userId: string, username: string, password: string, co
   await ProxyModel.updateLoad(proxy);
 
   // listen to disconnects
-  accountDisconnectListener(userId, username, loginRes.steam);
+  disconnectHandler(userId, username, loginRes.steam);
 }
 
 /**
- * logs in a steam account
+ * login a Steam account
  * @controller
  */
 export async function login(userId: string, username: string, code?: string, password?: string): Promise<void> {
@@ -193,11 +193,11 @@ export async function login(userId: string, username: string, code?: string, pas
   await restoreAccountState(loginRes.steam, steamAccount);
 
   // listen to disconnects
-  accountDisconnectListener(userId, username, loginRes.steam);
+  disconnectHandler(userId, username, loginRes.steam);
 }
 
 /**
- * Logs out a steam account
+ * Logout a Steam account
  * @controller
  */
 export async function logout(userId: string, username: string): Promise<void> {
@@ -216,12 +216,14 @@ export async function logout(userId: string, username: string): Promise<void> {
   steamAccount.state.status = "offline";
   await SteamAccountModel.update(steamAccount);
 
+  console.log(`LOGOUT: ${username}`);
+
   //stop farming
   //todo
 }
 
 /**
- * Remove a steam account
+ * Remove a Steam account
  * @controller
  */
 export async function remove(userId: string, username: string): Promise<void> {
@@ -238,8 +240,7 @@ export async function remove(userId: string, username: string): Promise<void> {
 }
 
 /**
- * Fully logs in a steam account
- * @helper
+ * Fully login a Steam account
  */
 async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<ExtendedLoginRes> {
   const steamcm = await SteamcmModel.getOne();
@@ -259,6 +260,9 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
   return { auth, data, steam: loginRes.steam };
 }
 
+/**
+ * Login to Steam via web
+ */
 async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
   // attempt steamcommunity login
   const webNonce = loginRes.auth.webNonce;
@@ -283,8 +287,7 @@ async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
 }
 
 /**
- * Logins to steam via cm
- * @helper
+ * Login to steam via CM
  */
 async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
   // setup socks options
@@ -318,8 +321,7 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
 }
 
 /**
- * Restore accounts personastate, farming, and idling after login
- * @helper
+ * Restore account personastate, farming, and idling after login
  */
 async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Promise<void> {
   steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
@@ -336,9 +338,9 @@ async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Pr
 }
 
 /**
- * @listener
+ * Handle account disconnects
  */
-function accountDisconnectListener(userId: string, username: string, steam: Steam) {
+function disconnectHandler(userId: string, username: string, steam: Steam) {
   steam.on("loginKey", () => console.log(`loginKey: ${username}`));
 
   steam.on("disconnected", async (err) => {
@@ -386,6 +388,17 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
   });
 }
 
+/**
+ * Normalizes error so that only string errors are thrown
+ */
+function normalizeLoginErrors(error: string | Error) {
+  if (typeof error !== "string") {
+    console.error(error);
+    return "Could not connect to steam.";
+  }
+  return error;
+}
+
 function isCodeNeededError(error: string): boolean {
   return (
     error === "AccountLogonDenied" || // need email code
@@ -399,15 +412,4 @@ function isBadCodeError(error: string) {
 
 function isAuthError(error: string): boolean {
   return isCodeNeededError(error) || isBadCodeError(error) || error === "InvalidPassword";
-}
-
-/**
- * Normalizes error so that only string errors are thrown
- */
-function normalizeLoginErrors(error: string | Error) {
-  if (typeof error !== "string") {
-    console.error(error);
-    return "Could not connect to steam.";
-  }
-  return error;
 }
