@@ -11,12 +11,14 @@ router.post(ROUTE + "add", async (req, res) => {
   const code = req.body.code;
 
   if (!username || !password) {
-    return res.status(400).send("invalid body");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccount.add(req.session.userId, username, password, code);
   } catch (error) {
+    res.statusMessage = error;
     return res.status(400).send(error);
   }
 
@@ -27,12 +29,14 @@ router.post(ROUTE + "login", async (req, res) => {
   const username = req.body.username;
 
   if (!username) {
-    return res.status(400).send("invalid body");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccount.login(req.session.userId, username);
   } catch (error) {
+    res.statusMessage = error;
     return res.status(400).send(error);
   }
   return res.send();
@@ -42,12 +46,14 @@ router.post(ROUTE + "logout", async (req, res) => {
   const username = req.body.username;
 
   if (!username) {
-    return res.status(400).send("invalid body");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccount.logout(req.session.userId, username);
   } catch (error) {
+    res.statusMessage = error;
     return res.status(400).send(error);
   }
 
@@ -61,14 +67,15 @@ router.delete("/steamaccount", async (req, res) => {
   const username = req.body.username;
 
   if (!username) {
-    return res.status(400).send("invalid body");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccount.remove(req.session.userId, username);
   } catch (error) {
-    console.error(error);
-    return res.status(500).send("Unexpected error occurred, try again.");
+    res.statusMessage = error;
+    return res.status(400).send(error);
   }
   return res.send();
 });
