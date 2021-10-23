@@ -71,7 +71,7 @@ export async function add(userId: string, username: string, password: string, co
     loginRes = await fullyLogin(loginOptions, proxy);
   } catch (error) {
     // Steam is asking for guard code
-    if (isVerificationError(error)) {
+    if (isCodeNeededError(error)) {
       // save this config to reuse when user enters the code
       SteamVerifyModel.add({
         userId,
@@ -80,6 +80,8 @@ export async function add(userId: string, username: string, password: string, co
         authType: error === "AccountLogonDenied" ? "email" : "mobile",
       });
       throw "SteamGuardCodeNeeded";
+    } else if (isBadCodeError(error)) {
+      throw "BadSteamGuardCode";
     }
 
     throw normalizeLoginErrors(error);
@@ -154,8 +156,14 @@ export async function login(userId: string, username: string): Promise<void> {
     loginRes = await fullyLogin(loginOptions, proxy);
   } catch (error) {
     if (isAuthError(error)) {
-      // set error
-      await SteamAccountModel.updateField(userId, username, { "state.error": error });
+      let err = error;
+      if (isCodeNeededError(error)) {
+        err = "SteamGuardCodeNeeded";
+      } else if (isBadCodeError(error)) {
+        err = "BadSteamGuardCode";
+      }
+      await SteamAccountModel.updateField(userId, username, { "state.error": err });
+      throw err;
     }
 
     throw normalizeLoginErrors(error);
@@ -368,17 +376,19 @@ function accountDisconnectListener(userId: string, username: string, steam: Stea
   });
 }
 
-function isVerificationError(error: string): boolean {
+function isCodeNeededError(error: string): boolean {
   return (
     error === "AccountLogonDenied" || // need email code
-    error === "TwoFactorCodeMismatch" || // invalid mobile code
-    error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
-    error === "InvalidLoginAuthCode" // invalid email code
+    error === "AccountLoginDeniedNeedTwoFactor" // need mobile code
   );
 }
 
+function isBadCodeError(error: string) {
+  return error === "InvalidLoginAuthCode" || error === "TwoFactorCodeMismatch";
+}
+
 function isAuthError(error: string): boolean {
-  return isVerificationError(error) || error === "InvalidPassword";
+  return isCodeNeededError(error) || isBadCodeError(error) || error === "InvalidPassword";
 }
 
 /**

@@ -49,7 +49,7 @@ interface SteamAccount {
   auth: ExtendedAccountAuth;
   data: ExtendedAccountData;
   state: {
-    error?: string;
+    error?: "SteamGuardCodeNeeded" | "BadSteamGuardCode" | "InvalidPassword";
     isFarming: boolean;
     status: "online" | "offline" | "reconnecting";
     personaState: PersonaState;
