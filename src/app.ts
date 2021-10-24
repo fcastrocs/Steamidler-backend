@@ -22,21 +22,23 @@ const port = 8000;
 
 // Start the app
 (async () => {
-  console.log("Connecting to DB.");
+  console.log("Connecting to DB...");
   const client = await mongodb.connect();
   const db = client.db();
 
-  console.log("Creating collection indexes.");
+  console.log("Creating collection indexes...");
   await createCollectionIndexes(db);
 
-  console.log("Fetching proxies...");
+  //console.log("Fetching proxies...");
   //await fetchProxies();
-
-  console.log("Fetchings steamcms...");
+  //console.log("Fetchings steamcms...");
   //await fetchSteamCms();
 
   console.log("Applying app middleware...");
   appMiddleWare(client);
+
+  console.log("Registering routes...");
+  registerRoutes;
 
   console.log("Starting HTTP server...");
   const res = await startExpress();
@@ -46,7 +48,7 @@ const port = 8000;
 function startExpress() {
   return new Promise((resolve) => {
     app.listen(port, () => {
-      resolve(`Listening at http://localhost:${port}`);
+      resolve(`\nListening at http://localhost:${port}`);
     });
   });
 }
@@ -55,6 +57,7 @@ function appMiddleWare(client: MongoClient) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: 1048576 })); //1024 kb
   app.use(cookieParser(process.env.SESSION_SECRET, {}));
+
   // sessions
   app.use(
     session({
@@ -74,7 +77,7 @@ function appMiddleWare(client: MongoClient) {
   // check if logged in, middleware
   app.use((req, res, next) => {
     // skip this route
-    if (req.path === "/user/googleresponse") {
+    if (req.path === "/user/googleresponse" || req.path === "/user/register") {
       return next();
     }
 
@@ -85,6 +88,7 @@ function appMiddleWare(client: MongoClient) {
     return res.status(401).send("not authenticated");
   });
 
+  // rate limit routes
   app.use(
     rateLimiter({
       client,
@@ -92,7 +96,9 @@ function appMiddleWare(client: MongoClient) {
       expireAfterSeconds: 5 * 60,
     })
   );
+}
 
+function registerRoutes() {
   app.use("/user", userRoutes);
   app.use("/", SteamAccount);
   app.use("/", SteamAccountAction);
