@@ -4,19 +4,18 @@ config({ path: path.join(__dirname, "../.env") });
 
 import * as mongodb from "./db";
 
-import { fetchSteamCms } from "./models/steamcm";
-import { fetchProxies } from "./models/proxy";
-
 import express from "express";
 import userRoutes from "./routes/user";
 import SteamAccount from "./routes/SteamAccount";
 import SteamAccountAction from "./routes/SteamAccountAction";
 import { Db, MongoClient } from "mongodb";
-
 import session from "express-session";
 import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
 import rateLimiter from "@machiavelli/express-rate-limiter";
+
+//import { fetchSteamCms } from "./models/steamcm";
+//import { fetchProxies } from "./models/proxy";
 
 const app = express();
 const port = 8000;

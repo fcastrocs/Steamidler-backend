@@ -110,9 +110,8 @@ export async function add(userId: string, username: string, password: string, co
 
   // save to db
   await SteamAccountModel.add(steamAccount);
-  // update proxy load
-  await ProxyModel.updateLoad(proxy);
-
+  // increase proxy load
+  await ProxyModel.increaseLoad(proxy);
   // listen to disconnects
   disconnectHandler(userId, username, loginRes.steam);
 }
@@ -227,16 +226,18 @@ export async function logout(userId: string, username: string): Promise<void> {
  * @controller
  */
 export async function remove(userId: string, username: string): Promise<void> {
-  if (!(await SteamAccountModel.remove(userId, username))) {
+  const steamAccount = await SteamAccountModel.remove(userId, username);
+  if (!steamAccount) {
     throw NOTEXIST;
   }
-
   const steam = SteamStore.remove(userId, username);
   if (steam) {
     steam.disconnect();
     // stop farming
     // todo
   }
+  // decrease proxy load
+  await ProxyModel.decreaseLoad(steamAccount.state.proxy);
 }
 
 /**

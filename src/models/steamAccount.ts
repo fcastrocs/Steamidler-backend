@@ -37,10 +37,11 @@ export async function updateField(
   );
 }
 
-export async function remove(userId: string, username: string): Promise<boolean> {
+export async function remove(userId: string, username: string): Promise<SteamAccount> {
   const collection = (await getClient()).db().collection(collectionName);
-  const deleteResult = await collection.deleteOne({ userId, username });
-  return deleteResult.acknowledged;
+  const doc = await collection.findOneAndDelete({ userId, username });
+  if (!doc) return null;
+  return doc.value as SteamAccount;
 }
 
 export async function exists(userId: string, username: string): Promise<boolean> {
@@ -61,7 +62,6 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
   if (!doc) return null;
   // decrypt auth
   doc.auth = JSON.parse(decrypt(doc.auth));
-
   // convert string sentry to buffer
   doc.auth.sentry = Buffer.from(doc.auth.sentry as string, "hex");
   return doc as SteamAccount;

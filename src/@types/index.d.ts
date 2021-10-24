@@ -77,7 +77,7 @@ interface SteamCM {
 interface SteamVerify {
   userId: string;
   username: string;
-  proxy: { ip: string; port: number };
+  proxy: Proxy;
   authType: "email" | "mobile";
 }
 
@@ -85,4 +85,5 @@ interface SteamVerify {
 interface Proxy {
   ip: string;
   port: number;
+  load: number;
 }

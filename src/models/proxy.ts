@@ -1,15 +1,13 @@
 import { getClient } from "../db";
 import { Proxy } from "@types";
 
-interface ProxyModel extends Proxy {
-  load: number;
-}
+const collectionName = "proxies";
 
 /**
  * Fetches proxies from proxies provider
  */
 export async function fetchProxies(): Promise<void> {
-  const collection = (await getClient()).db().collection("proxies");
+  const collection = (await getClient()).db().collection(collectionName);
 
   try {
     const documents = [];
@@ -20,7 +18,7 @@ export async function fetchProxies(): Promise<void> {
       const split = item.split(":");
       const ip = split[0];
       const port = Number(split[1]);
-      const proxy: ProxyModel = { ip, port, load: 0 };
+      const proxy: Proxy = { ip, port, load: 0 };
       documents.push(proxy);
     }
 
@@ -33,27 +31,31 @@ export async function fetchProxies(): Promise<void> {
 }
 
 /**
- * increases load value by one
+ * Increase load value by one
  */
-export async function updateLoad(proxy: Proxy): Promise<void> {
-  const collection = (await getClient()).db().collection("proxies");
+export async function increaseLoad(proxy: Proxy): Promise<void> {
+  const collection = (await getClient()).db().collection(collectionName);
   await collection.updateOne(proxy, { $inc: { load: 1 } });
+}
+
+/**
+ * Decrease load value by one
+ */
+export async function decreaseLoad(proxy: Proxy): Promise<void> {
+  const collection = (await getClient()).db().collection(collectionName);
+  await collection.updateOne(proxy, { $inc: { load: -1 } });
 }
 
 /**
  * @returns random proxy with less than process.env.PROXYLOAD
  */
 export async function getOne(): Promise<Proxy> {
-  const collection = (await getClient()).db().collection("proxies");
+  const collection = (await getClient()).db().collection(collectionName);
   const cursor = collection.aggregate([
     { $match: { load: { $lt: Number(process.env.PROXYLOAD) } } },
     { $sample: { size: 1 } },
   ]);
-  const document = await cursor.next();
-  if (document == null) throw "Could fetch a proxy from db.";
-  const proxy: Proxy = {
-    ip: document.ip,
-    port: document.port,
-  };
-  return proxy;
+  const doc = await cursor.next();
+  if (doc == null) throw "Could fetch a proxy from db.";
+  return doc as Proxy;
 }
