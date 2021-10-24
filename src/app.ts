@@ -1,9 +1,7 @@
 import path from "path";
 import { config } from "dotenv";
 config({ path: path.join(__dirname, "../.env") });
-
 import * as mongodb from "./db";
-
 import express from "express";
 import userRoutes from "./routes/user";
 import SteamAccount from "./routes/SteamAccount";
@@ -13,9 +11,6 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
 import rateLimiter from "@machiavelli/express-rate-limiter";
-
-//import { fetchSteamCms } from "./models/steamcm";
-//import { fetchProxies } from "./models/proxy";
 
 const app = express();
 const port = 8000;
@@ -28,11 +23,6 @@ const port = 8000;
 
   console.log("Creating collection indexes...");
   await createCollectionIndexes(db);
-
-  //console.log("Fetching proxies...");
-  //await fetchProxies();
-  //console.log("Fetchings steamcms...");
-  //await fetchSteamCms();
 
   console.log("Applying app middleware...");
   appMiddleWare(client);
