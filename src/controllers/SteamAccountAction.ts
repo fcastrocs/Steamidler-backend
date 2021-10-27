@@ -1,4 +1,5 @@
-import SteamCommunity, { PrivacySettings } from "steamcommunity-api";
+import SteamCommunity, { PrivacySettings, Proxy } from "steamcommunity-api";
+import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "../models/steamAccount";
 import SteamStore from "./SteamStore";
 import { SteamAccount } from "@types";
@@ -11,12 +12,9 @@ const NOTEXIST = "This Steam account does not exist.";
  * @controller
  */
 export async function idleGames(userId: string, username: string, appids: number[]): Promise<void> {
-  const res = await accountExistandOnline(userId, username);
-  res.steam.clientGamesPlayed(appids);
-
-  // update db
-  res.steamAccount.state.gamesIdling = appids;
-  await SteamAccountModel.update(res.steamAccount);
+  const { steam } = await accountExistandOnline(userId, username);
+  steam.clientGamesPlayed(appids);
+  await SteamAccountModel.updateField(userId, username, { "data.gamesIdling": appids });
 }
 
 /**
@@ -24,13 +22,9 @@ export async function idleGames(userId: string, username: string, appids: number
  * @controller
  */
 export async function changeNick(userId: string, username: string, nick: string): Promise<void> {
-  const res = await accountExistandOnline(userId, username);
-
-  res.steam.clientChangeStatus({ playerName: nick });
-
-  // update db
-  res.steamAccount.data.nickname = nick;
-  await SteamAccountModel.update(res.steamAccount);
+  const { steam } = await accountExistandOnline(userId, username);
+  steam.clientChangeStatus({ playerName: nick });
+  await SteamAccountModel.updateField(userId, username, { "data.nickname": nick });
 }
 
 /**
@@ -52,20 +46,21 @@ export async function changeNick(userId: string, username: string, nick: string)
  * @controller
  */
 export async function changeAvatar(userId: string, username: string, avatar: Express.Multer.File): Promise<void> {
-  const res = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(res.steamAccount.data.steamId, res.steamAccount.state.proxy, 10000);
-  steamcommunity.cookie = res.steamAccount.auth.cookie;
-  let avatarUrl = "";
+  const { steamAccount } = await accountExistandOnline(userId, username);
+  const steamcommunity = new SteamCommunity(
+    steamAccount.data.steamId,
+    setAgentOptions(steamAccount.state.proxy),
+    10000
+  );
+  steamcommunity.cookie = steamAccount.auth.cookie;
+
   try {
-    avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
+    const avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
+    await SteamAccountModel.updateField(userId, username, { "data.avatar": avatarUrl });
   } catch (error) {
     console.error(error);
-
-    throw "Action failed, try again.";
+    throw "Action failed, try again";
   }
-  // update db
-  res.steamAccount.data.avatar = avatarUrl;
-  await SteamAccountModel.update(res.steamAccount);
 }
 
 /**
@@ -73,9 +68,13 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
  * @controller
  */
 export async function clearAliases(userId: string, username: string): Promise<void> {
-  const res = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(res.steamAccount.data.steamId, res.steamAccount.state.proxy, 10000);
-  steamcommunity.cookie = res.steamAccount.auth.cookie;
+  const { steamAccount } = await accountExistandOnline(userId, username);
+  const steamcommunity = new SteamCommunity(
+    steamAccount.data.steamId,
+    setAgentOptions(steamAccount.state.proxy),
+    10000
+  );
+  steamcommunity.cookie = steamAccount.auth.cookie;
   try {
     await steamcommunity.clearAliases();
   } catch (error) {
@@ -89,14 +88,14 @@ export async function clearAliases(userId: string, username: string): Promise<vo
  * @controller
  */
 export async function changePrivacy(userId: string, username: string, settings: PrivacySettings): Promise<void> {
-  const res = await accountExistandOnline(userId, username);
-  const proxy = res.steamAccount.state.proxy;
+  const { steamAccount } = await accountExistandOnline(userId, username);
   const steamcommunity = new SteamCommunity(
-    res.steamAccount.data.steamId,
-    { host: proxy.ip, port: proxy.port, type: 5, userId: process.env.PROXY_USER, password: process.env.PROXY_PASS },
+    steamAccount.data.steamId,
+    setAgentOptions(steamAccount.state.proxy),
     10000
   );
-  steamcommunity.cookie = res.steamAccount.auth.cookie;
+  steamcommunity.cookie = steamAccount.auth.cookie;
+
   try {
     await steamcommunity.changePrivacy(settings);
   } catch (error) {
@@ -123,4 +122,13 @@ async function accountExistandOnline(
     throw NOTONLINE;
   }
   return { steamAccount, steam };
+}
+
+function setAgentOptions(proxy: Proxy) {
+  return <SocksProxyAgentOptions>{
+    host: proxy.ip,
+    port: proxy.port,
+    userId: process.env.PROXY_USER,
+    password: process.env.PROXY_PASS,
+  };
 }
