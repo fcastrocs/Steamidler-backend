@@ -2,7 +2,7 @@ import SteamCommunity, { PrivacySettings } from "steamcommunity-api";
 import * as SteamAccountModel from "../models/steamAccount";
 import SteamStore from "./SteamStore";
 import { SteamAccount } from "@types";
-import Steam from "ts-steam/src/@types";
+import Steam, { Game } from "ts-steam/src/@types";
 const NOTONLINE = "This Steam account is not online.";
 const NOTEXIST = "This Steam account does not exist.";
 
@@ -34,6 +34,20 @@ export async function changeNick(userId: string, username: string, nick: string)
 }
 
 /**
+ * Activate free to play game.
+ * @controller
+ */
+/*export async function activatef2pgame(userId: string, username: string, nick: string): Promise<Game> {
+  const res = await accountExistandOnline(userId, username);
+
+  res.steam.
+
+  // update db
+  res.steamAccount.data.nickname = nick;
+  await SteamAccountModel.update(res.steamAccount);
+}*/
+
+/**
  * Change steam account nickname
  * @controller
  */
@@ -41,7 +55,14 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
   const res = await accountExistandOnline(userId, username);
   const steamcommunity = new SteamCommunity(res.steamAccount.data.steamId, res.steamAccount.state.proxy, 10000);
   steamcommunity.cookie = res.steamAccount.auth.cookie;
-  const avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
+  let avatarUrl = "";
+  try {
+    avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
+  } catch (error) {
+    console.error(error);
+
+    throw "Action failed, try again.";
+  }
   // update db
   res.steamAccount.data.avatar = avatarUrl;
   await SteamAccountModel.update(res.steamAccount);
@@ -55,7 +76,12 @@ export async function clearAliases(userId: string, username: string): Promise<vo
   const res = await accountExistandOnline(userId, username);
   const steamcommunity = new SteamCommunity(res.steamAccount.data.steamId, res.steamAccount.state.proxy, 10000);
   steamcommunity.cookie = res.steamAccount.auth.cookie;
-  await steamcommunity.clearAliases();
+  try {
+    await steamcommunity.clearAliases();
+  } catch (error) {
+    console.error(error);
+    throw "Action failed, try again";
+  }
 }
 
 /**
@@ -71,7 +97,12 @@ export async function changePrivacy(userId: string, username: string, settings: 
     10000
   );
   steamcommunity.cookie = res.steamAccount.auth.cookie;
-  await steamcommunity.changePrivacy(settings);
+  try {
+    await steamcommunity.changePrivacy(settings);
+  } catch (error) {
+    console.error(error);
+    throw "Action failed, try again";
+  }
 }
 
 /**

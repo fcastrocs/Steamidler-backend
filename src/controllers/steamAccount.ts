@@ -344,9 +344,8 @@ async function restoreAccountState(steam: Steam, steamAccount: SteamAccount): Pr
 function disconnectHandler(userId: string, username: string, steam: Steam) {
   steam.on("loginKey", () => console.log(`loginKey: ${username}`));
 
-  steam.on("disconnected", async (err) => {
+  steam.on("disconnected", async () => {
     console.log(`DISCONNECTED: ${username}`);
-    if (err) console.log(`\t error: ${err.message}`);
 
     // remove from online accounts
     SteamStore.remove(userId, username);
@@ -357,21 +356,38 @@ function disconnectHandler(userId: string, username: string, steam: Steam) {
     // set state.status to 'reconnecting'
     await SteamAccountModel.updateField(userId, username, { "state.status": "reconnecting" });
 
-    const operation = new retry({ retries: 10, interval: 5000 });
+    // generate a number between 1 and 20
+    // this is done so that when steam goes offline, the backend doesn't overload.
+    const seconds = Math.floor(Math.random() * (20 - 5 + 1) + 5);
+    const retries = Number(process.env.STEAM_RECONNECTS_RETRIES);
+    const operation = new retry({ retries, interval: seconds * 1000 });
+    let steamIsDown = false;
 
     // attempt login
     operation.attempt(async (currentAttempt: number) => {
-      console.log(`Attempting reconnect #${currentAttempt}: ${username}`);
+      console.log(`Attempting reconnect #${currentAttempt} of ${retries}: ${username}`);
 
       try {
         await login(userId, username);
       } catch (error) {
-        console.log(`Reconnect attempt #${currentAttempt} failed: ${username} - error: ${error}`);
+        console.log(`Reconnect attempt #${currentAttempt} of ${retries} failed: ${username} - error: ${error}`);
 
+        // got auth error after first try, stop retrying.
         if (currentAttempt > 1) {
-          // got auth error after first try, stop trying to reconnect.
           if (isAuthError(error)) {
             return;
+          }
+        }
+
+        // Steam is down increase interval to 10 minutes
+        if (error === "ServiceUnavailable") {
+          if (!steamIsDown) {
+            steamIsDown = true;
+            console.log(`STEAM IS DOWN, increasing retry interval to 10 minutes: ${username}`);
+            operation.setNewConfig({
+              retries: Number(process.env.STEAM_DOWN_RETRIES),
+              interval: Number(process.env.STEAM_DOWN_INTERVAL),
+            });
           }
         }
 
@@ -379,8 +395,6 @@ function disconnectHandler(userId: string, username: string, steam: Steam) {
         if (operation.retry()) {
           return;
         }
-
-        console.log(error);
 
         // reconnect failed, set status to offline
         await SteamAccountModel.updateField(userId, username, { "state.status": "offline" });

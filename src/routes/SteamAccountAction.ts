@@ -11,24 +11,29 @@ router.post(ROUTE + "idlegames", async (req, res) => {
   const appids = req.body.appids;
 
   if (!username || !appids) {
-    return res.status(400).send("username and appids fields required.");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (!Array.isArray(appids)) {
-    return res.status(400).send("appids must be an array.");
+    res.statusMessage = "appids must be an array";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (appids.some((i) => !Number.isInteger(i))) {
-    return res.status(400).send("appids must be an integer array.");
+    res.statusMessage = "appids must be an integer array";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (appids.length > 32) {
-    return res.status(400).send("Only 32 games are allowed per game.");
+    res.statusMessage = "only 32 games are allowed per game";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccountAction.idleGames(req.session.userId, username, appids);
   } catch (error) {
+    res.statusMessage = error;
     return res.status(400).send(error);
   }
   return res.send();
@@ -40,21 +45,25 @@ router.post(ROUTE + "changeavatar", upload.single("avatar"), async (req, res) =>
   const avatar = req.file;
 
   if (!username || !avatar) {
-    return res.status(400).send("username and avatar fields required.");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (!avatar.mimetype.includes("image")) {
-    return res.status(400).send("Avatar must be an image.");
+    res.statusMessage = "avatar must be an image";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (avatar.size / 1024 > 1024) {
-    return res.status(400).send("Avatar must be less than 1024Kb.");
+    res.statusMessage = "avatar must be less than 1024Kb";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccountAction.changeAvatar(req.session.userId, username, avatar);
   } catch (error) {
-    return res.status(400).send(error);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -64,17 +73,20 @@ router.post(ROUTE + "changenick", async (req, res) => {
   const nick = req.body.nick;
 
   if (!username || !nick) {
-    return res.status(400).send("username and nick fields required.");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   if (typeof nick !== "string") {
-    return res.status(400).send("nick must be a string.");
+    res.statusMessage = "nick must be a string";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccountAction.changeNick(req.session.userId, username, nick);
   } catch (error) {
-    return res.status(400).send(error);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -84,14 +96,15 @@ router.post(ROUTE + "changeprivacy", async (req, res) => {
   const settings = req.body.settings;
 
   if (!username || !settings) {
-    return res.status(400).send("username and settings fields required.");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccountAction.changePrivacy(req.session.userId, username, settings);
   } catch (error) {
-    console.log(error);
-    return res.status(400).send(error);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -100,14 +113,15 @@ router.post(ROUTE + "clearaliases", async (req, res) => {
   const username = req.body.username;
 
   if (!username) {
-    return res.sendStatus(400);
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     await SteamAccountAction.clearAliases(req.session.userId, username);
   } catch (error) {
-    console.log(error);
-    res.sendStatus(400);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -117,13 +131,15 @@ router.post(ROUTE + "activatefreegame", async (req, res) => {
   const appId = req.body.appId;
 
   if (!username || !appId) {
-    return res.sendStatus(400);
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     //
   } catch (error) {
-    res.sendStatus(400);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -133,13 +149,15 @@ router.post(ROUTE + "activatef2pgame", async (req, res) => {
   const appId = req.body.appId;
 
   if (!username || !appId) {
-    return res.sendStatus(400);
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     //
   } catch (error) {
-    res.sendStatus(400);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });
@@ -149,13 +167,15 @@ router.post(ROUTE + "redeemcdkey", async (req, res) => {
   const cdkey = req.body.cdkey;
 
   if (!username || !cdkey) {
-    return res.sendStatus(400);
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   try {
     //
   } catch (error) {
-    res.sendStatus(400);
+    res.statusMessage = error;
+    return res.status(400).send(res.statusMessage);
   }
   return res.send();
 });

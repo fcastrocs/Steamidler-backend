@@ -28,7 +28,7 @@ const port = 8000;
   appMiddleWare(client);
 
   console.log("Registering routes...");
-  registerRoutes;
+  registerRoutes();
 
   console.log("Starting HTTP server...");
   const res = await startExpress();
