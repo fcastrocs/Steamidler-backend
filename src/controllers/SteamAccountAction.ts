@@ -14,7 +14,7 @@ const NOTEXIST = "This Steam account does not exist.";
 export async function idleGames(userId: string, username: string, appids: number[]): Promise<void> {
   const { steam } = await accountExistandOnline(userId, username);
   steam.clientGamesPlayed(appids);
-  await SteamAccountModel.updateField(userId, username, { "data.gamesIdling": appids });
+  await SteamAccountModel.updateField(userId, username, { "state.gamesIdling": appids });
 }
 
 /**

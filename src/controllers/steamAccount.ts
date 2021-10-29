@@ -142,6 +142,7 @@ export async function login(userId: string, username: string, code?: string, pas
   // don't use loginkey after auth error
   if (isAuthError(steamAccount.state.error)) {
     delete loginOptions.loginKey;
+    delete loginOptions.shaSentryfile;
   }
 
   // code passed
@@ -153,24 +154,30 @@ export async function login(userId: string, username: string, code?: string, pas
     }
   }
 
-  const proxy = steamAccount.state.proxy;
-
-  // attempt CM login
+  // attempt login to cm and web
   let loginRes: ExtendedLoginRes;
   try {
-    loginRes = await fullyLogin(loginOptions, proxy);
+    loginRes = await fullyLogin(loginOptions, steamAccount.state.proxy);
   } catch (error) {
+    // authentication errors, update account state error
     if (isAuthError(error)) {
-      let err = error;
+      let stateError = error;
       if (isCodeNeededError(error)) {
-        err = "SteamGuardCodeNeeded";
+        stateError = "SteamGuardCodeNeeded";
       } else if (isBadCodeError(error)) {
-        err = "BadSteamGuardCode";
+        stateError = "BadSteamGuardCode";
       }
-      await SteamAccountModel.updateField(userId, username, { "state.error": err });
-      throw err;
+      await SteamAccountModel.updateField(userId, username, { "state.error": stateError });
+      throw stateError;
     }
 
+    // update loginkey and sentry on web login fail
+    if (error.msg && error.msg === "SteamWebLoginFailed") {
+      const loginRes = error.loginRes as LoginRes;
+      steamAccount.auth.loginKey = loginRes.auth.loginKey;
+      steamAccount.auth.sentry = loginRes.auth.sentry;
+      await SteamAccountModel.update(steamAccount);
+    }
     throw normalizeLoginErrors(error);
   }
 
@@ -185,12 +192,10 @@ export async function login(userId: string, username: string, code?: string, pas
   };
   steamAccount.data = loginRes.data;
   steamAccount.state.status = "online";
-  steamAccount.state.proxy = proxy;
   delete steamAccount.state.error;
   await SteamAccountModel.update(steamAccount);
 
   await restoreAccountState(loginRes.steam, steamAccount);
-
   // listen to disconnects
   disconnectHandler(userId, username, loginRes.steam);
 }
@@ -249,7 +254,14 @@ async function fullyLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<Ext
   const loginRes = await steamcmLogin(loginOptions, proxy, steamcm);
 
   // attempt steamcommunity login
-  const webRes = await steamWebLogin(loginRes, proxy);
+  // throw with loginRes from steamcmLogin,
+  // loginkey and sentry have to be updated in login controller
+  let webRes;
+  try {
+    webRes = await steamWebLogin(loginRes, proxy);
+  } catch (error) {
+    throw { msg: "SteamWebLoginFailed", error, loginRes };
+  }
 
   const auth = loginRes.auth as ExtendedAccountAuth;
   auth.cookie = webRes.cookie;
@@ -417,12 +429,17 @@ function normalizeLoginErrors(error: string | Error) {
 function isCodeNeededError(error: string): boolean {
   return (
     error === "AccountLogonDenied" || // need email code
-    error === "AccountLoginDeniedNeedTwoFactor" // need mobile code
+    error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
+    error === "SteamGuardCodeNeeded"
   );
 }
 
 function isBadCodeError(error: string) {
-  return error === "InvalidLoginAuthCode" || error === "TwoFactorCodeMismatch";
+  return (
+    error === "InvalidLoginAuthCode" || // bad email code
+    error === "TwoFactorCodeMismatch" || // bad mobile code
+    error === "BadSteamGuardCode"
+  );
 }
 
 function isAuthError(error: string): boolean {

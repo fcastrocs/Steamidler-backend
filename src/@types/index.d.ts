@@ -1,4 +1,4 @@
-import { FarmData, Item } from "steamcommunity-api";
+import { FarmData, Item, Cookie } from "steamcommunity-api";
 import Steam, { AccountAuth, AccountData, PersonaState } from "ts-steam";
 
 declare module "express-session" {
@@ -15,7 +15,7 @@ interface Options {
 
 interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
   password: string;
-  cookie: string;
+  cookie: Cookie;
   sentry: Buffer | string;
   type: "email" | "mobile" | "none";
 }
