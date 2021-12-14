@@ -31,7 +31,7 @@ router.post("/googleresponse", async (req, res) => {
   // new user, set tempSession cookie
   if (!user) {
     res.cookie("tempSession", { credential, clientId }, { signed: true });
-    return res.redirect(process.env.FRONTEND_URL + "/invite");
+    return res.redirect(process.env.FRONTEND_URL + "/register");
   }
 
   // authenticate user
@@ -55,7 +55,8 @@ router.post("/googleresponse", async (req, res) => {
 router.post("/register", async (req, res) => {
   const invite = req.body.invite;
   if (!invite) {
-    return res.status(400).send("invalid body");
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
   }
 
   const tempSession = req.signedCookies.tempSession;
@@ -67,16 +68,21 @@ router.post("/register", async (req, res) => {
   const clientId = tempSession.clientId;
 
   if (!credential || !clientId) {
-    return res.status(400).send("invalid tempSession cookie");
+    res.statusMessage = "invalid tempSession cookie";
+    return res.status(400).send(res.statusMessage);
   }
 
   // verify token
   const payload = await verifyToken(credential, clientId);
-  if (!payload) return res.status(400).send("invalid token");
+  if (!payload) {
+    res.statusMessage = "invalid token";
+    return res.status(400).send(res.statusMessage);
+  }
 
   // verify invite code
   if (!(await Invite.exists(invite, payload.email))) {
-    return res.status(400).send("invalid invite");
+    res.statusMessage = "invalid invite";
+    return res.status(400).send(res.statusMessage);
   }
 
   // authenticate user

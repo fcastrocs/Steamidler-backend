@@ -1,4 +1,3 @@
-
 import path from "path";
 import { config } from "dotenv";
 config({ path: path.join(__dirname, "../.env") });
@@ -68,7 +67,7 @@ function appMiddleWare(client: MongoClient) {
   // check if logged in, middleware
   app.use((req, res, next) => {
     // skip this route
-    if (req.path === "/user/googleresponse" || req.path === "/user/register") {
+    if (req.path === "/api/user/googleresponse" || req.path === "/api/user/register") {
       return next();
     }
 
@@ -90,9 +89,9 @@ function appMiddleWare(client: MongoClient) {
 }
 
 function registerRoutes() {
-  app.use("/user", userRoutes);
-  app.use("/", SteamAccount);
-  app.use("/", SteamAccountAction);
+  app.use("/api/user", userRoutes);
+  app.use("/api/", SteamAccount);
+  app.use("/api/", SteamAccountAction);
 }
 
 async function createCollectionIndexes(db: Db) {
