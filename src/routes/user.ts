@@ -45,24 +45,6 @@ router.post("/googleresponse", async (req, res) => {
   res.redirect(process.env.FRONTEND_URL);
 });
 
-async function authenticateUser(res: Response, req: Request, user: IUser) {
-  // authenticate user
-  req.session.loggedId = true;
-  req.session.userId = user.userId;
-  res.cookie(
-    "user-data",
-    { nickname: user.nickname, avatar: user.avatar },
-    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
-  );
-
-  await User.upsert(user.userId, {
-    userId: user.userId,
-    nickname: user.nickname,
-    email: user.email,
-    avatar: user.avatar,
-  });
-}
-
 router.post("/register", async (req, res) => {
   const invite = req.body.invite;
   const nickname = req.body.nickname;
@@ -116,6 +98,24 @@ router.post("/logout", async (req, res) => {
     res.send();
   });
 });
+
+async function authenticateUser(res: Response, req: Request, user: IUser) {
+  // authenticate user
+  req.session.loggedId = true;
+  req.session.userId = user.userId;
+  res.cookie(
+    "user-data",
+    { nickname: user.nickname, avatar: user.avatar },
+    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  );
+
+  await User.upsert(user.userId, {
+    userId: user.userId,
+    nickname: user.nickname,
+    email: user.email,
+    avatar: user.avatar,
+  });
+}
 
 async function verifyToken(credential: string, clientId: string) {
   const client = new OAuth2Client();
