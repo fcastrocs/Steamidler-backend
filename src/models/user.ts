@@ -1,19 +1,13 @@
+import { IUser } from "@types";
 import { getClient } from "../db.js";
-import { Document } from "mongodb";
 
-interface User {
-  userId: string;
-  name: string;
-  email: string;
-}
-
-export async function get(userId: string): Promise<Document | null> {
+export async function get(userId: string): Promise<IUser | null> {
   const collection = (await getClient()).db().collection("users");
   const doc = await collection.findOne({ userId });
-  return doc;
+  return doc as IUser;
 }
 
-export async function upsert(userId: string, user: User): Promise<void> {
+export async function upsert(userId: string, user: IUser): Promise<void> {
   const collection = (await getClient()).db().collection("users");
   await collection.updateOne({ userId }, { $set: user }, { upsert: true });
 }

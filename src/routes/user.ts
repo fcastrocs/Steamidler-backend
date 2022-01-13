@@ -1,7 +1,8 @@
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import * as User from "../models/user.js";
 import * as Invite from "../models/invite.js";
+import { IUser } from "@types";
 const router = Router();
 
 /**
@@ -28,33 +29,44 @@ router.post("/googleresponse", async (req, res) => {
   const userId = payload.sub;
   const user = await User.get(userId);
 
-  // new user, set tempSession cookie
+  // user is not registered, set tempSession to be used when registering
   if (!user) {
-    res.cookie("tempSession", { credential, clientId }, { signed: true });
+    res.cookie(
+      "tempSession",
+      { credential, clientId },
+      { signed: true, httpOnly: true, expires: new Date(Date.now() + 10 * 60000), secure: true }
+    );
     return res.redirect(process.env.FRONTEND_URL + "/register");
   }
 
   // authenticate user
-  req.session.loggedId = true;
-  req.session.userId = userId;
-  res.cookie(
-    "user-data",
-    { name: payload.name, avatar: payload.picture },
-    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
-  );
-
-  await User.upsert(userId, {
-    userId,
-    name: payload.name,
-    email: payload.email,
-  });
+  await authenticateUser(res, req, user);
 
   res.redirect(process.env.FRONTEND_URL);
 });
 
+async function authenticateUser(res: Response, req: Request, user: IUser) {
+  // authenticate user
+  req.session.loggedId = true;
+  req.session.userId = user.userId;
+  res.cookie(
+    "user-data",
+    { nickname: user.nickname, avatar: user.avatar },
+    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  );
+
+  await User.upsert(user.userId, {
+    userId: user.userId,
+    nickname: user.nickname,
+    email: user.email,
+    avatar: user.avatar,
+  });
+}
+
 router.post("/register", async (req, res) => {
   const invite = req.body.invite;
-  if (!invite) {
+  const nickname = req.body.nickname;
+  if (!invite || !nickname) {
     res.statusMessage = "invalid body";
     return res.status(400).send(res.statusMessage);
   }
@@ -85,24 +97,14 @@ router.post("/register", async (req, res) => {
     return res.status(400).send(res.statusMessage);
   }
 
-  // authenticate user
+  // remove used invite
   await Invite.remove(payload.email);
+
+  // clear uneeded temp session
   res.clearCookie("tempSession");
 
-  const userId = payload.sub;
-  req.session.loggedId = true;
-  req.session.userId = userId;
-  res.cookie(
-    "user-data",
-    { name: payload.name, avatar: payload.picture },
-    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
-  );
-
-  await User.upsert(userId, {
-    userId,
-    name: payload.name,
-    email: payload.email,
-  });
+  // authenticate user
+  await authenticateUser(res, req, { userId: payload.sub, nickname, email: payload.email, avatar: payload.picture });
 
   return res.redirect(process.env.FRONTEND_URL);
 });

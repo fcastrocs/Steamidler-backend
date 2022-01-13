@@ -1,5 +1,6 @@
 import { FarmData, Item, Cookie } from "steamcommunity-api";
 import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client-esm";
+import { Document } from "mongodb";
 
 declare module "express-session" {
   interface SessionData {
@@ -86,4 +87,12 @@ interface Proxy {
   ip: string;
   port: number;
   load: number;
+}
+
+// model User
+interface IUser extends Document {
+  userId: string;
+  nickname: string;
+  email: string;
+  avatar: string;
 }

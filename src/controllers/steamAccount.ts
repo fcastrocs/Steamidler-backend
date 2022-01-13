@@ -16,6 +16,7 @@ import {
   Proxy,
   ExtendedLoginRes,
 } from "@types";
+
 const ONLINE = "This Steam account is already online.";
 const EXIST = "This Steam account already exists.";
 const NOTEXIST = "This Steam account does not exist.";
