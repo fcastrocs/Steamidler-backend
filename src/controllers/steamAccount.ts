@@ -5,7 +5,7 @@ import * as SteamAccountModel from "../models/steamAccount.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamcmModel from "../models/steamcm.js";
 import * as SteamVerifyModel from "../models/steamVerify.js";
-import SteamStore from "./SteamStore.js";
+import SteamStore from "./steamStore.js";
 import retry from "@machiavelli/retry";
 import {
   LoginRes,

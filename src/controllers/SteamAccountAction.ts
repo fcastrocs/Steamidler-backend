@@ -1,7 +1,7 @@
 import SteamCommunity, { PrivacySettings, Proxy } from "steamcommunity-api";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "../models/steamAccount.js";
-import SteamStore from "./SteamStore.js";
+import SteamStore from "./steamStore.js";
 import { SteamAccount } from "@types";
 import Steam from "steam-client-esm";
 const NOTONLINE = "This Steam account is not online.";

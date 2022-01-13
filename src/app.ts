@@ -8,7 +8,7 @@ import * as mongodb from "./db.js";
 import express from "express";
 import userRoutes from "./routes/user.js";
 import SteamAccount from "./routes/steamAccount.js";
-import SteamAccountAction from "./routes/SteamAccountAction.js";
+import SteamAccountAction from "./routes/steamAccountAction.js";
 import { Db, MongoClient } from "mongodb";
 import session from "express-session";
 import MongoStore from "connect-mongo";
