@@ -6,28 +6,20 @@ const collectionName = "proxies";
 /**
  * Fetches proxies from proxies provider
  */
-export async function fetchProxies(): Promise<void> {
+export async function addProxies(proxies: string[]): Promise<number> {
   const collection = (await getClient()).db().collection(collectionName);
-
-  try {
-    const documents = [];
-
-    const proxies = ["proxies array"];
-
-    for (const item of proxies) {
-      const split = item.split(":");
-      const ip = split[0];
-      const port = Number(split[1]);
-      const proxy: Proxy = { ip, port, load: 0 };
-      documents.push(proxy);
-    }
-
-    await collection.deleteMany({});
-    await collection.insertMany(documents);
-  } catch (error) {
-    Promise.reject("Could not fetch proxies.");
-    console.error(error);
+  const documents = [];
+  for (const item of proxies) {
+    const split = item.split(":");
+    const ip = split[0];
+    const port = Number(split[1]);
+    const proxy: Proxy = { ip, port, load: 0 };
+    documents.push(proxy);
   }
+
+  await collection.deleteMany({});
+  const res = await collection.insertMany(documents, { ordered: false });
+  return res.insertedCount;
 }
 
 /**

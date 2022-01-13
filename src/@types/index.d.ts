@@ -6,6 +6,7 @@ declare module "express-session" {
   interface SessionData {
     loggedId: boolean;
     userId: string;
+    isAdmin: boolean;
   }
 }
 
@@ -68,14 +69,13 @@ interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
 type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "auth">;
 
 // model - steamcm
-
-interface SteamCM {
+interface SteamCM extends Document {
   ip: string;
   port: number;
 }
 
 // model - steam-verify
-interface SteamVerify {
+interface SteamVerify extends Document {
   userId: string;
   username: string;
   proxy: Proxy;
@@ -83,7 +83,7 @@ interface SteamVerify {
 }
 
 // model proxy
-interface Proxy {
+interface Proxy extends Document {
   ip: string;
   port: number;
   load: number;
@@ -95,4 +95,5 @@ interface IUser extends Document {
   nickname: string;
   email: string;
   avatar: string;
+  role: "admin" | "user";
 }

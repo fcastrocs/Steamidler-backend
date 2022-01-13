@@ -85,7 +85,7 @@ router.post(ROUTE + "/register", async (req, res) => {
   res.clearCookie("tempSession");
 
   // authenticate user
-  await authenticateUser(res, req, { userId, nickname, email, avatar });
+  await authenticateUser(res, req, { userId, nickname, email, avatar, role: "user" });
 
   return res.redirect(process.env.FRONTEND_URL);
 });
@@ -104,7 +104,7 @@ router.post(ROUTE + "/logout", async (req, res) => {
 router.post(ROUTE + "/authenticate", async (req, res) => {
   if (process.env.NODE_ENV === "production") return res.sendStatus(404);
 
-  await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "" });
+  await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "", role: "admin" });
   return res.send();
 });
 
@@ -115,6 +115,7 @@ async function authenticateUser(res: Response, req: Request, user: IUser) {
   // authenticate user
   req.session.loggedId = true;
   req.session.userId = user.userId;
+  req.session.isAdmin = user.role === "admin" ? true : false;
   res.cookie(
     "user-data",
     { nickname: user.nickname, avatar: user.avatar },

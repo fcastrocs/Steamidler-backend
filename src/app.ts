@@ -5,10 +5,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: path.join(__dirname, "../.env") });
 
 import * as mongodb from "./db.js";
-import express from "express";
+import express, { ErrorRequestHandler } from "express";
 import userRoutes from "./routes/user.js";
 import SteamAccount from "./routes/steamAccount.js";
 import SteamAccountAction from "./routes/steamAccountAction.js";
+import adminTools from "./routes/adminTools.js";
 import { Db, MongoClient } from "mongodb";
 import session from "express-session";
 import MongoStore from "connect-mongo";
@@ -55,9 +56,18 @@ async function createCollectionIndexes(db: Db) {
  * Configure Express middleware
  */
 function appMiddleWare(client: MongoClient) {
-  app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: 1048576 })); //1024 kb
   app.use(cookieParser(process.env.SESSION_SECRET, {}));
+
+  // handle bad JSON
+  const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+    if (err instanceof SyntaxError && "body" in err) {
+      res.statusMessage = "bad json";
+      return res.status(400).send(res.statusMessage);
+    }
+    return next();
+  };
+  app.use(errorHandler);
 
   // sessions
   app.use(
@@ -114,6 +124,7 @@ function registerRoutes() {
   app.use("/api/user", userRoutes);
   app.use("/api/", SteamAccount);
   app.use("/api/", SteamAccountAction);
+  app.use("/api/", adminTools);
 }
 
 /**
