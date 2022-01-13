@@ -1,7 +1,9 @@
 import { SteamCM } from "@types";
-import axios from "axios";
+import fetch from "node-fetch";
 import { getClient } from "../db.js";
 const collectionName = "steam-cms";
+
+const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?format=json&cellid=0";
 
 /**
  * Fetches Steam CMs from the steam api and saves them to 'steam-cms' collection
@@ -10,11 +12,14 @@ export async function fetchSteamCms(): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
 
   try {
-    const res = await axios.get(process.env.STEAMCMS_URL);
+    const res = await fetch(STEAMCMS_URL);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let data: any = await res.json();
+    data = data.response.serverlist;
 
     const documents = [];
 
-    for (const item of res.data.response.serverlist) {
+    for (const item of data) {
       const split = item.split(":");
       const ip = split[0];
       const port = Number(split[1]);
@@ -25,8 +30,8 @@ export async function fetchSteamCms(): Promise<void> {
     await collection.deleteMany({});
     await collection.insertMany(documents);
   } catch (error) {
-    Promise.reject("Could not fetch Steam CMs.");
     console.error(error);
+    throw "Could not fetch Steam CMs.";
   }
 }
 

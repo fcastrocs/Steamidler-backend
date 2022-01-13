@@ -1,5 +1,6 @@
 import express, { NextFunction, Request as Req, Response as Res, Router } from "express";
 import { addProxies } from "../models/proxy.js";
+import { fetchSteamCms } from "../models/steamcm.js";
 const router = Router();
 
 const ROUTE = "/admintools";
@@ -42,6 +43,16 @@ router.post(ROUTE + "/addproxies", [isAdmin, express.text()], async (req: Req, r
     res.statusMessage = error;
     return res.status(400).send(error);
   }
+});
+
+router.post(ROUTE + "/fetchsteamcms", isAdmin, async (req: Req, res: Res) => {
+  try {
+    await fetchSteamCms();
+  } catch (error) {
+    res.statusMessage = error;
+    return res.status(400).send(error);
+  }
+  return res.send();
 });
 
 export default router;
