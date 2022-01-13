@@ -5,12 +5,14 @@ import * as Invite from "../models/invite.js";
 import { IUser } from "@types";
 const router = Router();
 
+const ROUTE = "/user";
+
 /**
  * google login response.
  * If user is not registered, it sets a tempSession cookie. Otherwise authenticates user.
  * tempSession cookie is used by register request
  */
-router.post("/googleresponse", async (req, res) => {
+router.post(ROUTE + "/googleresponse", async (req, res) => {
   if (req.session.loggedId) {
     return res.status(403).send("already logged in");
   }
@@ -48,7 +50,7 @@ router.post("/googleresponse", async (req, res) => {
 /**
  * Register new User
  */
-router.post("/register", async (req, res) => {
+router.post(ROUTE + "/register", async (req, res) => {
   const invite = req.body.invite;
   const nickname = req.body.nickname;
   if (!invite || !nickname) {
@@ -88,7 +90,7 @@ router.post("/register", async (req, res) => {
   return res.redirect(process.env.FRONTEND_URL);
 });
 
-router.post("/logout", async (req, res) => {
+router.post(ROUTE + "/logout", async (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("session");
     res.clearCookie("user-data");
@@ -99,7 +101,7 @@ router.post("/logout", async (req, res) => {
 /**
  * way to authenticate to test API in development
  */
-router.post("/apitest-auth", async (req, res) => {
+router.post(ROUTE + "/authenticate", async (req, res) => {
   if (process.env.NODE_ENV === "production") return res.sendStatus(404);
 
   await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "" });
