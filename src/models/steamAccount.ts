@@ -1,9 +1,12 @@
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 import crypto from "crypto";
 import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
 import { UpdateFilter, Document } from "mongodb";
 const collectionName = "steam-accounts";
 
+/**
+ * Add steamAccount to collection
+ */
 export async function add(steamAccount: SteamAccount): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
@@ -12,6 +15,9 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
   await collection.insertOne(encrypedAccount);
 }
 
+/**
+ * update steamAccount
+ */
 export async function update(steamAccount: SteamAccount): Promise<void> {
   const collection = (await getClient()).db().collection(collectionName);
   const encrypedAccount = encryptSteamAccount(steamAccount);
@@ -23,6 +29,9 @@ export async function update(steamAccount: SteamAccount): Promise<void> {
   );
 }
 
+/**
+ * update fields for a single steamAccount with userId and username
+ */
 export async function updateField(
   userId: string,
   username: string,
@@ -37,6 +46,9 @@ export async function updateField(
   );
 }
 
+/**
+ * Remove steamAccount with userId and username
+ */
 export async function remove(userId: string, username: string): Promise<SteamAccount> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOneAndDelete({ userId, username });
@@ -44,6 +56,9 @@ export async function remove(userId: string, username: string): Promise<SteamAcc
   return doc.value as SteamAccount;
 }
 
+/**
+ * Check whether a steamAccount with userId and username exists in collection
+ */
 export async function exists(userId: string, username: string): Promise<boolean> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
@@ -53,6 +68,9 @@ export async function exists(userId: string, username: string): Promise<boolean>
   return !!doc;
 }
 
+/**
+ * Return a steamAccount with userId and username
+ */
 export async function get(userId: string, username: string): Promise<SteamAccount> {
   const collection = (await getClient()).db().collection(collectionName);
   const doc = await collection.findOne({
@@ -67,6 +85,9 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
   return doc as SteamAccount;
 }
 
+/**
+ * Return all steam accounts without sensitive information that match userId
+ */
 export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
   const collection = (await getClient()).db().collection(collectionName);
   const cursor = collection.find({ userId });
@@ -84,6 +105,10 @@ export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
   }
   return steamAccounts;
 }
+
+/**
+ * Helper functions
+ */
 
 function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted {
   // convert sentry buffer to string

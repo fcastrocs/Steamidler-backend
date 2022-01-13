@@ -1,5 +1,5 @@
 import { SteamVerify } from "@types";
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 const collectionName = "steam-verify";
 
 export async function add(steamVerify: SteamVerify): Promise<void> {

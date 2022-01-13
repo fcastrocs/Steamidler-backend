@@ -1,11 +1,14 @@
-import path from "path";
 import { config } from "dotenv";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: path.join(__dirname, "../.env") });
-import * as mongodb from "./db";
+
+import * as mongodb from "./db.js";
 import express from "express";
-import userRoutes from "./routes/user";
-import SteamAccount from "./routes/SteamAccount";
-import SteamAccountAction from "./routes/SteamAccountAction";
+import userRoutes from "./routes/user.js";
+import SteamAccount from "./routes/steamAccount.js";
+import SteamAccountAction from "./routes/SteamAccountAction.js";
 import { Db, MongoClient } from "mongodb";
 import session from "express-session";
 import MongoStore from "connect-mongo";
@@ -35,14 +38,22 @@ const port = 8000;
   console.log(res);
 })();
 
-function startExpress() {
-  return new Promise((resolve) => {
-    app.listen(port, () => {
-      resolve(`\nListening at http://localhost:${port}`);
-    });
-  });
+/**
+ * Creates collections implicitly and indexes
+ */
+async function createCollectionIndexes(db: Db) {
+  await db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
+  await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
+  await db.collection("proxies").createIndex({ load: 1 });
+  await db.collection("users").createIndex({ userId: 1 }, { unique: true });
+  await db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
+  await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
+  await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
 }
 
+/**
+ * Configure Express middleware
+ */
 function appMiddleWare(client: MongoClient) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: 1048576 })); //1024 kb
@@ -55,7 +66,11 @@ function appMiddleWare(client: MongoClient) {
       secret: process.env.SESSION_SECRET,
       saveUninitialized: false,
       resave: false,
-      cookie: { secure: false, maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: false },
+      cookie: {
+        secure: false,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        httpOnly: false,
+      },
       store: MongoStore.create({
         clientPromise: mongodb.getClient(),
         touchAfter: 24 * 3600,
@@ -64,9 +79,9 @@ function appMiddleWare(client: MongoClient) {
     })
   );
 
-  // check if logged in, middleware
+  // check for authentication
   app.use((req, res, next) => {
-    // skip this route
+    // skip these routes
     if (req.path === "/api/user/googleresponse" || req.path === "/api/user/register") {
       return next();
     }
@@ -88,18 +103,22 @@ function appMiddleWare(client: MongoClient) {
   );
 }
 
+/**
+ * Register Express Routes
+ */
 function registerRoutes() {
   app.use("/api/user", userRoutes);
   app.use("/api/", SteamAccount);
   app.use("/api/", SteamAccountAction);
 }
 
-async function createCollectionIndexes(db: Db) {
-  await db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
-  await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
-  await db.collection("proxies").createIndex({ load: 1 });
-  await db.collection("users").createIndex({ userId: 1 }, { unique: true });
-  await db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
-  await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
+/**
+ * Start Express
+ */
+function startExpress() {
+  return new Promise((resolve) => {
+    app.listen(port, () => {
+      resolve(`\nListening at http://localhost:${port}`);
+    });
+  });
 }

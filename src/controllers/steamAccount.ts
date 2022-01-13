@@ -1,11 +1,11 @@
-import Steam, { LoginOptions, PersonaState } from "ts-steam";
+import Steam, { LoginOptions, PersonaState } from "steam-client-esm";
 import SteamCommunity from "steamcommunity-api";
 import { SocksClientOptions } from "socks";
-import * as SteamAccountModel from "../models/steamAccount";
-import * as ProxyModel from "../models/proxy";
-import * as SteamcmModel from "../models/steamcm";
-import * as SteamVerifyModel from "../models/steamVerify";
-import SteamStore from "./SteamStore";
+import * as SteamAccountModel from "../models/steamAccount.js";
+import * as ProxyModel from "../models/proxy.js";
+import * as SteamcmModel from "../models/steamcm.js";
+import * as SteamVerifyModel from "../models/steamVerify.js";
+import SteamStore from "./SteamStore.js";
 import retry from "@machiavelli/retry";
 import {
   LoginRes,

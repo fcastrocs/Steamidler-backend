@@ -1,4 +1,4 @@
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 import { Document } from "mongodb";
 
 interface User {

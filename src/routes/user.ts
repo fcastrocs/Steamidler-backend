@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
-import * as User from "../models/user";
-import * as Invite from "../models/invite";
+import * as User from "../models/user.js";
+import * as Invite from "../models/invite.js";
 const router = Router();
 
 /**

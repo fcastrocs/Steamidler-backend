@@ -1,4 +1,4 @@
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 
 export async function exists(invite: string, email: string): Promise<boolean> {
   const collection = (await getClient()).db().collection("invites");

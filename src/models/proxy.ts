@@ -1,4 +1,4 @@
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 import { Proxy } from "@types";
 
 const collectionName = "proxies";

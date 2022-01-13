@@ -1,9 +1,9 @@
 import SteamCommunity, { PrivacySettings, Proxy } from "steamcommunity-api";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
-import * as SteamAccountModel from "../models/steamAccount";
-import SteamStore from "./SteamStore";
+import * as SteamAccountModel from "../models/steamAccount.js";
+import SteamStore from "./SteamStore.js";
 import { SteamAccount } from "@types";
-import Steam, { Game } from "ts-steam/src/@types";
+import Steam from "steam-client-esm";
 const NOTONLINE = "This Steam account is not online.";
 const NOTEXIST = "This Steam account does not exist.";
 
@@ -14,7 +14,9 @@ const NOTEXIST = "This Steam account does not exist.";
 export async function idleGames(userId: string, username: string, appids: number[]): Promise<void> {
   const { steam } = await accountExistandOnline(userId, username);
   steam.clientGamesPlayed(appids);
-  await SteamAccountModel.updateField(userId, username, { "state.gamesIdling": appids });
+  await SteamAccountModel.updateField(userId, username, {
+    "state.gamesIdling": appids,
+  });
 }
 
 /**
@@ -24,7 +26,9 @@ export async function idleGames(userId: string, username: string, appids: number
 export async function changeNick(userId: string, username: string, nick: string): Promise<void> {
   const { steam } = await accountExistandOnline(userId, username);
   steam.clientChangeStatus({ playerName: nick });
-  await SteamAccountModel.updateField(userId, username, { "data.nickname": nick });
+  await SteamAccountModel.updateField(userId, username, {
+    "data.nickname": nick,
+  });
 }
 
 /**
@@ -55,8 +59,13 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
   steamcommunity.cookie = steamAccount.auth.cookie;
 
   try {
-    const avatarUrl = await steamcommunity.changeAvatar({ buffer: avatar.buffer, type: avatar.mimetype });
-    await SteamAccountModel.updateField(userId, username, { "data.avatar": avatarUrl });
+    const avatarUrl = await steamcommunity.changeAvatar({
+      buffer: avatar.buffer,
+      type: avatar.mimetype,
+    });
+    await SteamAccountModel.updateField(userId, username, {
+      "data.avatar": avatarUrl,
+    });
   } catch (error) {
     console.error(error);
     throw "Action failed, try again";

@@ -1,10 +1,13 @@
 import { Router } from "express";
-import * as SteamAccount from "../controllers/SteamAccount";
-import { getAll } from "../models/steamAccount";
+import * as SteamAccount from "../controllers/steamAccount.js";
+import { getAll } from "../models/steamAccount.js";
 const router = Router();
 
 const ROUTE = "/steamaccount/";
 
+/**
+ * Add a Steam Account
+ */
 router.post(ROUTE + "add", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
@@ -25,6 +28,9 @@ router.post(ROUTE + "add", async (req, res) => {
   return res.send();
 });
 
+/**
+ * Login a Steam Account
+ */
 router.post(ROUTE + "login", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
@@ -44,6 +50,9 @@ router.post(ROUTE + "login", async (req, res) => {
   return res.send();
 });
 
+/**
+ * Logout a Steam Account
+ */
 router.post(ROUTE + "logout", async (req, res) => {
   const username = req.body.username;
 
@@ -63,7 +72,7 @@ router.post(ROUTE + "logout", async (req, res) => {
 });
 
 /**
- * Remove a steam account.
+ * Remove a Steam Account
  */
 router.delete("/steamaccount", async (req, res) => {
   const username = req.body.username;

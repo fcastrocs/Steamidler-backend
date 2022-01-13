@@ -2,7 +2,7 @@
  * Keeps Steam instances stored in a Map
  */
 
-import Steam from "ts-steam";
+import Steam from "steam-client-esm";
 
 type userId = string;
 type username = string;

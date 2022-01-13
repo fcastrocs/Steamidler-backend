@@ -1,6 +1,6 @@
 import { SteamCM } from "@types";
 import axios from "axios";
-import { getClient } from "../db";
+import { getClient } from "../db.js";
 const collectionName = "steam-cms";
 
 /**

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 const upload = multer();
-import * as SteamAccountAction from "../controllers/SteamAccountAction";
+import * as SteamAccountAction from "../controllers/SteamAccountAction.js";
 const router = Router();
 
 const ROUTE = "/steamaccount/action/";

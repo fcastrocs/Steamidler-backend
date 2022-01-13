@@ -1,5 +1,5 @@
 import { FarmData, Item, Cookie } from "steamcommunity-api";
-import Steam, { AccountAuth, AccountData, PersonaState } from "ts-steam";
+import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client-esm";
 
 declare module "express-session" {
   interface SessionData {
