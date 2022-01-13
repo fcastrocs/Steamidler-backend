@@ -67,7 +67,7 @@ function appMiddleWare(client: MongoClient) {
       saveUninitialized: false,
       resave: false,
       cookie: {
-        secure: true,
+        secure: process.env.NODE_ENV === "production" ? true : false,
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
       },
@@ -82,7 +82,11 @@ function appMiddleWare(client: MongoClient) {
   // check for authentication
   app.use((req, res, next) => {
     // skip these routes
-    if (req.path === "/api/user/googleresponse" || req.path === "/api/user/register" || req.path === "/api/user/apitest-auth") {
+    if (
+      req.path === "/api/user/googleresponse" ||
+      req.path === "/api/user/register" ||
+      req.path === "/api/user/apitest-auth"
+    ) {
       return next();
     }
 
