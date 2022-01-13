@@ -101,11 +101,11 @@ router.post("/logout", async (req, res) => {
  */
 router.post("/apitest-auth", async (req, res) => {
   if (req.body.key !== process.env.API_TEST_KEY) {
-    return res.send(404);
+    return res.sendStatus(404);
   }
 
   await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "" });
-  return res.send(200);
+  return res.send();
 });
 
 /**

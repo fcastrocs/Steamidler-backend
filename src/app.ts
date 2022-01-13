@@ -82,7 +82,7 @@ function appMiddleWare(client: MongoClient) {
   // check for authentication
   app.use((req, res, next) => {
     // skip these routes
-    if (req.path === "/api/user/googleresponse" || req.path === "/api/user/register") {
+    if (req.path === "/api/user/googleresponse" || req.path === "/api/user/register" || req.path === "/api/user/apitest-auth") {
       return next();
     }
 
