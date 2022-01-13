@@ -6,9 +6,9 @@ import { IUser } from "@types";
 const router = Router();
 
 /**
- * Catches google login response. If user is not registered, it sets a tempSession cookie.
- * Otherwise logs user in.
- * tempSession cookie is used by the font-end to show invite code form.
+ * google login response.
+ * If user is not registered, it sets a tempSession cookie. Otherwise authenticates user.
+ * tempSession cookie is used by register request
  */
 router.post("/googleresponse", async (req, res) => {
   if (req.session.loggedId) {
@@ -33,7 +33,7 @@ router.post("/googleresponse", async (req, res) => {
   if (!user) {
     res.cookie(
       "tempSession",
-      { credential, clientId },
+      { userId, avatar: payload.picture, email: payload.email },
       { signed: true, httpOnly: true, expires: new Date(Date.now() + 10 * 60000), secure: true }
     );
     return res.redirect(process.env.FRONTEND_URL + "/register");
@@ -45,6 +45,9 @@ router.post("/googleresponse", async (req, res) => {
   res.redirect(process.env.FRONTEND_URL);
 });
 
+/**
+ * Register new User
+ */
 router.post("/register", async (req, res) => {
   const invite = req.body.invite;
   const nickname = req.body.nickname;
@@ -58,35 +61,29 @@ router.post("/register", async (req, res) => {
     return res.status(400).send("tempSession cookie not set");
   }
 
-  const credential = tempSession.credential;
-  const clientId = tempSession.clientId;
+  const userId = tempSession.userId;
+  const email = tempSession.email;
+  const avatar = tempSession.avatar;
 
-  if (!credential || !clientId) {
+  if (!userId || !email || !avatar) {
     res.statusMessage = "invalid tempSession cookie";
     return res.status(400).send(res.statusMessage);
   }
 
-  // verify token
-  const payload = await verifyToken(credential, clientId);
-  if (!payload) {
-    res.statusMessage = "invalid token";
-    return res.status(400).send(res.statusMessage);
-  }
-
   // verify invite code
-  if (!(await Invite.exists(invite, payload.email))) {
+  if (!(await Invite.exists(invite, email))) {
     res.statusMessage = "invalid invite";
     return res.status(400).send(res.statusMessage);
   }
 
   // remove used invite
-  await Invite.remove(payload.email);
+  await Invite.remove(email);
 
   // clear uneeded temp session
   res.clearCookie("tempSession");
 
   // authenticate user
-  await authenticateUser(res, req, { userId: payload.sub, nickname, email: payload.email, avatar: payload.picture });
+  await authenticateUser(res, req, { userId, nickname, email, avatar });
 
   return res.redirect(process.env.FRONTEND_URL);
 });
@@ -99,6 +96,21 @@ router.post("/logout", async (req, res) => {
   });
 });
 
+/**
+ * way to authenticate to test API
+ */
+router.post("/apitest-auth", async (req, res) => {
+  if (req.body.key !== process.env.API_TEST_KEY) {
+    return res.send(404);
+  }
+
+  await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "" });
+  return res.send(200);
+});
+
+/**
+ * authenticate and update user details
+ */
 async function authenticateUser(res: Response, req: Request, user: IUser) {
   // authenticate user
   req.session.loggedId = true;
@@ -109,14 +121,12 @@ async function authenticateUser(res: Response, req: Request, user: IUser) {
     { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
   );
 
-  await User.upsert(user.userId, {
-    userId: user.userId,
-    nickname: user.nickname,
-    email: user.email,
-    avatar: user.avatar,
-  });
+  await User.upsert(user.userId, user);
 }
 
+/**
+ * Verify google token
+ */
 async function verifyToken(credential: string, clientId: string) {
   const client = new OAuth2Client();
   let payload;

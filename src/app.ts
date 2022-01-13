@@ -67,9 +67,9 @@ function appMiddleWare(client: MongoClient) {
       saveUninitialized: false,
       resave: false,
       cookie: {
-        secure: false,
+        secure: true,
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        httpOnly: false,
+        httpOnly: true,
       },
       store: MongoStore.create({
         clientPromise: mongodb.getClient(),
