@@ -152,29 +152,6 @@ router.post(ROUTE + "clearaliases", async (req, res) => {
 });
 
 /**
- * Activate free game
- * @route
- */
-router.post(ROUTE + "activatefreegame", async (req, res) => {
-  const username = req.body.username;
-  const appId = req.body.appId;
-
-  if (!username || !appId) {
-    res.statusMessage = "invalid body";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  try {
-    //
-  } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
-  }
-  return res.send();
-});
-
-/**
  * Activate free to play game
  * @route
  */
