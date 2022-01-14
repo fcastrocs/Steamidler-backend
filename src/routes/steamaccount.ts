@@ -45,8 +45,7 @@ router.post(ROUTE + "/login", async (req, res) => {
   try {
     await SteamAccount.login(req.session.userId, username, code, password);
   } catch (error) {
-    console.log(error);
-
+    console.error(error);
     res.statusMessage = error;
     return res.status(400).send(error);
   }
@@ -67,6 +66,7 @@ router.post(ROUTE + "/logout", async (req, res) => {
   try {
     await SteamAccount.logout(req.session.userId, username);
   } catch (error) {
+    console.error(error);
     res.statusMessage = error;
     return res.status(400).send(error);
   }
@@ -88,6 +88,7 @@ router.delete(ROUTE, async (req, res) => {
   try {
     await SteamAccount.remove(req.session.userId, username);
   } catch (error) {
+    console.error(error);
     res.statusMessage = error;
     return res.status(400).send(error);
   }
