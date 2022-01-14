@@ -95,7 +95,7 @@ function appMiddleWare(client: MongoClient) {
     if (
       req.path === "/api/user/googleresponse" ||
       req.path === "/api/user/register" ||
-      req.path === "/api/user/apitest-auth"
+      req.path === "/api/user/authenticate"
     ) {
       return next();
     }
@@ -121,7 +121,7 @@ function appMiddleWare(client: MongoClient) {
  * Register Express Routes
  */
 function registerRoutes() {
-  app.use("/api/user", userRoutes);
+  app.use("/api/", userRoutes);
   app.use("/api/", SteamAccount);
   app.use("/api/", SteamAccountAction);
   app.use("/api/", adminTools);

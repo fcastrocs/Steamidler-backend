@@ -21,6 +21,7 @@ router.post(ROUTE, async (req, res) => {
   try {
     await SteamAccount.add(req.session.userId, username, password, code);
   } catch (error) {
+    console.error(error);
     res.statusMessage = error;
     return res.status(400).send(error);
   }
@@ -44,6 +45,8 @@ router.post(ROUTE + "/login", async (req, res) => {
   try {
     await SteamAccount.login(req.session.userId, username, code, password);
   } catch (error) {
+    console.log(error);
+
     res.statusMessage = error;
     return res.status(400).send(error);
   }

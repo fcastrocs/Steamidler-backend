@@ -47,8 +47,9 @@ export async function add(userId: string, username: string, password: string, co
     password: password,
   };
 
-  // check if account is waiting for steam guard code
   const steamVerify = await SteamVerifyModel.get(userId, username);
+
+  // check if account is waiting for steam guard code
   if (steamVerify) {
     // steam guard code was not provided
     if (!code) {
@@ -97,7 +98,7 @@ export async function add(userId: string, username: string, password: string, co
   const steamAccount: SteamAccount = {
     userId,
     username,
-    auth: { ...loginRes.auth, password, type: steamVerify.authType ?? "none" },
+    auth: { ...loginRes.auth, password, type: steamVerify ? steamVerify.authType : "none" },
     data: loginRes.data,
     state: {
       status: "online",
