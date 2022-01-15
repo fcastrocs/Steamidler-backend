@@ -4,7 +4,7 @@ import { getClient } from "../db.js";
 export async function get(userId: string): Promise<IUser | null> {
   const collection = (await getClient()).db().collection("users");
   const doc = await collection.findOne({ userId });
-  return doc as IUser;
+  return (<unknown>doc) as IUser;
 }
 
 export async function upsert(userId: string, user: IUser): Promise<void> {

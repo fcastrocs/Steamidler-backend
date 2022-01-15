@@ -17,7 +17,7 @@ export async function get(userId: string, username: string): Promise<SteamVerify
     username,
   });
   if (!doc) return null;
-  return doc as SteamVerify;
+  return (<unknown>doc) as SteamVerify;
 }
 
 export async function remove(userId: string, username: string): Promise<void> {

@@ -13,8 +13,7 @@ export async function addProxies(proxies: string[]): Promise<number> {
     const split = item.split(":");
     const ip = split[0];
     const port = Number(split[1]);
-    const proxy: Proxy = { ip, port, load: 0 };
-    documents.push(proxy);
+    documents.push({ ip, port, load: 0 });
   }
 
   await collection.deleteMany({});

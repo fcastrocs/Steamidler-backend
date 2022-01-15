@@ -46,7 +46,7 @@ interface Encrypted {
   data: string;
 }
 
-interface SteamAccount {
+interface SteamAccount extends Document {
   userId: string;
   username: string;
   auth: ExtendedAccountAuth;
@@ -69,7 +69,7 @@ interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
 type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "auth">;
 
 // model - steamcm
-interface SteamCM extends Document {
+interface SteamCM {
   ip: string;
   port: number;
 }

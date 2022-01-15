@@ -38,19 +38,23 @@ export async function changeNick(userId: string, username: string, nick: string)
 export async function activatef2pgame(userId: string, username: string, appids: number[]): Promise<Game[]> {
   const { steam, steamAccount } = await accountExistandOnline(userId, username);
   const games = await steam.clientRequestFreeLicense(appids);
-
-  const addedGames = [];
-
-  for (const game of games) {
-    if (steamAccount.data.games.some((item) => item.appid === game.appid)) {
-      continue;
-    }
-    steamAccount.data.games.push(game);
-    addedGames.push(game);
-  }
-
+  const { difference, joined } = joinGamesArrays(games, steamAccount.data.games);
+  steamAccount.data.games = joined;
   await SteamAccountModel.update(steamAccount);
-  return addedGames;
+  return difference;
+}
+
+/**
+ * Activate free to play game.
+ * @controller
+ */
+export async function cdkeyRedeem(userId: string, username: string, cdkey: string): Promise<Game[]> {
+  const { steam, steamAccount } = await accountExistandOnline(userId, username);
+  const games = await steam.cdkeyRedeem(cdkey);
+  const { difference, joined } = joinGamesArrays(games, steamAccount.data.games);
+  steamAccount.data.games = joined;
+  await SteamAccountModel.update(steamAccount);
+  return difference;
 }
 
 /**
@@ -131,5 +135,24 @@ function setAgentOptions(proxy: Proxy) {
     port: proxy.port,
     userId: process.env.PROXY_USER,
     password: process.env.PROXY_PASS,
+  };
+}
+
+/**
+ * Joins two games arrays and returns the joined array and the difference
+ */
+function joinGamesArrays(games1: Game[], games2: Game[]) {
+  const difference = [];
+  for (const game of games1) {
+    if (games2.some((item) => item.appid === game.appid)) {
+      continue;
+    }
+    games2.push(game);
+    difference.push(game);
+  }
+
+  return {
+    joined: games2,
+    difference,
   };
 }

@@ -87,7 +87,7 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
     doc.auth.sentry = Buffer.from(doc.auth.sentry as string, "hex");
   }
 
-  return doc as SteamAccount;
+  return (<unknown>doc) as SteamAccount;
 }
 
 /**

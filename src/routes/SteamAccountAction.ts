@@ -188,7 +188,7 @@ router.post(ROUTE + "activatef2pgames", async (req, res) => {
  * Redeem game cdkey
  * @route
  */
-router.post(ROUTE + "redeemcdkey", async (req, res) => {
+router.post(ROUTE + "cdkeyredeem", async (req, res) => {
   const username = req.body.username;
   const cdkey = req.body.cdkey;
 
@@ -198,13 +198,13 @@ router.post(ROUTE + "redeemcdkey", async (req, res) => {
   }
 
   try {
-    //
+    const games = await SteamAccountAction.cdkeyRedeem(req.session.userId, username, cdkey);
+    return res.send(games);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;
     return res.status(400).send(error);
   }
-  return res.send();
 });
 
 export default router;
