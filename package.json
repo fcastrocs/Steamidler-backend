@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@machiavelli/express-rate-limiter": "^1.0.10",
-    "@machiavelli/retry": "^1.0.14",
     "connect-mongo": "^4.6.0",
     "cookie-parser": "^1.4.5",
     "dotenv": "^8.2.0",
@@ -35,6 +34,6 @@
     "node-fetch": "^3.1.0",
     "steam-client-esm": "github:fcastrocs/Steam-Client-ESM",
     "steam-crypto-esm": "^3.0.10",
-    "steamcommunity-api": "^1.0.14"
+    "steamcommunity-api": "^1.0.15"
   }
 }
