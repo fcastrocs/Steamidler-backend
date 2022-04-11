@@ -42,10 +42,7 @@ export async function decreaseLoad(proxy: Proxy): Promise<void> {
  */
 export async function getOne(): Promise<Proxy> {
   const collection = (await getClient()).db().collection(collectionName);
-  const cursor = collection.aggregate([
-    { $match: { load: { $lt: Number(process.env.PROXYLOAD) } } },
-    { $sample: { size: 1 } },
-  ]);
+  const cursor = collection.aggregate([{ $match: { load: { $lt: Number(process.env.PROXYLOAD) } } }, { $sample: { size: 1 } }]);
   const doc = await cursor.next();
   if (doc == null) throw "Could fetch a proxy from db.";
   return doc as Proxy;

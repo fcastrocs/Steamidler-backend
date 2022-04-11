@@ -21,6 +21,9 @@ const port = 8000;
 
 // Start the app
 (async () => {
+
+  console.log(process.env.SOCKET_TIMEOUT);
+  
   console.log("Connecting to DB...");
   const client = await mongodb.connect();
   const db = client.db();
