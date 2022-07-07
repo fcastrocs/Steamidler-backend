@@ -20,6 +20,8 @@ router.post(ROUTE + "/googleresponse", async (req, res) => {
   const credential = req.body.credential;
   const clientId = req.body.clientId;
 
+  console.log(req);
+
   if (!credential || !clientId) {
     return res.status(400).send("invalid body");
   }
@@ -116,11 +118,7 @@ async function authenticateUser(res: Response, req: Request, user: IUser) {
   req.session.loggedId = true;
   req.session.userId = user.userId;
   req.session.isAdmin = user.role === "admin" ? true : false;
-  res.cookie(
-    "user-data",
-    { nickname: user.nickname, avatar: user.avatar },
-    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
-  );
+  res.cookie("user-data", { nickname: user.nickname, avatar: user.avatar }, { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
   await User.upsert(user.userId, user);
 }
