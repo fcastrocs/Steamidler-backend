@@ -17,9 +17,6 @@ import {
   Proxy,
 } from "../../@types/index.js";
 
-const ONLINE = "This Steam account is already online.";
-const EXIST = "This Steam account already exists.";
-const NOTEXIST = "This Steam account does not exist.";
 const PERSONASTATE = {
   Offline: 0,
   Online: 1,
@@ -34,11 +31,11 @@ const PERSONASTATE = {
  */
 export async function add(userId: string, username: string, password: string, code?: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
-    throw ONLINE;
+    throw "AlreadyOnline";
   }
 
   if (await SteamAccountModel.exists(userId, username)) {
-    throw EXIST;
+    throw "Exists";
   }
 
   // set login options
@@ -47,9 +44,8 @@ export async function add(userId: string, username: string, password: string, co
     password: password,
   };
 
-  const steamVerify = await SteamVerifyModel.get(userId, username);
-
   // check if account is waiting for steam guard code
+  const steamVerify = await SteamVerifyModel.get(userId, username);
   if (steamVerify) {
     // steam guard code was not provided
     if (!code) {
@@ -72,7 +68,7 @@ export async function add(userId: string, username: string, password: string, co
     loginRes = await fullyLogin(loginOptions, proxy);
   } catch (error) {
     // Steam is asking for guard code
-    if (isCodeNeededError(error)) {
+    if (isSteamGuardCodeNeededError(error)) {
       // save this config to reuse when user enters the code
       await SteamVerifyModel.add({
         userId,
@@ -81,12 +77,15 @@ export async function add(userId: string, username: string, password: string, co
         authType: error === "AccountLogonDenied" ? "email" : "mobile",
       });
       throw "SteamGuardCodeNeeded";
-    } else if (isBadCodeError(error)) {
+    } else if (isBadSteamGuardCodeError(error)) {
       throw "BadSteamGuardCode";
     }
 
+    // error is steam error code or unexpected
     throw normalizeLoginErrors(error);
   }
+
+  // login successful
 
   // remove steam-verify
   await SteamVerifyModel.remove(userId, username);
@@ -124,12 +123,12 @@ export async function add(userId: string, username: string, password: string, co
  */
 export async function login(userId: string, username: string, code?: string, password?: string): Promise<void> {
   if (SteamStore.has(userId, username)) {
-    throw ONLINE;
+    throw "AlreadyOnline";
   }
 
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw NOTEXIST;
+    throw "DoesNotExist";
   }
 
   // set login options
@@ -164,9 +163,9 @@ export async function login(userId: string, username: string, code?: string, pas
     // authentication errors, update account state error
     if (isAuthError(error)) {
       let stateError = error;
-      if (isCodeNeededError(error)) {
+      if (isSteamGuardCodeNeededError(error)) {
         stateError = "SteamGuardCodeNeeded";
-      } else if (isBadCodeError(error)) {
+      } else if (isBadSteamGuardCodeError(error)) {
         stateError = "BadSteamGuardCode";
       }
       await SteamAccountModel.updateField(userId, username, { "state.error": stateError });
@@ -209,7 +208,7 @@ export async function login(userId: string, username: string, code?: string, pas
 export async function logout(userId: string, username: string): Promise<void> {
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw NOTEXIST;
+    throw "DoesNotExist";
   }
 
   const steam = SteamStore.get(userId, username);
@@ -235,7 +234,7 @@ export async function logout(userId: string, username: string): Promise<void> {
 export async function remove(userId: string, username: string): Promise<void> {
   const steamAccount = await SteamAccountModel.remove(userId, username);
   if (!steamAccount) {
-    throw NOTEXIST;
+    throw "DoesNotExist";
   }
   const steam = SteamStore.remove(userId, username);
   if (steam) {
@@ -305,7 +304,6 @@ async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
  * Login to steam via CM
  */
 async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
-  // setup socks options
   const options: Options = {
     proxy: {
       host: proxy.ip,
@@ -321,11 +319,8 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
     timeout: Number(process.env.PROXY_TIMEOUT),
   };
 
-  // connect to steam
   const steam = new Steam(options);
   await steam.connect();
-
-  // attempt cm login
   const res = await steam.login(loginOptions);
 
   return {
@@ -423,12 +418,12 @@ function disconnectHandler(userId: string, username: string, steam: Steam) {
 function normalizeLoginErrors(error: string | Error) {
   if (typeof error !== "string") {
     console.error(error);
-    return "Could not connect to steam.";
+    return "UnexpectedError";
   }
   return error;
 }
 
-function isCodeNeededError(error: string): boolean {
+function isSteamGuardCodeNeededError(error: string): boolean {
   return (
     error === "AccountLogonDenied" || // need email code
     error === "AccountLoginDeniedNeedTwoFactor" || // need mobile code
@@ -436,7 +431,7 @@ function isCodeNeededError(error: string): boolean {
   );
 }
 
-function isBadCodeError(error: string) {
+function isBadSteamGuardCodeError(error: string) {
   return (
     error === "InvalidLoginAuthCode" || // bad email code
     error === "TwoFactorCodeMismatch" || // bad mobile code
@@ -445,5 +440,5 @@ function isBadCodeError(error: string) {
 }
 
 function isAuthError(error: string): boolean {
-  return isCodeNeededError(error) || isBadCodeError(error) || error === "InvalidPassword";
+  return isSteamGuardCodeNeededError(error) || isBadSteamGuardCodeError(error) || error === "InvalidPassword";
 }
