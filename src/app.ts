@@ -64,7 +64,7 @@ function appMiddleWare(client: MongoClient) {
   const errorHandler: ErrorRequestHandler = (err: HttpException, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
       console.error(err);
-      return res.status(400).send({ status: 400, message: err.message }); // Bad request
+      return res.status(400).send({ message: err.message }); // Bad request
     }
     return next();
   };
