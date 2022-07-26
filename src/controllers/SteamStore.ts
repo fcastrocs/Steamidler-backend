@@ -1,5 +1,5 @@
 /**
- * Keeps Steam instances stored in a Map by userId
+ * Online steam accounts Steam instance are stored by userId
  */
 import Steam from "steam-client";
 
