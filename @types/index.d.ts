@@ -80,7 +80,7 @@ interface SteamCM {
 }
 
 // model - steam-verify
-interface SteamVerify extends Document {
+interface SteamVerify {
   userId: string;
   username: string;
   proxy: Proxy;
@@ -88,14 +88,14 @@ interface SteamVerify extends Document {
 }
 
 // model proxy
-interface Proxy extends Document {
+interface Proxy {
   ip: string;
   port: number;
-  load: number;
+  load: number; // number of accounts that are connected to the proxy
 }
 
 // model User
-interface IUser extends Document {
+interface IUser {
   userId: string;
   nickname: string;
   email: string;

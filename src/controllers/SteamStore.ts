@@ -1,7 +1,6 @@
 /**
- * Keeps Steam instances stored in a Map
+ * Keeps Steam instances stored in a Map by userId
  */
-
 import Steam from "steam-client";
 
 type userId = string;
@@ -17,7 +16,7 @@ export default class SteamStore {
   static add(userId: string, username: string, steam: Steam): void {
     // make sure there are no duplicates.
     if (this.has(userId, username)) {
-      throw Error("This account is already being managed.");
+      throw Error(`Account ${username} is already in SteamStore.`);
     }
     let accounts = Store.get(userId);
     // this user doesn't have a store

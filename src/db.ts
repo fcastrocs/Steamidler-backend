@@ -2,7 +2,7 @@
  * Connects to mongodb.
  */
 
-import { MongoClient } from "mongodb";
+import { Collection, MongoClient } from "mongodb";
 import { config } from "dotenv";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
@@ -22,4 +22,9 @@ export async function connect(): Promise<MongoClient> {
 export async function getClient(): Promise<MongoClient> {
   if (!client) throw Error("Not connected to database.");
   return client;
+}
+
+export async function getCollection(name: string): Promise<Collection> {
+  const client = await getClient();
+  return client.db().collection(name);
 }
