@@ -1,4 +1,4 @@
-import { IUser } from "@types";
+import { IUser } from "../../@types";
 import { getClient } from "../db.js";
 
 export async function get(userId: string): Promise<IUser | null> {

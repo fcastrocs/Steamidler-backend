@@ -1,4 +1,4 @@
-import { SteamCM } from "@types";
+import { SteamCM } from "../../@types";
 import fetch from "node-fetch";
 import { getClient } from "../db.js";
 const collectionName = "steam-cms";

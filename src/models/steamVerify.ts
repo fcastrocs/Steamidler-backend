@@ -1,4 +1,4 @@
-import { SteamVerify } from "@types";
+import { SteamVerify } from "../../@types";
 import { getClient } from "../db.js";
 const collectionName = "steam-verify";
 

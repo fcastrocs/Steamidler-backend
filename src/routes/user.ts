@@ -2,7 +2,7 @@ import { Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import * as User from "../models/user.js";
 import * as Invite from "../models/invite.js";
-import { IUser } from "@types";
+import { IUser } from "../../@types/index.js";
 const router = Router();
 
 const ROUTE = "/user";
@@ -118,7 +118,11 @@ async function authenticateUser(res: Response, req: Request, user: IUser) {
   req.session.loggedId = true;
   req.session.userId = user.userId;
   req.session.isAdmin = user.role === "admin" ? true : false;
-  res.cookie("user-data", { nickname: user.nickname, avatar: user.avatar }, { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.cookie(
+    "user-data",
+    { nickname: user.nickname, avatar: user.avatar },
+    { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+  );
 
   await User.upsert(user.userId, user);
 }

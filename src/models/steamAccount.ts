@@ -1,7 +1,7 @@
 import { getClient } from "../db.js";
 import crypto from "crypto";
-import { SteamAccount, SteamAccountEncrypted, Encrypted, SteamAccNonSensitive } from "@types";
 import { UpdateFilter, Document } from "mongodb";
+import { Encrypted, SteamAccNonSensitive, SteamAccount, SteamAccountEncrypted } from "../../@types/index.js";
 const collectionName = "steam-accounts";
 
 /**

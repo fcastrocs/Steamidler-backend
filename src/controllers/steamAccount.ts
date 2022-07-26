@@ -1,21 +1,21 @@
 import Steam, { LoginOptions, PersonaState } from "steam-client";
 import SteamCommunity from "steamcommunity-api";
-import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamcmModel from "../models/steamcm.js";
 import * as SteamVerifyModel from "../models/steamVerify.js";
 import SteamStore from "./steamStore.js";
 import retry from "@machiavelli/retry";
+import { Options } from "steam-client/@types/connection.js";
 import {
-  LoginRes,
+  ExtendedLoginRes,
   SteamAccount,
-  SteamCM,
+  LoginRes,
   ExtendedAccountAuth,
   ExtendedAccountData,
+  SteamCM,
   Proxy,
-  ExtendedLoginRes,
-} from "@types";
+} from "../../@types/index.js";
 
 const ONLINE = "This Steam account is already online.";
 const EXIST = "This Steam account already exists.";
@@ -306,7 +306,7 @@ async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
  */
 async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: SteamCM): Promise<LoginRes> {
   // setup socks options
-  const socksOptions: SocksClientOptions = {
+  const options: Options = {
     proxy: {
       host: proxy.ip,
       port: proxy.port,
@@ -314,15 +314,15 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
       userId: process.env.PROXY_USER,
       password: process.env.PROXY_PASS,
     },
-    destination: {
+    steamCM: {
       host: steamcm.ip,
       port: steamcm.port,
     },
-    command: "connect",
+    timeout: Number(process.env.PROXY_TIMEOUT),
   };
 
   // connect to steam
-  const steam = new Steam();
+  const steam = new Steam(options);
   await steam.connect();
 
   // attempt cm login
