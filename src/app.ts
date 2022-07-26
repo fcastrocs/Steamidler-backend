@@ -15,21 +15,19 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
 import rateLimiter from "@machiavelli/express-rate-limiter";
+import { HttpException } from "../@types/index.js";
 
 const app = express();
 const port = 8000;
 
 // Start the app
 (async () => {
-
-  console.log(process.env.SOCKET_TIMEOUT);
-  
   console.log("Connecting to DB...");
   const client = await mongodb.connect();
   const db = client.db();
 
-  console.log("Creating collection indexes...");
-  await createCollectionIndexes(db);
+  console.log("Creating collection...");
+  await createCollections(db);
 
   console.log("Applying app middleware...");
   appMiddleWare(client);
@@ -45,7 +43,7 @@ const port = 8000;
 /**
  * Creates collections implicitly and indexes
  */
-async function createCollectionIndexes(db: Db) {
+async function createCollections(db: Db) {
   await db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("proxies").createIndex({ load: 1 });
@@ -60,16 +58,17 @@ async function createCollectionIndexes(db: Db) {
  */
 function appMiddleWare(client: MongoClient) {
   app.use(express.json({ limit: 1048576 })); //1024 kb
-  app.use(cookieParser(process.env.SESSION_SECRET, {}));
+  app.use(cookieParser(process.env.SESSION_SECRET));
 
   // handle bad JSON
-  const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
-    if (err instanceof SyntaxError && "body" in err) {
-      res.statusMessage = "bad json";
-      return res.status(400).send(res.statusMessage);
+  const errorHandler: ErrorRequestHandler = (err: HttpException, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+      console.error(err);
+      return res.status(400).send({ status: 400, message: err.message }); // Bad request
     }
     return next();
   };
+
   app.use(errorHandler);
 
   // sessions

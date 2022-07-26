@@ -3,7 +3,7 @@ import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import SteamStore from "./steamStore.js";
 import { SteamAccount } from "@types";
-import Steam, { Game } from "steam-client-esm";
+import Steam, { Game } from "steam-client";
 const NOTONLINE = "This Steam account is not online.";
 const NOTEXIST = "This Steam account does not exist.";
 

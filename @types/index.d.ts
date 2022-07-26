@@ -1,5 +1,5 @@
 import { FarmData, Item, Cookie } from "steamcommunity-api";
-import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client-esm";
+import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client";
 import { Document } from "mongodb";
 
 declare module "express-session" {
@@ -8,6 +8,11 @@ declare module "express-session" {
     userId: string;
     isAdmin: boolean;
   }
+}
+
+interface HttpException extends SyntaxError {
+  status: number;
+  message: string;
 }
 
 // steamAccount Controller

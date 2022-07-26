@@ -1,4 +1,4 @@
-import Steam, { LoginOptions, PersonaState } from "steam-client-esm";
+import Steam, { LoginOptions, PersonaState } from "steam-client";
 import SteamCommunity from "steamcommunity-api";
 import { SocksClientOptions } from "socks";
 import * as SteamAccountModel from "../models/steamAccount.js";
@@ -323,7 +323,7 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy, steamcm: S
 
   // connect to steam
   const steam = new Steam();
-  await steam.connect(socksOptions, Number(process.env.SOCKET_TIMEOUT));
+  await steam.connect();
 
   // attempt cm login
   const res = await steam.login(loginOptions);
