@@ -1,6 +1,5 @@
 import { Proxy } from "../../@types/index.js";
 import { getClient } from "../db.js";
-
 const collectionName = "proxies";
 
 /**

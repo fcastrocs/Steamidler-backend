@@ -1,6 +1,14 @@
 import { FarmData, Item, Cookie } from "steamcommunity-api";
 import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client";
-import { Document } from "mongodb";
+
+const steamGuardError = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"] as const;
+type SteamGuardError = typeof steamGuardError[number];
+
+const badSteamGuardCode = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"] as const;
+type BadSteamGuardCode = typeof badSteamGuardCode[number];
+
+const badPassword = ["InvalidPassword"] as const;
+type BadPassword = typeof badPassword[number];
 
 declare module "express-session" {
   interface SessionData {
@@ -15,9 +23,17 @@ interface HttpException extends SyntaxError {
   message: string;
 }
 
-// steamAccount Controller
-interface Options {
-  userId: string;
+interface LoginRes {
+  auth: AccountAuth;
+  data: AccountData;
+  steam: Steam;
+}
+
+// models - steamaccount
+
+interface Encrypted {
+  iv: string;
+  data: string;
 }
 
 interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
@@ -32,32 +48,13 @@ interface ExtendedAccountData extends AccountData {
   items: Item[];
 }
 
-interface LoginRes {
-  auth: AccountAuth;
-  data: AccountData;
-  steam: Steam;
-}
-
-interface ExtendedLoginRes {
-  auth: ExtendedAccountAuth;
-  data: ExtendedAccountData;
-  steam: Steam;
-}
-
-// models - steamaccount
-
-interface Encrypted {
-  iv: string;
-  data: string;
-}
-
-interface SteamAccount extends Document {
+interface SteamAccount {
   userId: string;
   username: string;
   auth: ExtendedAccountAuth;
   data: ExtendedAccountData;
   state: {
-    error?: "SteamGuardCodeNeeded" | "BadSteamGuardCode" | "InvalidPassword";
+    authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
     isFarming: boolean;
     status: "online" | "offline" | "reconnecting";
     personaState: PersonaState;
@@ -84,7 +81,7 @@ interface SteamVerify {
   userId: string;
   username: string;
   proxy: Proxy;
-  authType: "email" | "mobile";
+  authType: SteamGuardError;
 }
 
 // model proxy

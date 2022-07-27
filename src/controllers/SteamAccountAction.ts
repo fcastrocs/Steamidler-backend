@@ -1,4 +1,4 @@
-import SteamCommunity, { PrivacySettings, Proxy } from "steamcommunity-api";
+import SteamCommunity, { PrivacySettings } from "steamcommunity-api";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import SteamStore from "./steamStore.js";

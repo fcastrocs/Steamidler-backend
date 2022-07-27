@@ -1,15 +1,15 @@
 import { SteamCM } from "../../@types";
 import fetch from "node-fetch";
-import { getClient } from "../db.js";
-const collectionName = "steam-cms";
+import { getCollection } from "../db.js";
 
+const collectionName = "steam-cms";
 const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?format=json&cellid=0";
 
 /**
  * Fetches Steam CMs from the steam api and saves them to 'steam-cms' collection
  */
 export async function fetchSteamCms(): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
 
   try {
     const res = await fetch(STEAMCMS_URL);
@@ -39,7 +39,7 @@ export async function fetchSteamCms(): Promise<void> {
  * @returns random SteamCM
  */
 export async function getOne(): Promise<SteamCM> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const cursor = collection.aggregate([{ $sample: { size: 1 } }]);
   const document = await cursor.next();
 

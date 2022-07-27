@@ -1,14 +1,14 @@
-import { getClient } from "../db.js";
+import { getCollection } from "../db.js";
 import crypto from "crypto";
 import { UpdateFilter, Document } from "mongodb";
-import { Encrypted, SteamAccNonSensitive, SteamAccount, SteamAccountEncrypted } from "../../@types/index.js";
+import { Encrypted, SteamAccNonSensitive, SteamAccount, SteamAccountEncrypted } from "../../@types";
 const collectionName = "steam-accounts";
 
 /**
  * Add steamAccount to collection
  */
 export async function add(steamAccount: SteamAccount): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
   if (doc) throw "Account already exists.";
   const encrypedAccount = encryptSteamAccount(steamAccount);
@@ -19,7 +19,7 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
  * update steamAccount
  */
 export async function update(steamAccount: SteamAccount): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const encrypedAccount = encryptSteamAccount(steamAccount);
   await collection.updateOne(
     { userId: steamAccount.userId, username: steamAccount.username },
@@ -37,7 +37,7 @@ export async function updateField(
   username: string,
   update: UpdateFilter<Document> | Partial<Document>
 ): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   await collection.updateOne(
     { userId, username },
     {
@@ -50,17 +50,17 @@ export async function updateField(
  * Remove steamAccount with userId and username
  */
 export async function remove(userId: string, username: string): Promise<SteamAccount> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const doc = await collection.findOneAndDelete({ userId, username });
   if (!doc) return null;
-  return doc.value as SteamAccount;
+  return doc.value as unknown as SteamAccount;
 }
 
 /**
  * Check whether a steamAccount with userId and username exists in collection
  */
 export async function exists(userId: string, username: string): Promise<boolean> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const doc = await collection.findOne({
     userId,
     username,
@@ -72,7 +72,7 @@ export async function exists(userId: string, username: string): Promise<boolean>
  * Return a steamAccount with userId and username
  */
 export async function get(userId: string, username: string): Promise<SteamAccount> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const doc = await collection.findOne({
     userId,
     username,
@@ -94,7 +94,7 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
  * Return all steam accounts without sensitive information that match userId
  */
 export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const cursor = collection.find({ userId });
   const documents = await cursor.toArray();
 
