@@ -1,7 +1,9 @@
-import { getCollection } from "../db.js";
 import crypto from "crypto";
 import { UpdateFilter, Document } from "mongodb";
+import { getCollection } from "../db.js";
+
 import { Encrypted, SteamAccNonSensitive, SteamAccount, SteamAccountEncrypted } from "../../@types";
+import { ERRORS } from "../commons.js";
 const collectionName = "steam-accounts";
 
 /**
@@ -10,7 +12,7 @@ const collectionName = "steam-accounts";
 export async function add(steamAccount: SteamAccount): Promise<void> {
   const collection = await getCollection(collectionName);
   const doc = await get(steamAccount.userId, steamAccount.username);
-  if (doc) throw "Account already exists.";
+  if (doc) throw ERRORS.EXISTS;
   const encrypedAccount = encryptSteamAccount(steamAccount);
   await collection.insertOne(encrypedAccount);
 }

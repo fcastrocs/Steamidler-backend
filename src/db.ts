@@ -3,11 +3,6 @@
  */
 
 import { Collection, MongoClient } from "mongodb";
-import { config } from "dotenv";
-import path, { dirname } from "path";
-import { fileURLToPath } from "url";
-const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: path.join(__dirname, "../.env") });
 
 const client = new MongoClient(process.env.DB_URI, {
   minPoolSize: Number(process.env.POOL_SIZE),

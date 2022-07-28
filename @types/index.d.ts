@@ -1,15 +1,6 @@
 import { FarmData, Item, Cookie } from "steamcommunity-api";
 import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client";
 
-const steamGuardError = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"] as const;
-type SteamGuardError = typeof steamGuardError[number];
-
-const badSteamGuardCode = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"] as const;
-type BadSteamGuardCode = typeof badSteamGuardCode[number];
-
-const badPassword = ["InvalidPassword"] as const;
-type BadPassword = typeof badPassword[number];
-
 declare module "express-session" {
   interface SessionData {
     loggedId: boolean;

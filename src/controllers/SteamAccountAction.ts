@@ -1,17 +1,17 @@
 import SteamCommunity, { PrivacySettings } from "steamcommunity-api";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
+import Steam, { Game } from "steam-client";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import SteamStore from "./steamStore.js";
-import { SteamAccount } from "../../@types";
-import Steam, { Game } from "steam-client";
-const NOTONLINE = "This Steam account is not online.";
-const NOTEXIST = "This Steam account does not exist.";
+
+import { Proxy, SteamAccount } from "../../@types";
+import { ERRORS } from "../commons.js";
 
 /**
  * Change steam account nickname
  * @controller
  */
-export async function idleGames(userId: string, username: string, appids: number[]): Promise<void> {
+export async function idleGames(userId: string, username: string, appids: number[]) {
   const { steam } = await accountExistandOnline(userId, username);
   steam.clientGamesPlayed(appids);
   await SteamAccountModel.updateField(userId, username, {
@@ -23,7 +23,7 @@ export async function idleGames(userId: string, username: string, appids: number
  * Change steam account nickname
  * @controller
  */
-export async function changeNick(userId: string, username: string, nick: string): Promise<void> {
+export async function changeNick(userId: string, username: string, nick: string) {
   const { steam } = await accountExistandOnline(userId, username);
   steam.clientChangeStatus({ playerName: nick });
   await SteamAccountModel.updateField(userId, username, {
@@ -61,15 +61,9 @@ export async function cdkeyRedeem(userId: string, username: string, cdkey: strin
  * Change steam account nickname
  * @controller
  */
-export async function changeAvatar(userId: string, username: string, avatar: Express.Multer.File): Promise<void> {
+export async function changeAvatar(userId: string, username: string, avatar: Express.Multer.File) {
   const { steamAccount } = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(
-    steamAccount.data.steamId,
-    setAgentOptions(steamAccount.state.proxy),
-    10000
-  );
-  steamcommunity.cookie = steamAccount.auth.cookie;
-
+  const steamcommunity = getSteamCommunity(steamAccount);
   const avatarUrl = await steamcommunity.changeAvatar({
     buffer: avatar.buffer,
     type: avatar.mimetype,
@@ -85,11 +79,7 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
  */
 export async function clearAliases(userId: string, username: string): Promise<void> {
   const { steamAccount } = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(
-    steamAccount.data.steamId,
-    setAgentOptions(steamAccount.state.proxy),
-    10000
-  );
+  const steamcommunity = getSteamCommunity(steamAccount);
   steamcommunity.cookie = steamAccount.auth.cookie;
   await steamcommunity.clearAliases();
 }
@@ -100,13 +90,18 @@ export async function clearAliases(userId: string, username: string): Promise<vo
  */
 export async function changePrivacy(userId: string, username: string, settings: PrivacySettings): Promise<void> {
   const { steamAccount } = await accountExistandOnline(userId, username);
-  const steamcommunity = new SteamCommunity(
-    steamAccount.data.steamId,
-    setAgentOptions(steamAccount.state.proxy),
-    10000
-  );
+  const steamcommunity = getSteamCommunity(steamAccount);
   steamcommunity.cookie = steamAccount.auth.cookie;
   await steamcommunity.changePrivacy(settings);
+}
+
+function getSteamCommunity(steamAccount: SteamAccount) {
+  return new SteamCommunity({
+    agentOptions: setAgentOptions(steamAccount.state.proxy),
+    webNonce: steamAccount.auth.webNonce,
+    steamid: steamAccount.data.steamId,
+    cookie: steamAccount.auth.cookie,
+  });
 }
 
 /**
@@ -119,12 +114,12 @@ async function accountExistandOnline(
 ): Promise<{ steamAccount: SteamAccount; steam: Steam }> {
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw NOTEXIST;
+    throw ERRORS.NOTFOUND;
   }
 
   const steam = SteamStore.get(userId, username);
   if (!steam) {
-    throw NOTONLINE;
+    throw ERRORS.NOTONLINE;
   }
   return { steamAccount, steam };
 }

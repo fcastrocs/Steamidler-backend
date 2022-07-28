@@ -1,12 +1,12 @@
-import { Proxy } from "../../@types/index.js";
-import { getClient } from "../db.js";
+import { Proxy } from "../../@types";
+import { getCollection } from "../db.js";
 const collectionName = "proxies";
 
 /**
  * Fetches proxies from proxies provider
  */
 export async function addProxies(proxies: string[]): Promise<number> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   const documents = [];
   for (const item of proxies) {
     const split = item.split(":");
@@ -24,7 +24,7 @@ export async function addProxies(proxies: string[]): Promise<number> {
  * Increase load value by one
  */
 export async function increaseLoad(proxy: Proxy): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   await collection.updateOne(proxy, { $inc: { load: 1 } });
 }
 
@@ -32,7 +32,7 @@ export async function increaseLoad(proxy: Proxy): Promise<void> {
  * Decrease load value by one
  */
 export async function decreaseLoad(proxy: Proxy): Promise<void> {
-  const collection = (await getClient()).db().collection(collectionName);
+  const collection = await getCollection(collectionName);
   await collection.updateOne(proxy, { $inc: { load: -1 } });
 }
 
@@ -40,8 +40,11 @@ export async function decreaseLoad(proxy: Proxy): Promise<void> {
  * @returns random proxy with less than process.env.PROXYLOAD
  */
 export async function getOne(): Promise<Proxy> {
-  const collection = (await getClient()).db().collection(collectionName);
-  const cursor = collection.aggregate([{ $match: { load: { $lt: Number(process.env.PROXYLOAD) } } }, { $sample: { size: 1 } }]);
+  const collection = await getCollection(collectionName);
+  const cursor = collection.aggregate([
+    { $match: { load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } } },
+    { $sample: { size: 1 } },
+  ]);
   const doc = await cursor.next();
   if (doc == null) throw "Could fetch a proxy from db.";
   return doc as Proxy;

@@ -1,24 +1,24 @@
-import Steam, { LoginOptions, PersonaState } from "steam-client";
+import Steam, { LoginOptions, Options, PersonaState } from "steam-client";
 import SteamCommunity, { Options as SteamWebOptions } from "steamcommunity-api";
-import SteamStore from "./steamStore.js";
 import retry from "@machiavelli/retry";
 
+import SteamStore from "./steamStore.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamcmModel from "../models/steamcm.js";
 import * as SteamVerifyModel from "../models/steamVerify.js";
-import { Options } from "steam-client/@types/connection.js";
-import {
-  SteamAccount,
-  LoginRes,
-  Proxy,
-  SteamGuardError,
-  steamGuardError,
-  BadSteamGuardCode,
-  badSteamGuardCode,
-  BadPassword,
-  badPassword,
-} from "../../@types";
+
+import { SteamAccount, LoginRes, Proxy } from "../../@types";
+import { ERRORS } from "../commons.js";
+
+const SteamGuardError: string[] = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"];
+const BadSteamGuardCode: string[] = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"];
+const BadPassword: string[] = ["InvalidPassword"];
+
+const isSteamGuardError = (error: string) => SteamGuardError.includes(error);
+const isBadSteamGuardCode = (error: string) => BadSteamGuardCode.includes(error);
+const isBadPassword = (error: string) => BadPassword.includes(error);
+const isAuthError = (error: string) => isSteamGuardError(error) || isBadSteamGuardCode(error) || isBadPassword(error);
 
 const PERSONASTATE = {
   Offline: 0,
@@ -26,15 +26,7 @@ const PERSONASTATE = {
   Busy: 2,
   Away: 3,
   Snooze: 4,
-};
-
-const isSteamGuardError = (error: SteamGuardError): error is SteamGuardError => steamGuardError.includes(error);
-const isBadSteamGuardCode = (error: BadSteamGuardCode): error is BadSteamGuardCode => badSteamGuardCode.includes(error);
-const isBadPassword = (error: BadPassword): error is BadPassword => badPassword.includes(error);
-const isAuthError = (error: SteamAccount["state"]["authError"]): error is SteamAccount["state"]["authError"] =>
-  isSteamGuardError(error as SteamGuardError) ||
-  isBadSteamGuardCode(error as BadSteamGuardCode) ||
-  isBadPassword(error as BadPassword);
+} as const;
 
 /**
  * Add new account
@@ -42,7 +34,7 @@ const isAuthError = (error: SteamAccount["state"]["authError"]): error is SteamA
  */
 export async function add(userId: string, username: string, password: string, code?: string) {
   if (await SteamAccountModel.exists(userId, username)) {
-    throw "Exists";
+    throw ERRORS.EXISTS;
   }
 
   // set login options
@@ -91,11 +83,11 @@ export async function add(userId: string, username: string, password: string, co
 
   // account does not have steam guard enabled
   if (steamCMLoginRes.data.secure) {
-    throw "EnableSteamGuard";
+    throw ERRORS.ENABLE_STEAM_GUARD;
   }
 
   if (steamCMLoginRes.data.communityBanned || steamCMLoginRes.data.locked) {
-    throw "LockedAccount";
+    throw ERRORS.LOCKED_ACCOUNT;
   }
 
   const steamWebLoginRes = await steamWebLogin(steamCMLoginRes, proxy);
@@ -141,12 +133,12 @@ export async function add(userId: string, username: string, password: string, co
  */
 export async function login(userId: string, username: string, code?: string, password?: string) {
   if (SteamStore.has(userId, username)) {
-    throw "AlreadyOnline";
+    throw ERRORS.ALREADY_ONLINE;
   }
 
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw "DoesNotExist";
+    throw ERRORS.EXISTS;
   }
 
   // set login options
@@ -223,7 +215,7 @@ export async function login(userId: string, username: string, code?: string, pas
 export async function logout(userId: string, username: string) {
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw "DoesNotExist";
+    throw ERRORS.NOTFOUND;
   }
 
   // account is online
@@ -261,7 +253,6 @@ async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
     agentOptions: {
       host: proxy.ip,
       port: proxy.port,
-      type: Number(process.env.PROXY_TYPE) as 4 | 5,
       userId: process.env.PROXY_USER,
       password: process.env.PROXY_PASS,
     },
@@ -396,7 +387,7 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
 function normalizeLoginErrors(error: string | Error): string {
   if (typeof error !== "string") {
     console.error(error);
-    return "UnexpectedError";
+    return ERRORS.UNEXPECTED;
   }
   return error;
 }
