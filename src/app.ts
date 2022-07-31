@@ -6,14 +6,16 @@ import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
 import rateLimiter from "@machiavelli/express-rate-limiter";
 import { HttpException } from "../@types";
+
 import SteamAccount from "./routes/steamAccount.js";
 import SteamAccountAction from "./routes/steamAccountAction.js";
 import userRoutes from "./routes/user.js";
 import adminTools from "./routes/adminTools.js";
 import * as mongodb from "./db.js";
 
+const REQUEST_BODY_SIZE = 1048576; // 1 MB
+
 const app = express();
-const port = 8000;
 
 // Start the app
 (async () => {
@@ -46,25 +48,24 @@ async function createCollections(db: Db) {
   await db.collection("invites").createIndex({ email: 1, invite: 1 }, { unique: true });
   await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
   await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
+  await db.collection("steam-verify").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
 }
 
 /**
  * Configure Express middleware
  */
 function appMiddleWare(client: MongoClient) {
-  app.use(express.json({ limit: 1048576 })); //1024 kb
-  app.use(cookieParser(process.env.SESSION_SECRET));
-
   // handle bad JSON
   const errorHandler: ErrorRequestHandler = (err: HttpException, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-      console.error(err);
       return res.status(400).send({ message: err.message }); // Bad request
     }
     return next();
   };
-
   app.use(errorHandler);
+
+  app.use(express.json({ limit: REQUEST_BODY_SIZE }));
+  app.use(cookieParser(process.env.SESSION_SECRET));
 
   // sessions
   app.use(
@@ -108,8 +109,10 @@ function appMiddleWare(client: MongoClient) {
   app.use(
     rateLimiter({
       client,
-      excludePaths: ["/steamaccounts", "/user/googleresponse", "/user/register"],
-      expireAfterSeconds: 5 * 60,
+      collectionName: "rate-limit",
+      customField: { name: "steamAccount", reqBodyProp: "username" },
+      excludePaths: ["/user/googleresponse", "/user/register"],
+      expireAfterSeconds: 3 * 60,
     })
   );
 }
@@ -128,6 +131,7 @@ function registerRoutes() {
  * Start Express
  */
 function startExpress() {
+  const port = process.env.NODE_ENV === "production" ? process.env.PORT : 8000;
   return new Promise((resolve) => {
     app.listen(port, () => {
       resolve(`\nListening at http://localhost:${port}`);

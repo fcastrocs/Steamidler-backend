@@ -9,7 +9,7 @@ import * as SteamcmModel from "../models/steamcm.js";
 import * as SteamVerifyModel from "../models/steamVerify.js";
 
 import { SteamAccount, LoginRes, Proxy } from "../../@types";
-import { ERRORS } from "../commons.js";
+import { ERRORS, getAgentOptions, normalizeLoginErrors, SteamAccountExistsOnline } from "../commons.js";
 
 const SteamGuardError: string[] = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"];
 const BadSteamGuardCode: string[] = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"];
@@ -75,6 +75,7 @@ export async function add(userId: string, username: string, password: string, co
         username: loginOptions.accountName,
         proxy,
         authType: error,
+        createdAt: new Date(),
       });
     }
     // error is steam error code or unexpected
@@ -82,21 +83,20 @@ export async function add(userId: string, username: string, password: string, co
   }
 
   // account does not have steam guard enabled
-  if (steamCMLoginRes.data.secure) {
+  if (!steamCMLoginRes.data.secure) {
     throw ERRORS.ENABLE_STEAM_GUARD;
   }
 
+  // account is locked
   if (steamCMLoginRes.data.communityBanned || steamCMLoginRes.data.locked) {
     throw ERRORS.LOCKED_ACCOUNT;
   }
 
-  const steamWebLoginRes = await steamWebLogin(steamCMLoginRes, proxy);
-
-  // remove steam-verify
-  await SteamVerifyModel.remove(userId, username);
-
-  // add to store
-  SteamStore.add(userId, username, steamCMLoginRes.steam);
+  // login to steamcommunity
+  const { cookie, steamcommunity } = await steamWebLogin({
+    type: "login",
+    login: { steamid: steamCMLoginRes.data.steamId, webNonce: steamCMLoginRes.auth.webNonce, proxy },
+  });
 
   // Create account model
   const steamAccount: SteamAccount = {
@@ -104,13 +104,14 @@ export async function add(userId: string, username: string, password: string, co
     username,
     auth: {
       ...steamCMLoginRes.auth,
-      ...steamWebLoginRes.auth,
+      cookie,
       password,
       type: steamVerify.authType === "AccountLogonDenied" ? "email" : "mobile",
     },
     data: {
       ...steamCMLoginRes.data,
-      ...steamWebLoginRes.data,
+      farmData: await steamcommunity.getFarmingData(),
+      items: await steamcommunity.getCardsInventory(),
     },
     state: {
       status: "online",
@@ -121,6 +122,12 @@ export async function add(userId: string, username: string, password: string, co
       proxy: proxy,
     },
   };
+
+  // remove steam-verify
+  await SteamVerifyModel.remove(userId, username);
+
+  // add to store
+  SteamStore.add(userId, username, steamCMLoginRes.steam);
 
   await SteamAccountModel.add(steamAccount);
   await ProxyModel.increaseLoad(proxy);
@@ -138,7 +145,7 @@ export async function login(userId: string, username: string, code?: string, pas
 
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) {
-    throw ERRORS.EXISTS;
+    throw ERRORS.NOTFOUND;
   }
 
   // set login options
@@ -182,23 +189,31 @@ export async function login(userId: string, username: string, code?: string, pas
   steamAccount.auth.sentry = steamCMLoginRes.auth.sentry;
   await SteamAccountModel.update(steamAccount);
 
-  const steamWebLoginRes = await steamWebLogin(steamCMLoginRes, steamAccount.state.proxy);
-
-  // save to store
-  SteamStore.add(userId, username, steamCMLoginRes.steam);
-
+  // login to steamcommunity
+  const { cookie, steamcommunity } = await steamWebLogin({
+    type: "login",
+    login: {
+      steamid: steamCMLoginRes.data.steamId,
+      webNonce: steamCMLoginRes.auth.webNonce,
+      proxy: steamAccount.state.proxy,
+    },
+  });
   // update steam account
   steamAccount.auth = {
     ...steamCMLoginRes.auth,
-    ...steamWebLoginRes.auth,
+    cookie,
     type: steamAccount.auth.type,
     password: password ? password : steamAccount.auth.password,
   };
 
   steamAccount.data = {
     ...steamCMLoginRes.data,
-    ...steamWebLoginRes.data,
+    farmData: await steamcommunity.getFarmingData(),
+    items: await steamcommunity.getCardsInventory(),
   };
+
+  // save to store
+  SteamStore.add(userId, username, steamCMLoginRes.steam);
 
   steamAccount.state.status = "online";
   delete steamAccount.state.authError;
@@ -229,8 +244,6 @@ export async function logout(userId: string, username: string) {
   //change necessary steamaccount states
   steamAccount.state.status = "offline";
   await SteamAccountModel.update(steamAccount);
-
-  console.log(`LOGOUT: ${username}`);
 }
 
 /**
@@ -245,25 +258,37 @@ export async function remove(userId: string, username: string) {
 
 /**
  * Login to Steam via web
+ * @controller
  */
-async function steamWebLogin(loginRes: LoginRes, proxy: Proxy) {
-  const options: SteamWebOptions = {
-    steamid: loginRes.data.steamId,
-    webNonce: loginRes.auth.webNonce,
-    agentOptions: {
-      host: proxy.ip,
-      port: proxy.port,
-      userId: process.env.PROXY_USER,
-      password: process.env.PROXY_PASS,
-    },
-  };
+export async function steamWebLogin(options: {
+  type: "login" | "relogin";
+  login?: { steamid: string; webNonce: string; proxy: Proxy };
+  relogin?: { userId: string; username: string };
+}) {
+  const steamWebOptions: SteamWebOptions = <SteamWebOptions>{};
+  let steamAccount: SteamAccount;
+
+  // set steamWebOptions based on login or relogin
+  if (options.type === "login") {
+    steamWebOptions.webNonce = options.login.webNonce;
+    steamWebOptions.steamid = options.login.steamid;
+    steamWebOptions.agentOptions = getAgentOptions(options.login.proxy);
+  } else {
+    const { steam, steamAccount } = await SteamAccountExistsOnline(options.relogin.userId, options.relogin.username);
+    steamWebOptions.steamid = steamAccount.data.steamId;
+    steamWebOptions.webNonce = await steam.getWebNonce();
+    steamWebOptions.agentOptions = getAgentOptions(steamAccount.state.proxy);
+  }
 
   try {
-    const steamcommunity = new SteamCommunity(options);
-    return {
-      auth: { cookie: await steamcommunity.login() },
-      data: { items: await steamcommunity.getCardsInventory(), farmData: await steamcommunity.getFarmingData() },
-    };
+    const steamcommunity = new SteamCommunity(steamWebOptions);
+    const cookie = await steamcommunity.login();
+    // save cookie
+    if (options.type === "relogin") {
+      steamAccount.auth.cookie = cookie;
+      await SteamAccountModel.update(steamAccount);
+    }
+    return { steamcommunity, cookie };
   } catch (error) {
     throw normalizeLoginErrors(error);
   }
@@ -379,15 +404,4 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
       }
     });
   });
-}
-
-/**
- * Normalizes error so that only string errors are thrown
- */
-function normalizeLoginErrors(error: string | Error): string {
-  if (typeof error !== "string") {
-    console.error(error);
-    return ERRORS.UNEXPECTED;
-  }
-  return error;
 }

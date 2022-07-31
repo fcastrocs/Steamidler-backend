@@ -73,6 +73,7 @@ interface SteamVerify {
   username: string;
   proxy: Proxy;
   authType: SteamGuardError;
+  createdAt: Date;
 }
 
 // model proxy

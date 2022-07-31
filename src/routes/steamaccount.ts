@@ -53,6 +53,30 @@ router.post(ROUTE + "/login", async (req, res) => {
 });
 
 /**
+ * Login a Steam Account
+ */
+router.post(ROUTE + "/steamcommunitylogin", async (req, res) => {
+  const username = req.body.username;
+
+  if (!username) {
+    res.statusMessage = "invalid body";
+    return res.status(400).send(res.statusMessage);
+  }
+
+  try {
+    await SteamAccount.steamWebLogin({
+      type: "relogin",
+      relogin: { userId: req.session.userId, username },
+    });
+  } catch (error) {
+    console.error(error);
+    res.statusMessage = error;
+    return res.status(400).send(error);
+  }
+  return res.send();
+});
+
+/**
  * Logout a Steam Account
  */
 router.post(ROUTE + "/logout", async (req, res) => {

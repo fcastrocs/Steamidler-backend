@@ -20,7 +20,7 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
 /**
  * update steamAccount
  */
-export async function update(steamAccount: SteamAccount): Promise<void> {
+export async function update(steamAccount: SteamAccount) {
   const collection = await getCollection(collectionName);
   const encrypedAccount = encryptSteamAccount(steamAccount);
   await collection.updateOne(
@@ -33,12 +33,13 @@ export async function update(steamAccount: SteamAccount): Promise<void> {
 
 /**
  * update fields for a single steamAccount with userId and username
+ * Do not use with account auth. Use 'update' instead
  */
 export async function updateField(
   userId: string,
   username: string,
   update: UpdateFilter<Document> | Partial<Document>
-): Promise<void> {
+) {
   const collection = await getCollection(collectionName);
   await collection.updateOne(
     { userId, username },
