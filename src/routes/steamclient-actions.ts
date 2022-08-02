@@ -1,8 +1,6 @@
 import { Router } from "express";
-import multer from "multer";
-const upload = multer();
-import * as SteamAccountAction from "../controllers/steamAccountAction.js";
 const router = Router();
+import * as SteamClientAction from "../controllers/steamclient-actions.js";
 
 const ROUTE = "/steamaccount/action/";
 
@@ -12,7 +10,7 @@ const ROUTE = "/steamaccount/action/";
  */
 router.post(ROUTE + "idlegames", async (req, res) => {
   const username = req.body.username;
-  const appids = req.body.appids;
+  const appids: number[] = req.body.appids;
 
   if (!username || !appids) {
     res.statusMessage = "invalid body";
@@ -35,41 +33,7 @@ router.post(ROUTE + "idlegames", async (req, res) => {
   }
 
   try {
-    await SteamAccountAction.idleGames(req.session.userId, username, appids);
-  } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
-  }
-  return res.send();
-});
-
-/**
- * Change profile avatar
- * @route
- */
-router.post(ROUTE + "changeavatar", upload.single("avatar"), async (req, res) => {
-  const body = JSON.parse(JSON.stringify(req.body)); //multer is trash.
-  const username = body.username;
-  const avatar = req.file;
-
-  if (!username || !avatar) {
-    res.statusMessage = "invalid body";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  if (!avatar.mimetype.includes("image")) {
-    res.statusMessage = "avatar must be an image";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  if (avatar.size / 1024 > 1024) {
-    res.statusMessage = "avatar must be less than 1024Kb";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  try {
-    await SteamAccountAction.changeAvatar(req.session.userId, username, avatar);
+    await SteamClientAction.idleGames(req.session.userId, username, appids);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;
@@ -97,56 +61,11 @@ router.post(ROUTE + "changenick", async (req, res) => {
   }
 
   try {
-    await SteamAccountAction.changeNick(req.session.userId, username, nick);
+    await SteamClientAction.changeNick(req.session.userId, username, nick);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;
     return res.status(400).send(res.statusMessage);
-  }
-  return res.send();
-});
-
-/**
- * Change profile privacy
- * @route
- */
-router.post(ROUTE + "changeprivacy", async (req, res) => {
-  const username = req.body.username;
-  const settings = req.body.settings;
-
-  if (!username || !settings) {
-    res.statusMessage = "invalid body";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  try {
-    await SteamAccountAction.changePrivacy(req.session.userId, username, settings);
-  } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
-  }
-  return res.send();
-});
-
-/**
- * Clear nickname history
- * @route
- */
-router.post(ROUTE + "clearaliases", async (req, res) => {
-  const username = req.body.username;
-
-  if (!username) {
-    res.statusMessage = "invalid body";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  try {
-    await SteamAccountAction.clearAliases(req.session.userId, username);
-  } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
   }
   return res.send();
 });
@@ -175,7 +94,7 @@ router.post(ROUTE + "activatef2pgames", async (req, res) => {
   }
 
   try {
-    const games = await SteamAccountAction.activatef2pgame(req.session.userId, username, appids);
+    const games = await SteamClientAction.activatef2pgame(req.session.userId, username, appids);
     return res.send(games);
   } catch (error) {
     console.error(error);
@@ -198,7 +117,7 @@ router.post(ROUTE + "cdkeyredeem", async (req, res) => {
   }
 
   try {
-    const games = await SteamAccountAction.cdkeyRedeem(req.session.userId, username, cdkey);
+    const games = await SteamClientAction.cdkeyRedeem(req.session.userId, username, cdkey);
     return res.send(games);
   } catch (error) {
     console.error(error);

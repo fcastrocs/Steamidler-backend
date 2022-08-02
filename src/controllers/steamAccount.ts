@@ -9,7 +9,8 @@ import * as SteamcmModel from "../models/steamcm.js";
 import * as SteamVerifyModel from "../models/steamVerify.js";
 
 import { SteamAccount, LoginRes, Proxy } from "../../@types";
-import { ERRORS, getAgentOptions, normalizeLoginErrors, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, getAgentOptions, normalizeError, SteamAccountExistsOnline } from "../commons.js";
+import { startFarmer, stopFarmer } from "./farmer.js";
 
 const SteamGuardError: string[] = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"];
 const BadSteamGuardCode: string[] = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"];
@@ -79,7 +80,7 @@ export async function add(userId: string, username: string, password: string, co
       });
     }
     // error is steam error code or unexpected
-    throw normalizeLoginErrors(error);
+    throw normalizeError(error);
   }
 
   // account does not have steam guard enabled
@@ -110,15 +111,14 @@ export async function add(userId: string, username: string, password: string, co
     },
     data: {
       ...steamCMLoginRes.data,
-      farmData: await steamcommunity.getFarmingData(),
+      farmableGames: await steamcommunity.getFarmableGames(),
       items: await steamcommunity.getCardsInventory(),
     },
     state: {
       status: "online",
       personaState: PERSONASTATE.Online as PersonaState,
-      isFarming: false,
+      farming: { active: false, games: [] },
       gamesIdling: [],
-      gamesFarming: [],
       proxy: proxy,
     },
   };
@@ -181,7 +181,7 @@ export async function login(userId: string, username: string, code?: string, pas
     if (isAuthError(error)) {
       await SteamAccountModel.updateField(userId, username, { "state.authError": error });
     }
-    throw normalizeLoginErrors(error);
+    throw normalizeError(error);
   }
 
   // update steam account before proceeding because loginKey and sentry could change
@@ -208,7 +208,7 @@ export async function login(userId: string, username: string, code?: string, pas
 
   steamAccount.data = {
     ...steamCMLoginRes.data,
-    farmData: await steamcommunity.getFarmingData(),
+    farmableGames: await steamcommunity.getFarmableGames(),
     items: await steamcommunity.getCardsInventory(),
   };
 
@@ -219,7 +219,7 @@ export async function login(userId: string, username: string, code?: string, pas
   delete steamAccount.state.authError;
   await SteamAccountModel.update(steamAccount);
 
-  restoreAccountState(steamCMLoginRes.steam, steamAccount);
+  await restoreAccountState(steamCMLoginRes.steam, steamAccount, userId, username);
   SteamEventListeners(userId, username, steamCMLoginRes.steam);
 }
 
@@ -236,9 +236,9 @@ export async function logout(userId: string, username: string) {
   // account is online
   const steam = SteamStore.get(userId, username);
   if (steam) {
+    await stopFarmer(userId, username);
     steam.disconnect();
     SteamStore.remove(userId, username);
-    // TO DO: stop farming
   }
 
   //change necessary steamaccount states
@@ -266,7 +266,7 @@ export async function steamWebLogin(options: {
   relogin?: { userId: string; username: string };
 }) {
   const steamWebOptions: SteamWebOptions = <SteamWebOptions>{};
-  let steamAccount: SteamAccount;
+  let sAccount: SteamAccount;
 
   // set steamWebOptions based on login or relogin
   if (options.type === "login") {
@@ -275,23 +275,20 @@ export async function steamWebLogin(options: {
     steamWebOptions.agentOptions = getAgentOptions(options.login.proxy);
   } else {
     const { steam, steamAccount } = await SteamAccountExistsOnline(options.relogin.userId, options.relogin.username);
+    sAccount = steamAccount;
     steamWebOptions.steamid = steamAccount.data.steamId;
     steamWebOptions.webNonce = await steam.getWebNonce();
     steamWebOptions.agentOptions = getAgentOptions(steamAccount.state.proxy);
   }
 
-  try {
-    const steamcommunity = new SteamCommunity(steamWebOptions);
-    const cookie = await steamcommunity.login();
-    // save cookie
-    if (options.type === "relogin") {
-      steamAccount.auth.cookie = cookie;
-      await SteamAccountModel.update(steamAccount);
-    }
-    return { steamcommunity, cookie };
-  } catch (error) {
-    throw normalizeLoginErrors(error);
+  const steamcommunity = new SteamCommunity(steamWebOptions);
+  const cookie = await steamcommunity.login();
+  // save cookie
+  if (options.type === "relogin") {
+    sAccount.auth.cookie = cookie;
+    await SteamAccountModel.update(sAccount);
   }
+  return { steamcommunity, cookie };
 }
 
 /**
@@ -325,19 +322,19 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<L
 }
 
 /**
- * Restore account personastate, farming, and idling after login
+ * Restore account state:  personastate, farming, and idling after login
  */
-function restoreAccountState(steam: Steam, steamAccount: SteamAccount) {
+async function restoreAccountState(steam: Steam, steamAccount: SteamAccount, userId: string, username: string) {
   steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
 
-  if (steamAccount.state.isFarming) {
-    // TO DO: restore farming
+  if (steamAccount.state.farming.active) {
+    await startFarmer(userId, username);
     return;
   }
 
   // restore idling
   if (steamAccount.state.gamesIdling.length) {
-    steam.clientGamesPlayed(steamAccount.state.gamesIdling);
+    steam.idleGames(steamAccount.state.gamesIdling);
   }
 }
 
@@ -353,8 +350,8 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
     // remove from online accounts
     SteamStore.remove(userId, username);
 
-    // stop farming interval if exists
-    // stopFarmingInterval(userId, accountName);
+    // stop farmer
+    await stopFarmer(userId, username);
 
     // set state.status to 'reconnecting'
     await SteamAccountModel.updateField(userId, username, { "state.status": "reconnecting" });

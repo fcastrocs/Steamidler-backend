@@ -1,7 +1,8 @@
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
+import SteamCommunity from "steamcommunity-api";
 import * as SteamAccountModel from "./models/steamAccount.js";
 import { Proxy, SteamAccount } from "../@types";
-import SteamStore from "controllers/steamStore";
+import SteamStore from "./controllers/steamStore.js";
 import Steam from "steam-client";
 
 export const ERRORS = {
@@ -12,6 +13,8 @@ export const ERRORS = {
   NOTONLINE: "NotOnline",
   NOTFOUND: "NotFound",
   UNEXPECTED: "UnexpectedError",
+  NO_FARMABLE_GAMES: "NoFarmableGames",
+  ALREADY_FARMING: "AlreadyFarming",
 } as const;
 
 export function getAgentOptions(proxy: Proxy) {
@@ -27,7 +30,7 @@ export function getAgentOptions(proxy: Proxy) {
 /**
  * Normalizes error so that only string errors are thrown
  */
-export function normalizeLoginErrors(error: string | Error): string {
+export function normalizeError(error: string | Error): string {
   if (typeof error !== "string") {
     console.error(error);
     return ERRORS.UNEXPECTED;
@@ -49,4 +52,13 @@ export async function SteamAccountExistsOnline(
     throw ERRORS.NOTONLINE;
   }
   return { steamAccount, steam };
+}
+
+export function getSteamCommunity(steamAccount: SteamAccount) {
+  return new SteamCommunity({
+    agentOptions: getAgentOptions(steamAccount.state.proxy),
+    webNonce: steamAccount.auth.webNonce,
+    steamid: steamAccount.data.steamId,
+    cookie: steamAccount.auth.cookie,
+  });
 }

@@ -1,19 +1,21 @@
-import SteamCommunity, { ProfilePrivacy } from "steamcommunity-api";
-import { Game } from "steam-client";
+import { Game, IdleGame } from "steam-client";
 import * as SteamAccountModel from "../models/steamAccount.js";
-
-import { SteamAccount } from "../../@types";
-import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
+import { SteamAccountExistsOnline } from "../commons.js";
 
 /**
  * Change steam account nickname
  * @controller
  */
-export async function idleGames(userId: string, username: string, appids: number[]) {
+export async function idleGames(userId: string, username: string, appIds: number[]) {
   const { steam } = await SteamAccountExistsOnline(userId, username);
-  steam.clientGamesPlayed(appids);
+
+  const games: IdleGame[] = appIds.map((appId) => {
+    return { gameId: appId };
+  });
+
+  steam.idleGames(games);
   await SteamAccountModel.updateField(userId, username, {
-    "state.gamesIdling": appids,
+    "state.gamesIdling": games,
   });
 }
 
@@ -53,53 +55,6 @@ export async function cdkeyRedeem(userId: string, username: string, cdkey: strin
   steamAccount.data.games = joined;
   await SteamAccountModel.update(steamAccount);
   return difference;
-}
-
-/**
- * Change steam account nickname
- * @controller
- */
-export async function changeAvatar(userId: string, username: string, avatar: Express.Multer.File) {
-  const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
-  const avatarUrl = await steamcommunity.changeAvatar({
-    buffer: avatar.buffer,
-    type: avatar.mimetype,
-  });
-  await SteamAccountModel.updateField(userId, username, {
-    "data.avatar": avatarUrl,
-  });
-}
-
-/**
- * Clear aliases
- * @controller
- */
-export async function clearAliases(userId: string, username: string): Promise<void> {
-  const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
-  steamcommunity.cookie = steamAccount.auth.cookie;
-  await steamcommunity.clearAliases();
-}
-
-/**
- * Clear aliases
- * @controller
- */
-export async function changePrivacy(userId: string, username: string, privacy: ProfilePrivacy): Promise<void> {
-  const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
-  steamcommunity.cookie = steamAccount.auth.cookie;
-  await steamcommunity.changePrivacy(privacy);
-}
-
-function getSteamCommunity(steamAccount: SteamAccount) {
-  return new SteamCommunity({
-    agentOptions: getAgentOptions(steamAccount.state.proxy),
-    webNonce: steamAccount.auth.webNonce,
-    steamid: steamAccount.data.steamId,
-    cookie: steamAccount.auth.cookie,
-  });
 }
 
 /**

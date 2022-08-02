@@ -1,5 +1,5 @@
-import { FarmData, Item, Cookie } from "steamcommunity-api";
-import Steam, { AccountAuth, AccountData, PersonaState } from "steam-client";
+import { FarmableGame, Item, Cookie } from "steamcommunity-api";
+import Steam, { AccountAuth, AccountData, PersonaState, IdleGame } from "steam-client";
 
 declare module "express-session" {
   interface SessionData {
@@ -7,11 +7,6 @@ declare module "express-session" {
     userId: string;
     isAdmin: boolean;
   }
-}
-
-interface HttpException extends SyntaxError {
-  status: number;
-  message: string;
 }
 
 interface LoginRes {
@@ -31,12 +26,17 @@ interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
   password: string;
   cookie: Cookie;
   sentry: Buffer | string;
-  type: "email" | "mobile" | "none";
+  type: "email" | "mobile";
 }
 
 interface ExtendedAccountData extends AccountData {
-  farmData: FarmData[];
+  farmableGames: FarmableGame[];
   items: Item[];
+}
+
+interface Farming {
+  active: boolean;
+  games: IdleGame[];
 }
 
 interface SteamAccount {
@@ -46,11 +46,10 @@ interface SteamAccount {
   data: ExtendedAccountData;
   state: {
     authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
-    isFarming: boolean;
+    farming: Farming;
     status: "online" | "offline" | "reconnecting";
     personaState: PersonaState;
-    gamesIdling: number[];
-    gamesFarming: number[];
+    gamesIdling: IdleGame[];
     proxy: Proxy;
   };
 }

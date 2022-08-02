@@ -1,17 +1,20 @@
 import "dotenv/config";
-import express, { ErrorRequestHandler } from "express";
+import express, { Response, Request, NextFunction } from "express";
 import { Db, MongoClient } from "mongodb";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 import cookieParser from "cookie-parser";
 import rateLimiter from "@machiavelli/express-rate-limiter";
-import { HttpException } from "../@types";
 
 import SteamAccount from "./routes/steamAccount.js";
-import SteamAccountAction from "./routes/steamAccountAction.js";
 import userRoutes from "./routes/user.js";
 import adminTools from "./routes/adminTools.js";
+import farmer from "./routes/farmer.js";
+import SteamClientAction from "./routes/steamclient-actions.js";
+import SteamcommunityAction from "./routes/steamcommunity-actions.js";
+
 import * as mongodb from "./db.js";
+import { SteamcommunityError } from "steamcommunity-api";
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
 
@@ -26,11 +29,14 @@ const app = express();
   console.log("Creating collection...");
   await createCollections(db);
 
-  console.log("Applying app middleware...");
-  appMiddleWare(client);
+  console.log("Applying before middleware...");
+  beforeMiddleware(client);
 
   console.log("Registering routes...");
   registerRoutes();
+
+  console.log("Applying after middleware...");
+  afterMiddleWare();
 
   console.log("Starting HTTP server...");
   const res = await startExpress();
@@ -51,18 +57,27 @@ async function createCollections(db: Db) {
   await db.collection("steam-verify").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
 }
 
+function afterMiddleWare() {
+  // handle errors
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SteamcommunityError) {
+      return res.status(400).send({ name: err.name, message: err.message });
+    }
+    return next();
+  });
+}
+
 /**
  * Configure Express middleware
  */
-function appMiddleWare(client: MongoClient) {
+function beforeMiddleware(client: MongoClient) {
   // handle bad JSON
-  const errorHandler: ErrorRequestHandler = (err: HttpException, req, res, next) => {
-    if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-      return res.status(400).send({ message: err.message }); // Bad request
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && "body" in err) {
+      return res.status(400).send({ message: (err as Error).message }); // Bad request
     }
     return next();
-  };
-  app.use(errorHandler);
+  });
 
   app.use(express.json({ limit: REQUEST_BODY_SIZE }));
   app.use(cookieParser(process.env.SESSION_SECRET));
@@ -123,7 +138,9 @@ function appMiddleWare(client: MongoClient) {
 function registerRoutes() {
   app.use("/api/", userRoutes);
   app.use("/api/", SteamAccount);
-  app.use("/api/", SteamAccountAction);
+  app.use("/api/", SteamClientAction);
+  app.use("/api/", SteamcommunityAction);
+  app.use("/api/", farmer);
   app.use("/api/", adminTools);
 }
 
