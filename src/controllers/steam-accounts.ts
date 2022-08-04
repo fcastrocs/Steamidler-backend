@@ -1,33 +1,16 @@
-import Steam, { LoginOptions, Options, PersonaState } from "steam-client";
+import Steam, { LoginOptions, Options, SteamClientError } from "steam-client";
 import SteamCommunity, { Options as SteamWebOptions } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
 
-import SteamStore from "./steamStore.js";
-import * as SteamAccountModel from "../models/steamAccount.js";
-import * as ProxyModel from "../models/proxy.js";
-import * as SteamcmModel from "../models/steamcm.js";
-import * as SteamVerifyModel from "../models/steamVerify.js";
+import SteamStore from "./steam-store.js";
+import * as SteamAccountModel from "../models/steam-accounts.js";
+import * as ProxyModel from "../models/proxies.js";
+import * as SteamcmModel from "../models/steam-servers.js";
+import * as SteamVerifyModel from "../models/steam-verify.js";
 
-import { SteamAccount, LoginRes, Proxy } from "../../@types";
-import { ERRORS, getAgentOptions, normalizeError, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, getAgentOptions, isAuthError, isSteamGuardError, SteamAccountExistsOnline } from "../commons.js";
 import { startFarmer, stopFarmer } from "./farmer.js";
-
-const SteamGuardError: string[] = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"];
-const BadSteamGuardCode: string[] = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"];
-const BadPassword: string[] = ["InvalidPassword"];
-
-const isSteamGuardError = (error: string) => SteamGuardError.includes(error);
-const isBadSteamGuardCode = (error: string) => BadSteamGuardCode.includes(error);
-const isBadPassword = (error: string) => BadPassword.includes(error);
-const isAuthError = (error: string) => isSteamGuardError(error) || isBadSteamGuardCode(error) || isBadPassword(error);
-
-const PERSONASTATE = {
-  Offline: 0,
-  Online: 1,
-  Busy: 2,
-  Away: 3,
-  Snooze: 4,
-} as const;
+import { LoginRes, Proxy, SteamAccount } from "../../@types";
 
 /**
  * Add new account
@@ -68,19 +51,20 @@ export async function add(userId: string, username: string, password: string, co
     // attempt CM login
     steamCMLoginRes = await steamcmLogin(loginOptions, proxy);
   } catch (error) {
-    // Steam is asking for guard code
-    if (isSteamGuardError(error)) {
-      // save this config to reuse when user enters the code
-      await SteamVerifyModel.add({
-        userId,
-        username: loginOptions.accountName,
-        proxy,
-        authType: error,
-        createdAt: new Date(),
-      });
+    if (error instanceof SteamClientError) {
+      // Steam is asking for guard code
+      if (isSteamGuardError(error.message)) {
+        // save this config to reuse when user enters the code
+        await SteamVerifyModel.add({
+          userId,
+          username: loginOptions.accountName,
+          proxy,
+          authType: error.message,
+          createdAt: new Date(),
+        });
+      }
     }
-    // error is steam error code or unexpected
-    throw normalizeError(error);
+    throw error;
   }
 
   // account does not have steam guard enabled
@@ -116,9 +100,9 @@ export async function add(userId: string, username: string, password: string, co
     },
     state: {
       status: "online",
-      personaState: PERSONASTATE.Online as PersonaState,
-      farming: { active: false, games: [] },
-      gamesIdling: [],
+      personaState: "online",
+      farming: { active: false, gameIds: [] },
+      gamesIdsIdle: [],
       proxy: proxy,
     },
   };
@@ -154,7 +138,7 @@ export async function login(userId: string, username: string, code?: string, pas
     password: password ? password : steamAccount.auth.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
-    shaSentryfile: steamAccount.auth.sentry as Buffer,
+    shaSentryfile: steamAccount.auth.sentry,
   };
 
   // don't use loginkey after auth error
@@ -181,7 +165,7 @@ export async function login(userId: string, username: string, code?: string, pas
     if (isAuthError(error)) {
       await SteamAccountModel.updateField(userId, username, { "state.authError": error });
     }
-    throw normalizeError(error);
+    throw error;
   }
 
   // update steam account before proceeding because loginKey and sentry could change
@@ -325,7 +309,7 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<L
  * Restore account state:  personastate, farming, and idling after login
  */
 async function restoreAccountState(steam: Steam, steamAccount: SteamAccount, userId: string, username: string) {
-  steam.clientChangeStatus({ personaState: steamAccount.state.personaState as PersonaState });
+  steam.changePersonaState(steamAccount.state.personaState);
 
   if (steamAccount.state.farming.active) {
     await startFarmer(userId, username);
@@ -333,8 +317,8 @@ async function restoreAccountState(steam: Steam, steamAccount: SteamAccount, use
   }
 
   // restore idling
-  if (steamAccount.state.gamesIdling.length) {
-    steam.idleGames(steamAccount.state.gamesIdling);
+  if (steamAccount.state.gamesIdsIdle.length) {
+    steam.idleGames(steamAccount.state.gamesIdsIdle);
   }
 }
 

@@ -1,20 +1,38 @@
+import crypto from "crypto";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import SteamCommunity from "steamcommunity-api";
-import * as SteamAccountModel from "./models/steamAccount.js";
+import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
-import SteamStore from "./controllers/steamStore.js";
+import SteamStore from "./controllers/steam-store.js";
 import Steam from "steam-client";
 
+export class SteamIdlerError extends Error {
+  constructor(message: string) {
+    super(message);
+    super.name = "steamidler";
+  }
+}
+
+const SteamGuardError: string[] = ["AccountLogonDenied", "AccountLoginDeniedNeedTwoFactor"];
+const BadSteamGuardCode: string[] = ["InvalidLoginAuthCode", "TwoFactorCodeMismatch"];
+const BadPassword: string[] = ["InvalidPassword"];
+
+export const isSteamGuardError = (error: string) => SteamGuardError.includes(error);
+export const isBadSteamGuardCode = (error: string) => BadSteamGuardCode.includes(error);
+export const isBadPassword = (error: string) => BadPassword.includes(error);
+export const isAuthError = (error: string) =>
+  isSteamGuardError(error) || isBadSteamGuardCode(error) || isBadPassword(error);
+
 export const ERRORS = {
-  EXISTS: "Exists",
-  ENABLE_STEAM_GUARD: "EnableSteamGuard",
-  LOCKED_ACCOUNT: "LockedAccount",
-  ALREADY_ONLINE: "AlreadyOnline",
-  NOTONLINE: "NotOnline",
-  NOTFOUND: "NotFound",
-  UNEXPECTED: "UnexpectedError",
-  NO_FARMABLE_GAMES: "NoFarmableGames",
-  ALREADY_FARMING: "AlreadyFarming",
+  EXISTS: new SteamIdlerError("Exists"),
+  ENABLE_STEAM_GUARD: new SteamIdlerError("EnableSteamGuard"),
+  LOCKED_ACCOUNT: new SteamIdlerError("LockedAccount"),
+  ALREADY_ONLINE: new SteamIdlerError("AlreadyOnline"),
+  NOTONLINE: new SteamIdlerError("NotOnline"),
+  NOTFOUND: new SteamIdlerError("NotFound"),
+  UNEXPECTED: new SteamIdlerError("UnexpectedError"),
+  NO_FARMABLE_GAMES: new SteamIdlerError("NoFarmableGames"),
+  ALREADY_FARMING: new SteamIdlerError("AlreadyFarming"),
 } as const;
 
 export function getAgentOptions(proxy: Proxy) {
@@ -25,17 +43,6 @@ export function getAgentOptions(proxy: Proxy) {
     userId: process.env.PROXY_USER,
     password: process.env.PROXY_PASS,
   };
-}
-
-/**
- * Normalizes error so that only string errors are thrown
- */
-export function normalizeError(error: string | Error): string {
-  if (typeof error !== "string") {
-    console.error(error);
-    return ERRORS.UNEXPECTED;
-  }
-  return error;
 }
 
 export async function SteamAccountExistsOnline(
@@ -61,4 +68,21 @@ export function getSteamCommunity(steamAccount: SteamAccount) {
     steamid: steamAccount.data.steamId,
     cookie: steamAccount.auth.cookie,
   });
+}
+
+export function encrypt(data: string): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(data, "utf-8", "hex");
+  encrypted += cipher.final("hex");
+  return `${iv.toString("hex")}:${encrypted}`;
+}
+
+export function decrypt(data: string): string {
+  const dataParts = data.split(":");
+  const iv = Buffer.from(dataParts[0], "hex");
+  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
+  let decrypted = decipher.update(dataParts[1], "hex", "utf-8");
+  decrypted += decipher.final("utf-8");
+  return decrypted;
 }

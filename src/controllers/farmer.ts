@@ -1,11 +1,10 @@
-import { ERRORS, getSteamCommunity, normalizeError, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
 import { FarmableGame } from "steamcommunity-api";
-import { IdleGame } from "steam-client";
 import retry from "@machiavelli/retry";
-import { steamWebLogin } from "./steamAccount.js";
-import { Farming } from "../../@types/index.js";
-import * as SteamAccountModel from "../models/steamAccount.js";
-import SteamStore from "./steamStore.js";
+import { steamWebLogin } from "./steam-accounts.js";
+import * as SteamAccountModel from "../models/steam-accounts.js";
+import SteamStore from "./steam-store.js";
+import { Farming } from "../../@types";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -22,7 +21,7 @@ export async function startFarmer(userId: string, username: string) {
       await farmingAlgo(userId, username);
     } catch (error) {
       await stopFarmer(userId, username);
-      throw normalizeError(error);
+      throw error;
     }
   }
 
@@ -88,14 +87,14 @@ async function farmingAlgo(userId: string, username: string) {
   // update farming state
   const farming: Farming = {
     active: true,
-    games: get32FarmableGames(farmableGames),
+    gameIds: get32FarmableGameIds(farmableGames),
   };
 
   await SteamAccountModel.updateField(userId, username, {
     "state.farming": farming,
   });
 
-  steam.idleGames(farming.games);
+  steam.idleGames(farming.gameIds);
 }
 
 /**
@@ -131,9 +130,7 @@ async function getFarmableGames(userId: string, username: string): Promise<Farma
   });
 }
 
-function get32FarmableGames(FarmableGames: FarmableGame[]): IdleGame[] {
+function get32FarmableGameIds(FarmableGames: FarmableGame[]): number[] {
   FarmableGames.slice(32);
-  return FarmableGames.map((game) => {
-    return { gameId: game.appId };
-  });
+  return FarmableGames.map((game) => game.appId);
 }

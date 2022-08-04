@@ -1,8 +1,8 @@
 import { Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
-import * as User from "../models/user.js";
-import * as Invite from "../models/invite.js";
-import { IUser } from "../../@types/index.js";
+import * as UserModel from "../models/users.js";
+import * as Invite from "../models/invites.js";
+import { User } from "../../@types/index.js";
 const router = Router();
 
 const ROUTE = "/user";
@@ -31,7 +31,7 @@ router.post(ROUTE + "/googleresponse", async (req, res) => {
   if (!payload) return res.status(400).send("invalid token");
 
   const userId = payload.sub;
-  const user = await User.get(userId);
+  const user = await UserModel.get(userId);
 
   // user is not registered, set tempSession to be used when registering
   if (!user) {
@@ -113,7 +113,7 @@ router.post(ROUTE + "/authenticate", async (req, res) => {
 /**
  * authenticate and update user details
  */
-async function authenticateUser(res: Response, req: Request, user: IUser) {
+async function authenticateUser(res: Response, req: Request, user: User) {
   // authenticate user
   req.session.loggedId = true;
   req.session.userId = user.userId;
@@ -124,7 +124,7 @@ async function authenticateUser(res: Response, req: Request, user: IUser) {
     { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
   );
 
-  await User.upsert(user.userId, user);
+  await UserModel.upsert(user.userId, user);
 }
 
 /**

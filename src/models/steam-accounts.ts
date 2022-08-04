@@ -1,9 +1,8 @@
-import crypto from "crypto";
 import { UpdateFilter, Document } from "mongodb";
 import { getCollection } from "../db.js";
 
-import { Encrypted, SteamAccNonSensitive, SteamAccount, SteamAccountEncrypted } from "../../@types";
-import { ERRORS } from "../commons.js";
+import { SteamAccount, SteamAccountEncrypted, SteamAccountNonSensitive } from "../../@types";
+import { decrypt, encrypt, ERRORS } from "../commons.js";
 const collectionName = "steam-accounts";
 
 /**
@@ -22,11 +21,11 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
  */
 export async function update(steamAccount: SteamAccount) {
   const collection = await getCollection(collectionName);
-  const encrypedAccount = encryptSteamAccount(steamAccount);
+  const encryptedAccount = encryptSteamAccount(steamAccount);
   await collection.updateOne(
     { userId: steamAccount.userId, username: steamAccount.username },
     {
-      $set: encrypedAccount,
+      $set: encryptedAccount,
     }
   );
 }
@@ -81,37 +80,22 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
     username,
   });
   if (!doc) return null;
-  // decrypt auth
-  doc.auth = JSON.parse(decrypt(doc.auth));
-  // convert string sentry to buffer
-
-  // sentry is not defined if Steam Account doesn't have Steam Guard
-  if (doc.auth.sentry) {
-    doc.auth.sentry = Buffer.from(doc.auth.sentry as string, "hex");
-  }
-
-  return (<unknown>doc) as SteamAccount;
+  return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
 }
 
 /**
- * Return all steam accounts without sensitive information that match userId
+ * Return all steam accounts without sensitive information
  */
-export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
+export async function getAll(userId: string): Promise<SteamAccountNonSensitive[]> {
   const collection = await getCollection(collectionName);
   const cursor = collection.find({ userId });
-  const documents = await cursor.toArray();
+  const accounts = (await cursor.toArray()) as unknown as SteamAccountEncrypted[];
 
-  const steamAccounts: SteamAccNonSensitive[] = [];
-
-  for (const doc of documents) {
-    const steamAccount: SteamAccNonSensitive = {
-      username: doc.username,
-      data: doc.data,
-      state: doc.state,
-    };
-    steamAccounts.push(steamAccount);
+  for (const acc of accounts) {
+    delete acc.auth;
+    delete acc.userId;
   }
-  return steamAccounts;
+  return accounts as SteamAccountNonSensitive[];
 }
 
 /**
@@ -119,35 +103,20 @@ export async function getAll(userId: string): Promise<SteamAccNonSensitive[]> {
  */
 
 function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted {
-  // convert sentry buffer to string
-  // sentry is not defined if Steam Account doesn't have Steam Guard
-  if (steamAccount.auth.sentry) {
-    steamAccount.auth.sentry = (steamAccount.auth.sentry as Buffer).toString("hex");
-  }
+  const account: SteamAccountEncrypted = (({ auth, ...others }) => {
+    return { ...others, auth: encrypt(JSON.stringify(auth)) };
+  })(steamAccount);
 
-  const encrypedAccount: SteamAccountEncrypted = {
-    userId: steamAccount.userId,
-    username: steamAccount.username,
-    auth: encrypt(JSON.stringify(steamAccount.auth)),
-    data: steamAccount.data,
-    state: steamAccount.state,
-  };
-  return encrypedAccount;
+  return account;
 }
 
-function encrypt(text: string): Encrypted {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return { iv: iv.toString("hex"), data: encrypted.toString("hex") };
-}
+function decryptSteamAccount(steamAccount: SteamAccountEncrypted): SteamAccount {
+  const decryptedAuth = JSON.parse(decrypt(steamAccount.auth));
 
-function decrypt(text: { iv: string; data: string }): string {
-  const iv = Buffer.from(text.iv, "hex");
-  const encryptedText = Buffer.from(text.data, "hex");
-  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+  const account: SteamAccount = (({ auth, ...others }) => {
+    return { ...others, auth: decryptedAuth };
+  })(steamAccount);
+
+  account.auth.sentry = Buffer.from(decryptedAuth.sentry.data);
+  return account;
 }

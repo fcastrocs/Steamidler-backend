@@ -1,5 +1,5 @@
 import { Avatar, ProfilePrivacy } from "steamcommunity-api";
-import * as SteamAccountModel from "../models/steamAccount.js";
+import * as SteamAccountModel from "../models/steam-accounts.js";
 import { getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
 
 /**

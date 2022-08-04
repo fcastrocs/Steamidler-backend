@@ -1,5 +1,5 @@
+import { AccountAuth, AccountData, State } from "steam-client";
 import { FarmableGame, Item, Cookie } from "steamcommunity-api";
-import Steam, { AccountAuth, AccountData, PersonaState, IdleGame } from "steam-client";
 
 declare module "express-session" {
   interface SessionData {
@@ -9,56 +9,56 @@ declare module "express-session" {
   }
 }
 
+declare module "steam-client" {
+  interface AccountAuth {
+    password: string;
+    cookie: Cookie;
+    type: "email" | "mobile";
+  }
+
+  interface AccountData {
+    farmableGames: FarmableGame[];
+    items: Item[];
+  }
+}
+
+interface Farming {
+  active: boolean;
+  gameIds: number[];
+}
+
+interface SteamAccount {
+  userId: string;
+  username: string;
+  auth: AccountAuth;
+  data: AccountData;
+  state: {
+    authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
+    farming: Farming;
+    status: "online" | "offline" | "reconnecting";
+    personaState: State;
+    gamesIdsIdle: number[];
+    proxy: Proxy;
+  };
+}
+
 interface LoginRes {
   auth: AccountAuth;
   data: AccountData;
   steam: Steam;
 }
 
-// models - steamaccount
-
-interface Encrypted {
-  iv: string;
-  data: string;
-}
-
-interface ExtendedAccountAuth extends Omit<AccountAuth, "sentry"> {
-  password: string;
-  cookie: Cookie;
-  sentry: Buffer | string;
-  type: "email" | "mobile";
-}
-
-interface ExtendedAccountData extends AccountData {
-  farmableGames: FarmableGame[];
-  items: Item[];
-}
-
-interface Farming {
-  active: boolean;
-  games: IdleGame[];
-}
-
-interface SteamAccount {
-  userId: string;
-  username: string;
-  auth: ExtendedAccountAuth;
-  data: ExtendedAccountData;
-  state: {
-    authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
-    farming: Farming;
-    status: "online" | "offline" | "reconnecting";
-    personaState: PersonaState;
-    gamesIdling: IdleGame[];
-    proxy: Proxy;
-  };
-}
-
+/**
+ * SteamAccount Object stored in database
+ */
 interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
-  auth: Encrypted;
+  auth: string;
 }
 
-type SteamAccNonSensitive = Omit<SteamAccount, "userId" | "auth">;
+/**
+ * SteamAccount Object sent to requests
+ */
+type SteamAccountNonSensitive = Omit<SteamAccount, "userId" | "auth">;
 
 // model - steamcm
 interface SteamCM {
@@ -83,10 +83,14 @@ interface Proxy {
 }
 
 // model User
-interface IUser {
+interface User {
   userId: string;
   nickname: string;
   email: string;
   avatar: string;
   role: "admin" | "user";
+}
+
+interface GetCMListResponse {
+  response: { serverlist: string[]; serverlist_websockets: string[]; result: number; message: string };
 }
