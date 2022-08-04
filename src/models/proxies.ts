@@ -6,12 +6,12 @@ const collectionName = "proxies";
 /**
  * Fetches proxies from proxies provider
  */
-export async function addProxies(proxies: string[]): Promise<number> {
+export async function add(proxies: string[]): Promise<number> {
   const collection = await getCollection(collectionName);
 
   const documents: Proxy[] = proxies.map((proxy) => {
     const split = proxy.split(":");
-    if (!validateProxy(`${split[0]}:${split[1]}`)) throw ERRORS.PROXY_NOT_VALID;
+    if (!validate(`${split[0]}:${split[1]}`)) throw ERRORS.PROXY_NOT_VALID;
     const p: Proxy = { ip: split[0], port: Number(split[1]) };
     return { ...p, load: 0 };
   });
@@ -51,7 +51,7 @@ export async function decreaseLoad(proxy: Proxy): Promise<boolean> {
 /**
  * @returns random proxy with less than process.env.PROXYLOAD
  */
-export async function getOneProxy(): Promise<Proxy> {
+export async function getOne(): Promise<Proxy> {
   const collection = await getCollection(collectionName);
   const cursor = collection.find({ load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } }, { projection: { load: 0 } });
   const proxies = await cursor.toArray();
@@ -60,12 +60,12 @@ export async function getOneProxy(): Promise<Proxy> {
   return proxies[Math.floor(Math.random() * proxies.length)] as unknown as Proxy;
 }
 
-export async function deleteProxy(proxy: Proxy): Promise<void> {
+export async function remove(proxy: Proxy): Promise<void> {
   const collection = await getCollection(collectionName);
   await collection.deleteOne(proxy);
 }
 
-function validateProxy(proxy: string) {
+function validate(proxy: string) {
   const regex = /(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d{1,5})/;
   return regex.test(proxy);
 }

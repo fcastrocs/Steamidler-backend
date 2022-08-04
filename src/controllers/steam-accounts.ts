@@ -17,9 +17,7 @@ import { LoginRes, Proxy, SteamAccount } from "../../@types";
  * @controller
  */
 export async function add(userId: string, username: string, password: string, code?: string) {
-  if (await SteamAccountModel.get(userId, username)) {
-    throw ERRORS.EXISTS;
-  }
+  if (await SteamAccountModel.get(userId, username)) throw ERRORS.EXISTS;
 
   // set login options
   const loginOptions: LoginOptions = {
@@ -31,9 +29,7 @@ export async function add(userId: string, username: string, password: string, co
   const steamVerify = await SteamVerifyModel.get(userId, username);
   if (steamVerify) {
     // steam guard code was not provided
-    if (!code) {
-      throw steamVerify.authType;
-    }
+    if (!code) throw new SteamClientError(steamVerify.authType);
 
     // set code to loginOptions
     if (steamVerify.authType === "AccountLogonDenied") {
@@ -44,7 +40,7 @@ export async function add(userId: string, username: string, password: string, co
   }
 
   // use previous proxy if account was waiting for steam guard code
-  const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOneProxy();
+  const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOne();
 
   let steamCMLoginRes: LoginRes;
   try {

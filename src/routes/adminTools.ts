@@ -1,5 +1,5 @@
 import express, { NextFunction, Request as Req, Response as Res, Router } from "express";
-import { addProxies } from "../models/proxies.js";
+import * as ProxyModel from "../models/proxies.js";
 import { fetchSteamServers } from "../models/steam-servers.js";
 const router = Router();
 
@@ -36,7 +36,7 @@ router.post(ROUTE + "/addproxies", [isAdmin, express.text()], async (req: Req, r
   }
 
   try {
-    const insertedCount = await addProxies(array);
+    const insertedCount = await ProxyModel.add(array);
     return res.send(`Inserted ${insertedCount} proxies`);
   } catch (error) {
     res.statusMessage = error;

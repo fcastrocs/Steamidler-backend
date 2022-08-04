@@ -1,6 +1,6 @@
-import assert from "assert";
 import "dotenv/config";
-import { addProxies, decreaseLoad, deleteProxy, getOneProxy, increaseLoad } from "../models/proxies.js";
+import assert from "assert";
+import * as ProxyModel from "../models/proxies.js";
 import { createInvite, inviteExists, removeInvite } from "../models/invites.js";
 import { fetchSteamServers, getOne } from "../models/steam-servers.js";
 import { AccountState, SteamAccount, SteamVerify, User } from "../../@types/index.js";
@@ -42,11 +42,11 @@ describe("Model proxies", async () => {
   const ip = "185.242.110.74";
   const port = 12324;
 
-  step("addProxies()", async () => {
+  step("add()", async () => {
     // try to add duplicate
-    const count = await addProxies([`${ip}:${port}`]);
+    const count = await ProxyModel.add([`${ip}:${port}`]);
     assert.equal(count, 1);
-    await assert.rejects(addProxies(["123"]), (err: Error) => {
+    await assert.rejects(ProxyModel.add(["123"]), (err: Error) => {
       assert.equal(err.name, "steamidler");
       assert.equal(err.message, "ProxyNotValid");
       return true;
@@ -54,34 +54,34 @@ describe("Model proxies", async () => {
   });
 
   step("increaseLoad()", async () => {
-    let modified = await increaseLoad({ ip, port });
+    let modified = await ProxyModel.increaseLoad({ ip, port });
     assert.equal(modified, true);
-    modified = await increaseLoad({ ip, port });
+    modified = await ProxyModel.increaseLoad({ ip, port });
     assert.equal(modified, false);
   });
 
   step("decreaseLoad()", async () => {
-    let modified = await decreaseLoad({ ip, port });
+    let modified = await ProxyModel.decreaseLoad({ ip, port });
     assert.equal(modified, true);
-    modified = await decreaseLoad({ ip, port });
+    modified = await ProxyModel.decreaseLoad({ ip, port });
     assert.equal(modified, false);
   });
 
-  step("getOneProxy()", async () => {
-    await getOneProxy();
-    await increaseLoad({ ip, port });
-    await assert.rejects(getOneProxy(), (err: Error) => {
+  step("getOne()", async () => {
+    await ProxyModel.getOne();
+    await ProxyModel.increaseLoad({ ip, port });
+    await assert.rejects(ProxyModel.getOne(), (err: Error) => {
       assert.equal(err.name, "steamidler");
       assert.equal(err.message, "ProxyLimitReached");
       return true;
     });
-    await decreaseLoad({ ip, port });
-    await getOneProxy();
+    await ProxyModel.decreaseLoad({ ip, port });
+    await ProxyModel.getOne();
   });
 
-  it("deleteProxy()", async () => {
-    await deleteProxy({ ip, port });
-    await assert.rejects(getOneProxy(), (err: Error) => {
+  it("remove()", async () => {
+    await ProxyModel.remove({ ip, port });
+    await assert.rejects(ProxyModel.getOne(), (err: Error) => {
       assert.equal(err.name, "steamidler");
       assert.equal(err.message, "ProxyLimitReached");
       return true;
