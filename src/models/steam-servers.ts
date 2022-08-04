@@ -16,7 +16,8 @@ export async function fetchSteamServers(): Promise<void> {
 
   const serverList: SteamCM[] = data.response.serverlist.map((server) => {
     const split = server.split(":");
-    return { ip: split[0], port: Number(split[1]) };
+    const steamcm: SteamCM = { ip: split[0], port: Number(split[1]) };
+    return steamcm;
   });
 
   await collection.deleteMany({});

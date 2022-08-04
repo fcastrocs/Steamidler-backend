@@ -1,3 +1,4 @@
+import { ERRORS } from "../commons.js";
 import { Proxy } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "proxies";
@@ -7,45 +8,64 @@ const collectionName = "proxies";
  */
 export async function addProxies(proxies: string[]): Promise<number> {
   const collection = await getCollection(collectionName);
-  const documents = [];
-  for (const item of proxies) {
-    const split = item.split(":");
-    const ip = split[0];
-    const port = Number(split[1]);
-    documents.push({ ip, port, load: 0 });
-  }
 
+  const documents: Proxy[] = proxies.map((proxy) => {
+    const split = proxy.split(":");
+    if (!validateProxy(`${split[0]}:${split[1]}`)) throw ERRORS.PROXY_NOT_VALID;
+    const p: Proxy = { ip: split[0], port: Number(split[1]) };
+    return { ...p, load: 0 };
+  });
+
+  // delete existing proxies
   await collection.deleteMany({});
-  const res = await collection.insertMany(documents, { ordered: false });
+  const res = await collection.insertMany(documents);
   return res.insertedCount;
 }
 
 /**
  * Increase load value by one
  */
-export async function increaseLoad(proxy: Proxy): Promise<void> {
+export async function increaseLoad(proxy: Proxy): Promise<boolean> {
   const collection = await getCollection(collectionName);
-  await collection.updateOne(proxy, { $inc: { load: 1 } });
+  const res = await collection.updateOne(
+    { ip: proxy.ip, port: proxy.port, load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } },
+    { $inc: { load: 1 } },
+    { upsert: false }
+  );
+  return !!res.modifiedCount;
 }
 
 /**
  * Decrease load value by one
  */
-export async function decreaseLoad(proxy: Proxy): Promise<void> {
+export async function decreaseLoad(proxy: Proxy): Promise<boolean> {
   const collection = await getCollection(collectionName);
-  await collection.updateOne(proxy, { $inc: { load: -1 } });
+  const res = await collection.updateOne(
+    { ip: proxy.ip, port: proxy.port, load: { $gt: 0 } },
+    { $inc: { load: -1 } },
+    { upsert: false }
+  );
+  return !!res.modifiedCount;
 }
 
 /**
  * @returns random proxy with less than process.env.PROXYLOAD
  */
-export async function getOne(): Promise<Proxy> {
+export async function getOneProxy(): Promise<Proxy> {
   const collection = await getCollection(collectionName);
-  const cursor = collection.aggregate([
-    { $match: { load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } } },
-    { $sample: { size: 1 } },
-  ]);
-  const doc = await cursor.next();
-  if (doc == null) throw "Could fetch a proxy from db.";
-  return doc as Proxy;
+  const cursor = collection.find({ load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } }, { projection: { load: 0 } });
+  const proxies = await cursor.toArray();
+  // no proxies or limit reached
+  if (!proxies.length) throw ERRORS.PROXY_LIMIT_REACHED;
+  return proxies[Math.floor(Math.random() * proxies.length)] as unknown as Proxy;
+}
+
+export async function deleteProxy(proxy: Proxy): Promise<void> {
+  const collection = await getCollection(collectionName);
+  await collection.deleteOne(proxy);
+}
+
+function validateProxy(proxy: string) {
+  const regex = /(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d{1,5})/;
+  return regex.test(proxy);
 }

@@ -44,7 +44,7 @@ export async function add(userId: string, username: string, password: string, co
   }
 
   // use previous proxy if account was waiting for steam guard code
-  const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOne();
+  const proxy = steamVerify ? steamVerify.proxy : await ProxyModel.getOneProxy();
 
   let steamCMLoginRes: LoginRes;
   try {

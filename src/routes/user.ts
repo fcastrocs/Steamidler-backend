@@ -75,19 +75,27 @@ router.post(ROUTE + "/register", async (req, res) => {
   }
 
   // verify invite code
-  if (!(await Invite.exists(invite, email))) {
+  if (!(await Invite.inviteExists(invite, email))) {
     res.statusMessage = "invalid invite";
     return res.status(400).send(res.statusMessage);
   }
 
   // remove used invite
-  await Invite.remove(email);
+  await Invite.removeInvite(email);
 
   // clear uneeded temp session
   res.clearCookie("tempSession");
 
   // authenticate user
-  await authenticateUser(res, req, { userId, nickname, email, avatar, role: "user" });
+  await authenticateUser(res, req, {
+    userId,
+    nickname,
+    email,
+    avatar,
+    role: "user",
+    createdAt: new Date(),
+    ip: "1.1.1.1",
+  });
 
   return res.redirect(process.env.FRONTEND_URL);
 });
@@ -106,7 +114,15 @@ router.post(ROUTE + "/logout", async (req, res) => {
 router.post(ROUTE + "/authenticate", async (req, res) => {
   if (process.env.NODE_ENV === "production") return res.sendStatus(404);
 
-  await authenticateUser(res, req, { userId: "1", nickname: "apiTest", email: "", avatar: "", role: "admin" });
+  await authenticateUser(res, req, {
+    userId: "1",
+    nickname: "apiTest",
+    email: "",
+    avatar: "",
+    role: "admin",
+    createdAt: new Date(),
+    ip: "1.1.1.1",
+  });
   return res.send();
 });
 
@@ -124,7 +140,7 @@ async function authenticateUser(res: Response, req: Request, user: User) {
     { signed: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
   );
 
-  await UserModel.upsert(user.userId, user);
+  await UserModel.upsert(user);
 }
 
 /**

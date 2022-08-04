@@ -33,6 +33,8 @@ export const ERRORS = {
   UNEXPECTED: new SteamIdlerError("UnexpectedError"),
   NO_FARMABLE_GAMES: new SteamIdlerError("NoFarmableGames"),
   ALREADY_FARMING: new SteamIdlerError("AlreadyFarming"),
+  PROXY_LIMIT_REACHED: new SteamIdlerError("ProxyLimitReached"),
+  PROXY_NOT_VALID: new SteamIdlerError("ProxyNotValid"),
 } as const;
 
 export function getAgentOptions(proxy: Proxy) {

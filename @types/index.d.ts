@@ -79,7 +79,6 @@ interface SteamVerify {
 interface Proxy {
   ip: string;
   port: number;
-  load: number; // number of accounts that are connected to the proxy
 }
 
 // model User
@@ -89,6 +88,14 @@ interface User {
   email: string;
   avatar: string;
   role: "admin" | "user";
+  createdAt: Date;
+  ip: string;
+}
+
+interface Invite {
+  email: string;
+  code: string;
+  createdAt: Date;
 }
 
 interface GetCMListResponse {
