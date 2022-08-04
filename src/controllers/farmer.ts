@@ -4,7 +4,7 @@ import retry from "@machiavelli/retry";
 import { steamWebLogin } from "./steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "./steam-store.js";
-import { Farming } from "../../@types";
+import { Farming, SteamAccount } from "../../@types";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -54,11 +54,8 @@ export async function stopFarmer(userId: string, username: string) {
   if (steam) steam.idleGames([]);
 
   await SteamAccountModel.updateField(userId, username, {
-    "state.farming": {
-      active: false,
-      games: [],
-    },
-  });
+    state: { farming: { active: false, gameIds: [] } },
+  } as Partial<SteamAccount>);
 }
 
 async function farmingAlgo(userId: string, username: string) {
@@ -76,8 +73,8 @@ async function farmingAlgo(userId: string, username: string) {
 
   // update farmableGames
   await SteamAccountModel.updateField(userId, username, {
-    "data.farmableGames": farmableGames,
-  });
+    data: { farmableGames: farmableGames },
+  } as Partial<SteamAccount>);
 
   // finished farming
   if (!farmableGames.length) {
@@ -90,9 +87,7 @@ async function farmingAlgo(userId: string, username: string) {
     gameIds: get32FarmableGameIds(farmableGames),
   };
 
-  await SteamAccountModel.updateField(userId, username, {
-    "state.farming": farming,
-  });
+  await SteamAccountModel.updateField(userId, username, { state: { farming: farming } } as Partial<SteamAccount>);
 
   steam.idleGames(farming.gameIds);
 }

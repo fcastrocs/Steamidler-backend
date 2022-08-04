@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 import { getCollection } from "../db.js";
 import { SteamIdlerError } from "../commons.js";
 
-const collectionName = "steam-cms";
+const collectionName = "steam-servers";
 const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?format=json&cellid=0";
 
 /**
@@ -11,8 +11,7 @@ const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/
  */
 export async function fetchSteamServers(): Promise<void> {
   const collection = await getCollection(collectionName);
-  const res = await fetch(STEAMCMS_URL);
-  const data = (await res.json()) as GetCMListResponse;
+  const data = (await fetch(STEAMCMS_URL).then((res) => res.json())) as GetCMListResponse;
 
   const serverList: SteamCM[] = data.response.serverlist.map((server) => {
     const split = server.split(":");

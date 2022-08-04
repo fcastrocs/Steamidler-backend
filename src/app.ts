@@ -47,15 +47,15 @@ const app = express();
  * Creates collections implicitly and indexes
  */
 async function createCollections(db: Db) {
-  await db.collection("steam-cms").createIndex({ ip: 1, port: 1 }, { unique: true });
+  await db.collection("steam-servers").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
   await db.collection("proxies").createIndex({ load: 1 });
   await db.collection("users").createIndex({ userId: 1 }, { unique: true });
   await db.collection("invites").createIndex({ email: 1, code: 1 }, { unique: true });
   await db.collection("invites").createIndex({ createdAt: 1 }, { expireAfterSeconds: 30 * 60 });
   await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("steam-verify").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("steam-verify").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
+  await db.collection("steam-verifications").createIndex({ userId: 1, username: 1 }, { unique: true });
+  await db.collection("steam-verifications").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
 }
 
 function afterMiddleWare() {

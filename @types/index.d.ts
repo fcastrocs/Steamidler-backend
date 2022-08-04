@@ -27,19 +27,21 @@ interface Farming {
   gameIds: number[];
 }
 
+interface AccountState {
+  authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
+  farming: Farming;
+  status: "online" | "offline" | "reconnecting";
+  personaState: State;
+  gamesIdsIdle: number[];
+  proxy: Proxy;
+}
+
 interface SteamAccount {
   userId: string;
   username: string;
   auth: AccountAuth;
   data: AccountData;
-  state: {
-    authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
-    farming: Farming;
-    status: "online" | "offline" | "reconnecting";
-    personaState: State;
-    gamesIdsIdle: number[];
-    proxy: Proxy;
-  };
+  state: AccountState;
 }
 
 interface LoginRes {

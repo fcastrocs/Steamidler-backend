@@ -3,7 +3,7 @@
  */
 import { SteamVerify } from "../../@types";
 import { getCollection } from "../db.js";
-const collectionName = "steam-verify";
+const collectionName = "steam-verifications";
 
 export async function add(steamVerify: SteamVerify): Promise<void> {
   const collection = await getCollection(collectionName);

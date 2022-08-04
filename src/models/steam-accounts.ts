@@ -10,8 +10,6 @@ const collectionName = "steam-accounts";
  */
 export async function add(steamAccount: SteamAccount): Promise<void> {
   const collection = await getCollection(collectionName);
-  const doc = await get(steamAccount.userId, steamAccount.username);
-  if (doc) throw ERRORS.EXISTS;
   const encrypedAccount = encryptSteamAccount(steamAccount);
   await collection.insertOne(encrypedAccount);
 }
@@ -34,11 +32,16 @@ export async function update(steamAccount: SteamAccount) {
  * update fields for a single steamAccount with userId and username
  * Do not use with account auth. Use 'update' instead
  */
-export async function updateField(
-  userId: string,
-  username: string,
-  update: UpdateFilter<Document> | Partial<Document>
-) {
+export async function updateField(userId: string, username: string, update: Partial<SteamAccount>) {
+  if (update.userId || update.username) {
+    throw ERRORS.INVALID_UPDATE_FIELDS;
+  }
+
+  // need to encrypt auth before updating
+  if (update.auth) {
+    (update as unknown) = encryptSteamAccount(update as SteamAccount);
+  }
+
   const collection = await getCollection(collectionName);
   await collection.updateOne(
     { userId, username },
@@ -59,18 +62,6 @@ export async function remove(userId: string, username: string): Promise<SteamAcc
 }
 
 /**
- * Check whether a steamAccount with userId and username exists in collection
- */
-export async function exists(userId: string, username: string): Promise<boolean> {
-  const collection = await getCollection(collectionName);
-  const doc = await collection.findOne({
-    userId,
-    username,
-  });
-  return !!doc;
-}
-
-/**
  * Return a steamAccount with userId and username
  */
 export async function get(userId: string, username: string): Promise<SteamAccount> {
@@ -88,13 +79,8 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
  */
 export async function getAll(userId: string): Promise<SteamAccountNonSensitive[]> {
   const collection = await getCollection(collectionName);
-  const cursor = collection.find({ userId });
+  const cursor = collection.find({ userId }, { projection: { auth: 0, userId: 0 } });
   const accounts = (await cursor.toArray()) as unknown as SteamAccountEncrypted[];
-
-  for (const acc of accounts) {
-    delete acc.auth;
-    delete acc.userId;
-  }
   return accounts as SteamAccountNonSensitive[];
 }
 
@@ -112,7 +98,7 @@ function encryptSteamAccount(steamAccount: SteamAccount): SteamAccountEncrypted 
 
 function decryptSteamAccount(steamAccount: SteamAccountEncrypted): SteamAccount {
   const decryptedAuth = JSON.parse(decrypt(steamAccount.auth));
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const account: SteamAccount = (({ auth, ...others }) => {
     return { ...others, auth: decryptedAuth };
   })(steamAccount);

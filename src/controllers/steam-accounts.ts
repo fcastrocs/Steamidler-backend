@@ -6,7 +6,7 @@ import SteamStore from "./steam-store.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";
-import * as SteamVerifyModel from "../models/steam-verify.js";
+import * as SteamVerifyModel from "../models/steam-verifications.js";
 
 import { ERRORS, getAgentOptions, isAuthError, isSteamGuardError, SteamAccountExistsOnline } from "../commons.js";
 import { startFarmer, stopFarmer } from "./farmer.js";
@@ -17,7 +17,7 @@ import { LoginRes, Proxy, SteamAccount } from "../../@types";
  * @controller
  */
 export async function add(userId: string, username: string, password: string, code?: string) {
-  if (await SteamAccountModel.exists(userId, username)) {
+  if (await SteamAccountModel.get(userId, username)) {
     throw ERRORS.EXISTS;
   }
 
@@ -163,7 +163,9 @@ export async function login(userId: string, username: string, code?: string, pas
   } catch (error) {
     // authentication errors, update account state error
     if (isAuthError(error)) {
-      await SteamAccountModel.updateField(userId, username, { "state.authError": error });
+      await SteamAccountModel.updateField(userId, username, {
+        state: { authError: error.message },
+      } as Partial<SteamAccount>);
     }
     throw error;
   }
@@ -338,7 +340,9 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
     await stopFarmer(userId, username);
 
     // set state.status to 'reconnecting'
-    await SteamAccountModel.updateField(userId, username, { "state.status": "reconnecting" });
+    await SteamAccountModel.updateField(userId, username, {
+      state: { status: "reconnecting" },
+    } as Partial<SteamAccount>);
 
     // generate a number between 1 and 20
     // this is done so that when steam goes offline, the backend doesn't overload.
@@ -381,7 +385,9 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
         }
 
         // reconnect failed, set status to offline
-        await SteamAccountModel.updateField(userId, username, { "state.status": "offline" });
+        await SteamAccountModel.updateField(userId, username, {
+          state: { status: "offline" },
+        } as Partial<SteamAccount>);
       }
     });
   });

@@ -1,6 +1,7 @@
 import { Avatar, ProfilePrivacy } from "steamcommunity-api";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
+import { SteamAccount } from "../../@types/index.js";
 
 /**
  * Change steam account nickname
@@ -13,9 +14,7 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
     buffer: avatar.buffer,
     type: avatar.mimetype as Avatar["type"],
   });
-  await SteamAccountModel.updateField(userId, username, {
-    "data.avatar": avatarUrl,
-  });
+  await SteamAccountModel.updateField(userId, username, { data: { avatar: avatarUrl } } as Partial<SteamAccount>);
 }
 
 /**

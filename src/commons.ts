@@ -35,6 +35,7 @@ export const ERRORS = {
   ALREADY_FARMING: new SteamIdlerError("AlreadyFarming"),
   PROXY_LIMIT_REACHED: new SteamIdlerError("ProxyLimitReached"),
   PROXY_NOT_VALID: new SteamIdlerError("ProxyNotValid"),
+  INVALID_UPDATE_FIELDS: new SteamIdlerError("InvalidUpdateFields"),
 } as const;
 
 export function getAgentOptions(proxy: Proxy) {

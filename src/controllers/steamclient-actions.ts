@@ -1,6 +1,7 @@
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { SteamAccountExistsOnline } from "../commons.js";
 import { AppInfo } from "steam-client";
+import { SteamAccount } from "../../@types";
 
 /**
  * Change steam account nickname
@@ -9,9 +10,7 @@ import { AppInfo } from "steam-client";
 export async function idleGames(userId: string, username: string, gameIds: number[]) {
   const { steam } = await SteamAccountExistsOnline(userId, username);
   steam.idleGames(gameIds);
-  await SteamAccountModel.updateField(userId, username, {
-    "state.gamesIdling": gameIds,
-  });
+  await SteamAccountModel.updateField(userId, username, { state: { gamesIdsIdle: gameIds } } as Partial<SteamAccount>);
 }
 
 /**
@@ -21,9 +20,7 @@ export async function idleGames(userId: string, username: string, gameIds: numbe
 export async function changeNick(userId: string, username: string, nick: string) {
   const { steam } = await SteamAccountExistsOnline(userId, username);
   steam.changePlayerName(nick);
-  await SteamAccountModel.updateField(userId, username, {
-    "data.nickname": nick,
-  });
+  await SteamAccountModel.updateField(userId, username, { data: { nickname: nick } } as Partial<SteamAccount>);
 }
 
 /**
