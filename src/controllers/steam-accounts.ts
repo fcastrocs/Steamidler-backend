@@ -9,7 +9,7 @@ import * as SteamVerifyModel from "../models/steam-verifications.js";
 
 import { ERRORS, eventEmitter, isAuthError, isSteamGuardError } from "../commons.js";
 import { startFarmer, stopFarmer } from "./farmer.js";
-import { LoginRes, Proxy, SteamAccount } from "../../@types";
+import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
 
 /**
@@ -110,7 +110,7 @@ export async function add(userId: string, username: string, password: string, co
 
   await SteamAccountModel.add(steamAccount);
   await ProxyModel.increaseLoad(proxy);
-  SteamEventListeners(userId, username, steamCMLoginRes.steam);
+  SteamEventListeners(userId, username);
 }
 
 /**
@@ -122,19 +122,23 @@ export async function login(userId: string, username: string, code?: string, pas
     throw ERRORS.ALREADY_ONLINE;
   }
 
+  // check account is not online
   const steamAccount = await SteamAccountModel.get(userId, username);
   if (!steamAccount) throw ERRORS.NOTFOUND;
+
+  // set password
+  steamAccount.auth.password = password ? password : steamAccount.auth.password;
 
   // set login options
   const loginOptions: LoginOptions = {
     accountName: username,
-    password: password ? password : steamAccount.auth.password,
+    password: steamAccount.auth.password,
     machineName: steamAccount.auth.machineName,
     loginKey: steamAccount.auth.loginKey,
     shaSentryfile: steamAccount.auth.sentry,
   };
 
-  // don't use loginkey after auth error
+  // don't use loginkey or sentry after auth error
   if (isAuthError(steamAccount.state.error)) {
     delete loginOptions.loginKey;
     delete loginOptions.shaSentryfile;
@@ -149,10 +153,18 @@ export async function login(userId: string, username: string, code?: string, pas
     }
   }
 
-  let steamCMLoginRes: LoginRes;
+  let steamClient: Steam = null;
+
   try {
     // attempt CM login
-    steamCMLoginRes = await steamcmLogin(loginOptions, steamAccount.state.proxy);
+    const { auth, data, steam } = await steamcmLogin(loginOptions, steamAccount.state.proxy);
+    steamClient = steam;
+    // set new auth
+    steamAccount.auth.loginKey = auth.loginKey;
+    steamAccount.auth.sentry = auth.sentry;
+    steamAccount.auth.webNonce = auth.webNonce;
+    // set new data
+    steamAccount.data = data;
   } catch (error) {
     if (error instanceof SteamClientError) {
       await SteamAccountModel.updateField(userId, username, {
@@ -162,43 +174,39 @@ export async function login(userId: string, username: string, code?: string, pas
     throw error;
   }
 
-  // update steam account before proceeding because loginKey and sentry could change
-  steamAccount.auth.loginKey = steamCMLoginRes.auth.loginKey;
-  steamAccount.auth.sentry = steamCMLoginRes.auth.sentry;
-  await SteamAccountModel.update(steamAccount);
+  // update auth
+  await SteamAccountModel.updateField(userId, username, { auth: steamAccount.auth } as SteamAccount);
 
   // login to steamcommunity
   const { cookie, steamcommunity } = await steamWebLogin({
     type: "login",
     login: {
-      steamid: steamCMLoginRes.data.steamId,
-      webNonce: steamCMLoginRes.auth.webNonce,
+      steamid: steamAccount.data.steamId,
+      webNonce: steamAccount.auth.webNonce,
       proxy: steamAccount.state.proxy,
     },
   });
-  // update steam account
-  steamAccount.auth = {
-    ...steamCMLoginRes.auth,
-    cookie,
-    type: steamAccount.auth.type,
-    password: password ? password : steamAccount.auth.password,
-  };
 
-  steamAccount.data = {
-    ...steamCMLoginRes.data,
-    farmableGames: await steamcommunity.getFarmableGames(),
-    items: await steamcommunity.getCardsInventory(),
-  };
+  // update auth again with cookie
+  steamAccount.auth.cookie = cookie;
+  await SteamAccountModel.updateField(userId, username, { auth: steamAccount.auth } as SteamAccount);
+
+  // renew FarmableGames and cardsInventory
+  steamAccount.data.farmableGames = await steamcommunity.getFarmableGames();
+  steamAccount.data.items = await steamcommunity.getCardsInventory();
+
+  // update data, state.error, state.status
+  await SteamAccountModel.updateField(userId, username, {
+    data: steamAccount.data,
+    "state.error": "",
+    "state.status": "online",
+  });
 
   // save to store
-  SteamStore.add(userId, username, steamCMLoginRes.steam);
+  SteamStore.add(userId, username, steamClient);
 
-  steamAccount.state.status = "online";
-  delete steamAccount.state.error;
-  await SteamAccountModel.update(steamAccount);
-
-  await restoreState(steamCMLoginRes.steam, steamAccount, userId, username);
-  SteamEventListeners(userId, username, steamCMLoginRes.steam);
+  await restoreState(userId, username, steamAccount.state);
+  SteamEventListeners(userId, username);
 }
 
 /**
@@ -264,24 +272,29 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<L
 /**
  * Restore account state:  personastate, farming, and idling after login
  */
-async function restoreState(steam: Steam, steamAccount: SteamAccount, userId: string, username: string) {
-  steam.changePersonaState(steamAccount.state.personaState);
+async function restoreState(userId: string, username: string, state: AccountState) {
+  const steam = SteamStore.get(userId, username);
+  if (!steam) throw ERRORS.NOTONLINE;
+  steam.changePersonaState(state.personaState);
 
   // restore farming
-  if (steamAccount.state.farming.active) {
+  if (state.farming.active) {
     return await startFarmer(userId, username);
   }
 
   // restore idling
-  if (steamAccount.state.gamesIdsIdle.length) {
-    steam.idleGames(steamAccount.state.gamesIdsIdle);
+  if (state.gamesIdsIdle.length) {
+    steam.idleGames(state.gamesIdsIdle);
   }
 }
 
 /**
  * Handle account disconnects
  */
-function SteamEventListeners(userId: string, username: string, steam: Steam) {
+function SteamEventListeners(userId: string, username: string) {
+  const steam = SteamStore.get(userId, username);
+  if (!steam) throw ERRORS.NOTONLINE;
+
   steam.on("loginKey", async (loginKey) => {
     // get steam account because auth can't get updated partiarlly
     const steamAccount = await SteamAccountModel.get(userId, username);
@@ -320,10 +333,6 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
 
         // error originated in steam-client
         if (error instanceof SteamClientError) {
-          await SteamAccountModel.updateField(userId, username, {
-            "state.error": error.message,
-          });
-
           // relogin failed after 1st attempt using loginKey or sentry, stop retrying
           if (currentAttempt > 1 && isAuthError(error.message)) return;
 
@@ -343,7 +352,7 @@ function SteamEventListeners(userId: string, username: string, steam: Steam) {
 
         // reconnect failed
         await SteamAccountModel.updateField(userId, username, {
-          "state.status": "offline" as SteamAccount["state"]["status"],
+          "state.status": "offline",
         });
 
         eventEmitter.emit("reconnectFailed");

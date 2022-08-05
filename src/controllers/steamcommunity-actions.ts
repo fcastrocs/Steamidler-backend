@@ -49,7 +49,7 @@ export async function changeAvatar(userId: string, username: string, avatar: Exp
     buffer: avatar.buffer,
     type: avatar.mimetype as Avatar["type"],
   });
-  await SteamAccountModel.updateField(userId, username, { data: { avatar: avatarUrl } } as Partial<SteamAccount>);
+  await SteamAccountModel.updateField(userId, username, { "data.avatar": avatarUrl });
 }
 
 /**
@@ -70,4 +70,5 @@ export async function changePrivacy(userId: string, username: string, privacy: P
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   await steamcommunity.changePrivacy(privacy);
+  await SteamAccountModel.updateField(userId, username, { "state.personaState": privacy });
 }
