@@ -170,7 +170,7 @@ describe("Model steam-servers", async () => {
   });
 });
 
-describe("Controller steam-store", () => {
+describe("Model steam-store", () => {
   const userId = "1";
   const username = "username";
   const steam = new Steam({});
