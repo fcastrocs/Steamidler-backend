@@ -4,7 +4,7 @@ import SteamCommunity from "steamcommunity-api";
 import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
 import SteamStore from "./models/steam-store.js";
-import Steam from "steam-client";
+import Steam, { AppInfo } from "steam-client";
 
 import { EventEmitter } from "events";
 const eventEmitter = new EventEmitter();
@@ -92,4 +92,24 @@ export function decrypt(data: string): string {
   let decrypted = decipher.update(dataParts[1], "hex", "utf-8");
   decrypted += decipher.final("utf-8");
   return decrypted;
+}
+
+/**
+ * merge two games arrays and return the merged and the difference arrays
+ */
+export function mergeGamesArrays(games1: AppInfo[], games2: AppInfo[]) {
+  const merge = games1;
+  const difference = [];
+
+  for (const game of games1) {
+    // check against games2 for duplicate
+    if (games2.some((game2) => game.gameid === game2.gameid)) {
+      continue;
+    }
+
+    merge.push(game);
+    difference.push(game);
+  }
+
+  return { merge, difference };
 }

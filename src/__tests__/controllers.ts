@@ -54,7 +54,25 @@ describe("Controller steam-accounts", () => {
 });
 
 describe("Controller steamclient-actions", () => {
- //
+  it("idleGames()", () => {
+    //
+  });
+
+  it("changeNick()", () => {
+    //
+  });
+
+  step("mergeGamesArrays()", () => {
+    //
+  });
+
+  it("activatef2pgame()", () => {
+    //
+  });
+
+  it("cdkeyRedeem()", () => {
+    //
+  });
 });
 
 describe("Controller steamcommunity-actions", () => {
