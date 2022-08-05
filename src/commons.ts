@@ -6,6 +6,10 @@ import { Proxy, SteamAccount } from "../@types";
 import SteamStore from "./controllers/steam-store.js";
 import Steam from "steam-client";
 
+import { EventEmitter } from "events";
+const eventEmitter = new EventEmitter();
+export { eventEmitter };
+
 export class SteamIdlerError extends Error {
   constructor(message: string) {
     super(message);

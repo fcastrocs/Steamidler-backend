@@ -1,10 +1,10 @@
 import { ERRORS, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
 import { FarmableGame } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
-import { steamWebLogin } from "./steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "./steam-store.js";
 import { Farming, SteamAccount } from "../../@types";
+import { steamWebLogin } from "./steamcommunity-actions.js";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 

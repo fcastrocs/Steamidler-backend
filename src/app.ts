@@ -15,9 +15,10 @@ import SteamcommunityAction from "./routes/steamcommunity-actions.js";
 
 import * as mongodb from "./db.js";
 import { SteamcommunityError } from "steamcommunity-api";
+import { SteamClientError } from "steam-client";
+import { SteamIdlerError } from "./commons.js";
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
-
 const app = express();
 
 // Start the app
@@ -61,7 +62,7 @@ async function createCollections(db: Db) {
 function afterMiddleWare() {
   // handle errors
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    if (err instanceof SteamcommunityError) {
+    if (err instanceof SteamcommunityError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
       return res.status(400).send({ name: err.name, message: err.message });
     }
     return next();

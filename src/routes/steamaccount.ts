@@ -1,6 +1,7 @@
+import { steamWebLogin } from "../controllers/steamcommunity-actions.js";
 import { Router } from "express";
 import * as SteamAccount from "../controllers/steam-accounts.js";
-import { getAll } from "../models/steam-accounts.js";
+
 const router = Router();
 
 const ROUTE = "/steamaccount";
@@ -8,7 +9,7 @@ const ROUTE = "/steamaccount";
 /**
  * Add a Steam Account
  */
-router.post(ROUTE, async (req, res) => {
+router.post(ROUTE, async (req, res, next) => {
   const username = req.body.username;
   const password = req.body.password;
   const code = req.body.code;
@@ -21,9 +22,7 @@ router.post(ROUTE, async (req, res) => {
   try {
     await SteamAccount.add(req.session.userId, username, password, code);
   } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
+    return next(error);
   }
 
   return res.send();
@@ -32,7 +31,7 @@ router.post(ROUTE, async (req, res) => {
 /**
  * Login a Steam Account
  */
-router.post(ROUTE + "/login", async (req, res) => {
+router.post(ROUTE + "/login", async (req, res, next) => {
   const username = req.body.username;
   const password = req.body.password;
   const code = req.body.code;
@@ -45,9 +44,7 @@ router.post(ROUTE + "/login", async (req, res) => {
   try {
     await SteamAccount.login(req.session.userId, username, code, password);
   } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
+    return next(error);
   }
   return res.send();
 });
@@ -55,7 +52,7 @@ router.post(ROUTE + "/login", async (req, res) => {
 /**
  * Login a Steam Account
  */
-router.post(ROUTE + "/steamcommunitylogin", async (req, res) => {
+router.post(ROUTE + "/steamcommunitylogin", async (req, res, next) => {
   const username = req.body.username;
 
   if (!username) {
@@ -64,14 +61,12 @@ router.post(ROUTE + "/steamcommunitylogin", async (req, res) => {
   }
 
   try {
-    await SteamAccount.steamWebLogin({
+    await steamWebLogin({
       type: "relogin",
       relogin: { userId: req.session.userId, username },
     });
   } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
+    return next(error);
   }
   return res.send();
 });
@@ -79,7 +74,7 @@ router.post(ROUTE + "/steamcommunitylogin", async (req, res) => {
 /**
  * Logout a Steam Account
  */
-router.post(ROUTE + "/logout", async (req, res) => {
+router.post(ROUTE + "/logout", async (req, res, next) => {
   const username = req.body.username;
 
   if (!username) {
@@ -90,9 +85,7 @@ router.post(ROUTE + "/logout", async (req, res) => {
   try {
     await SteamAccount.logout(req.session.userId, username);
   } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
+    return next(error);
   }
 
   return res.send();
@@ -101,7 +94,7 @@ router.post(ROUTE + "/logout", async (req, res) => {
 /**
  * Remove a Steam Account
  */
-router.delete(ROUTE, async (req, res) => {
+router.delete(ROUTE, async (req, res, next) => {
   const username = req.body.username;
 
   if (!username) {
@@ -112,19 +105,9 @@ router.delete(ROUTE, async (req, res) => {
   try {
     await SteamAccount.remove(req.session.userId, username);
   } catch (error) {
-    console.error(error);
-    res.statusMessage = error;
-    return res.status(400).send(error);
+    return next(error);
   }
   return res.send();
-});
-
-/**
- * Returns all steam accounts for this user.
- */
-router.get("/steamaccounts", async (req, res) => {
-  const accounts = await getAll(req.session.userId);
-  res.send(accounts);
 });
 
 export default router;

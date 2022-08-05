@@ -124,13 +124,6 @@ describe("Model steam-accounts", async () => {
     assert.equal(sAccount.auth.password, steamAccount.auth.password);
   });
 
-  step("getAll()", async () => {
-    const sAccounts = await SteamAccountsModel.getAll(steamAccount.userId);
-    assert.equal(sAccounts.length, 1);
-    assert.equal((sAccounts[0] as SteamAccount).auth, null);
-    assert.equal((sAccounts[0] as SteamAccount).userId, null);
-  });
-
   /*step("update()", async () => {
     steamAccount.auth.sentry = Buffer.from("123");
     steamAccount.auth.password = "123";

@@ -1,6 +1,29 @@
 import { AccountAuth, AccountData, State } from "steam-client";
 import { FarmableGame, Item, Cookie } from "steamcommunity-api";
 
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      SESSION_SECRET: string;
+      ENCRYPTION_KEY: string;
+      NODE_ENV: string;
+      PROXY_USER: string;
+      PROXY_PASS: string;
+      PROXY_TYPE: string;
+      PROXY_TIMEOUT: string;
+      PROXY_LOAD_LIMIT: string;
+      DB_URI: string;
+      POOL_SIZE: string;
+      STEAM_RECONNECTS_RETRIES: string;
+      STEAM_DOWN_RETRIES: string;
+      STEAM_DOWN_INTERVAL: string;
+      FARMING_INTERVAL_MINUTES: string;
+      STEAM_USERNAME: string;
+      STEAM_PASSWORD: string;
+    }
+  }
+}
+
 declare module "express-session" {
   interface SessionData {
     loggedId: boolean;
@@ -28,7 +51,7 @@ interface Farming {
 }
 
 interface AccountState {
-  authError?: SteamGuardError | BadSteamGuardCode | BadPassword;
+  error?: "string";
   farming: Farming;
   status: "online" | "offline" | "reconnecting";
   personaState: State;
