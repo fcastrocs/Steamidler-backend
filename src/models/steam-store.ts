@@ -31,12 +31,10 @@ export default class SteamStore {
   /**
    * Get Steam instance for this account
    */
-  static get(userId: string, username: string): Steam | null {
+  static get(userId: string, username: string): Steam {
     const accounts = Store.get(userId);
     if (!accounts) return null;
-    const steam = accounts.get(username);
-    if (!steam) return null;
-    return steam;
+    return accounts.get(username);
   }
 
   /**

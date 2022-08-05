@@ -101,10 +101,6 @@ describe("Controller steam-accounts", () => {
   });
 });
 
-describe("Controller steam-store", () => {
-  //
-});
-
 describe("Controller steamclient-actions", () => {
  //
 });
