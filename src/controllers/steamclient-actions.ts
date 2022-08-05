@@ -1,7 +1,6 @@
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { SteamAccountExistsOnline } from "../commons.js";
 import { AppInfo } from "steam-client";
-import { SteamAccount } from "../../@types";
 
 /**
  * Change steam account nickname
@@ -10,7 +9,7 @@ import { SteamAccount } from "../../@types";
 export async function idleGames(userId: string, username: string, gameIds: number[]) {
   const { steam } = await SteamAccountExistsOnline(userId, username);
   steam.idleGames(gameIds);
-  await SteamAccountModel.updateField(userId, username, { state: { gamesIdsIdle: gameIds } } as Partial<SteamAccount>);
+  await SteamAccountModel.updateField(userId, username, { "state.gamesIdsIdle": gameIds });
 }
 
 /**
@@ -20,7 +19,7 @@ export async function idleGames(userId: string, username: string, gameIds: numbe
 export async function changeNick(userId: string, username: string, nick: string) {
   const { steam } = await SteamAccountExistsOnline(userId, username);
   steam.changePlayerName(nick);
-  await SteamAccountModel.updateField(userId, username, { data: { nickname: nick } } as Partial<SteamAccount>);
+  await SteamAccountModel.updateField(userId, username, { "data.nickname": nick });
 }
 
 /**
@@ -30,9 +29,8 @@ export async function changeNick(userId: string, username: string, nick: string)
 export async function activatef2pgame(userId: string, username: string, appids: number[]): Promise<AppInfo[]> {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, username);
   const games = await steam.activateFreeToPlayGames(appids);
-  const { difference, joined } = joinGamesArrays(games, steamAccount.data.games);
-  steamAccount.data.games = joined;
-  await SteamAccountModel.update(steamAccount);
+  const { difference, merge } = mergeGamesArrays(games, steamAccount.data.games);
+  await SteamAccountModel.updateField(userId, username, { "data.games": merge });
   return difference;
 }
 
@@ -43,27 +41,27 @@ export async function activatef2pgame(userId: string, username: string, appids: 
 export async function cdkeyRedeem(userId: string, username: string, cdkey: string): Promise<AppInfo[]> {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, username);
   const games = await steam.cdkeyRedeem(cdkey);
-  const { difference, joined } = joinGamesArrays(games, steamAccount.data.games);
-  steamAccount.data.games = joined;
-  await SteamAccountModel.update(steamAccount);
+  const { difference, merge } = mergeGamesArrays(games, steamAccount.data.games);
+  await SteamAccountModel.updateField(userId, username, { "data.games": merge });
   return difference;
 }
 
 /**
- * Joins two games arrays and returns the joined array and the difference
+ * merge two games arrays and return the merged and the difference arrays
  */
-function joinGamesArrays(games1: AppInfo[], games2: AppInfo[]) {
+export function mergeGamesArrays(games1: AppInfo[], games2: AppInfo[]) {
+  const merge = games1;
   const difference = [];
+
   for (const game of games1) {
-    if (games2.some((item) => item.gameid === game.gameid)) {
+    // check against games2 for duplicate
+    if (games2.some((game2) => game.gameid === game2.gameid)) {
       continue;
     }
-    games2.push(game);
+
+    merge.push(game);
     difference.push(game);
   }
 
-  return {
-    joined: games2,
-    difference,
-  };
+  return { merge, difference };
 }

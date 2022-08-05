@@ -1,6 +1,6 @@
 import assert from "assert";
 import Steam from "steam-client";
-import SteamStore from "../controllers/steam-store.js";
+import SteamStore from "../models/steam-store.js";
 import * as SteamAccountsController from "../controllers/steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { eventEmitter } from "../commons.js";
@@ -106,7 +106,7 @@ describe("Controller steam-store", () => {
 });
 
 describe("Controller steamclient-actions", () => {
-  //
+ //
 });
 
 describe("Controller steamcommunity-actions", () => {

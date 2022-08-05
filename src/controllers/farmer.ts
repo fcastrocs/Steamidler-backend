@@ -2,7 +2,7 @@ import { ERRORS, getSteamCommunity, SteamAccountExistsOnline } from "../commons.
 import { FarmableGame } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import SteamStore from "./steam-store.js";
+import SteamStore from "../models/steam-store.js";
 import { Farming, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
 

@@ -1,7 +1,7 @@
 import Steam, { LoginOptions, Options, SteamClientError } from "steam-client";
 import retry from "@machiavelli/retry";
 
-import SteamStore from "./steam-store.js";
+import SteamStore from "../models/steam-store.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";

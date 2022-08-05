@@ -3,7 +3,7 @@ import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import SteamCommunity from "steamcommunity-api";
 import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
-import SteamStore from "./controllers/steam-store.js";
+import SteamStore from "./models/steam-store.js";
 import Steam from "steam-client";
 
 import { EventEmitter } from "events";
