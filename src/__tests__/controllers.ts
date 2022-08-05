@@ -1,5 +1,4 @@
 import assert from "assert";
-import Steam from "steam-client";
 import SteamStore from "../models/steam-store.js";
 import * as SteamAccountsController from "../controllers/steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
