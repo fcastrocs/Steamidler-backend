@@ -29,7 +29,7 @@ export async function changeNick(userId: string, username: string, nick: string)
 export async function activatef2pgame(userId: string, username: string, appids: number[]): Promise<AppInfo[]> {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, username);
   const games = await steam.activateFreeToPlayGames(appids);
-  const { difference, merge } = mergeGamesArrays(games, steamAccount.data.games);
+  const { difference, merge } = mergeGamesArrays(steamAccount.data.games, games);
   await SteamAccountModel.updateField(userId, username, { "data.games": merge });
   return difference;
 }
@@ -41,7 +41,7 @@ export async function activatef2pgame(userId: string, username: string, appids: 
 export async function cdkeyRedeem(userId: string, username: string, cdkey: string): Promise<AppInfo[]> {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, username);
   const games = await steam.cdkeyRedeem(cdkey);
-  const { difference, merge } = mergeGamesArrays(games, steamAccount.data.games);
+  const { difference, merge } = mergeGamesArrays(steamAccount.data.games, games);
   await SteamAccountModel.updateField(userId, username, { "data.games": merge });
   return difference;
 }

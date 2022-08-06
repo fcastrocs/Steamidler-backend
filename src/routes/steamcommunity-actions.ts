@@ -51,22 +51,11 @@ router.post(ROUTE + "clearaliases", async (req, res, next) => {
  * @route
  */
 router.post(ROUTE + "changeavatar", upload.single("avatar"), async (req, res, next) => {
-  const body = JSON.parse(JSON.stringify(req.body)); //multer is trash.
-  const username = body.username;
-  const avatar = req.file;
+  const username = req.body.username;
+  const avatar = req.body.avatar;
 
   if (!username || !avatar) {
     res.statusMessage = "invalid body";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  if (!avatar.mimetype.includes("image")) {
-    res.statusMessage = "avatar must be an image";
-    return res.status(400).send(res.statusMessage);
-  }
-
-  if (avatar.size / 1024 > 1024) {
-    res.statusMessage = "avatar must be less than 1024Kb";
     return res.status(400).send(res.statusMessage);
   }
 

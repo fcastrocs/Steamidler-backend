@@ -1,6 +1,15 @@
 import "dotenv/config";
 import assert from "assert";
-import { decrypt, encrypt, isAuthError, isBadPassword, isBadSteamGuardCode, isSteamGuardError } from "../commons.js";
+import {
+  decrypt,
+  encrypt,
+  isAuthError,
+  isBadPassword,
+  isBadSteamGuardCode,
+  isSteamGuardError,
+  mergeGamesArrays,
+} from "../commons.js";
+import { AppInfo } from "steam-client";
 
 describe("common functions", () => {
   it("isSteamGuardError()", () => {
@@ -39,5 +48,21 @@ describe("common functions", () => {
     assert.throws(function () {
       assert.equal(decrypt(encrypted), "random");
     });
+  });
+
+  step("mergeGamesArrays()", () => {
+    const game1 = [{ gameid: 1 }, { gameid: 2 }];
+    const game2 = [{ gameid: 1 }, { gameid: 3 }];
+    const { merge, difference } = mergeGamesArrays(game1 as AppInfo[], game2 as AppInfo[]);
+    assert.equal(merge.length, 3);
+    assert.equal(difference.length, 1);
+    assert.equal(
+      merge.some((game) => game.gameid === 3),
+      true
+    );
+    assert.equal(
+      difference.some((game) => game.gameid !== 1),
+      true
+    );
   });
 });

@@ -97,19 +97,15 @@ export function decrypt(data: string): string {
 /**
  * merge two games arrays and return the merged and the difference arrays
  */
-export function mergeGamesArrays(games1: AppInfo[], games2: AppInfo[]) {
-  const merge = games1;
-  const difference = [];
-
-  for (const game of games1) {
-    // check against games2 for duplicate
-    if (games2.some((game2) => game.gameid === game2.gameid)) {
-      continue;
-    }
-
-    merge.push(game);
-    difference.push(game);
-  }
-
+export function mergeGamesArrays(array1: AppInfo[], array2: AppInfo[]) {
+  const difference: AppInfo[] = [];
+  const merge = array1.concat(
+    array2.filter((item) => {
+      const duplicate = array1.some((game) => game.gameid === item.gameid);
+      if (!duplicate) difference.push(item);
+      // return false for duplicates
+      return !duplicate;
+    })
+  );
   return { merge, difference };
 }
