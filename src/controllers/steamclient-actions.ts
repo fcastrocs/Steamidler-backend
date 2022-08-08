@@ -45,3 +45,12 @@ export async function cdkeyRedeem(userId: string, username: string, cdkey: strin
   await SteamAccountModel.updateField(userId, username, { "data.games": merge });
   return difference;
 }
+
+/**
+ * Activate free to play game.
+ * @controller
+ */
+export async function changePersonaState(userId: string, username: string, cdkey: string): Promise<void> {
+  const { steam } = await SteamAccountExistsOnline(userId, username);
+  steam.changePersonaState("offline");
+}

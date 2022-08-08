@@ -20,6 +20,7 @@ declare global {
       FARMING_INTERVAL_MINUTES: string;
       STEAM_USERNAME: string;
       STEAM_PASSWORD: string;
+      STEAM_CODE: string;
     }
   }
 }
@@ -45,14 +46,9 @@ declare module "steam-client" {
   }
 }
 
-interface Farming {
-  active: boolean;
-  gameIds: number[];
-}
-
 interface AccountState {
   error?: "string";
-  farming: Farming;
+  farming: boolean;
   status: "online" | "offline" | "reconnecting";
   personaState: State;
   gamesIdsIdle: number[];

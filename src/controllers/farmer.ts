@@ -1,9 +1,8 @@
 import { ERRORS, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
-import { FarmableGame } from "steamcommunity-api";
+import { FarmableGame, SteamcommunityError } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
-import { Farming, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
@@ -12,27 +11,19 @@ const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
  * Start Farmer
  * @controller
  */
-export async function startFarmer(userId: string, username: string) {
+export async function start(userId: string, username: string) {
   await SteamAccountExistsOnline(userId, username);
   if (FarmingIntervals.has(username)) throw ERRORS.ALREADY_FARMING;
 
-  async function runFarmingAlgo() {
-    try {
-      await farmingAlgo(userId, username);
-    } catch (error) {
-      await stopFarmer(userId, username);
-      throw error;
-    }
-  }
+  await runFarmingAlgo(userId, username);
 
-  await runFarmingAlgo();
-
-  // run farming algo at process.env.FARMING_INTERVAL_MINUTESD
+  // run farming algo at process.env.FARMING_INTERVAL_MINUTES
   const interval = setInterval(async () => {
     console.log(`Running FarmingAlgo: ${username}`);
     try {
-      await runFarmingAlgo();
+      await runFarmingAlgo(userId, username);
     } catch (error) {
+      // don't throw on fail
       console.log(error);
     }
   }, Number(process.env.FARMING_INTERVAL_MINUTES) * 60 * 1000);
@@ -40,11 +31,20 @@ export async function startFarmer(userId: string, username: string) {
   FarmingIntervals.set(username, interval);
 }
 
+async function runFarmingAlgo(userId: string, username: string) {
+  try {
+    await farmingAlgo(userId, username);
+  } catch (error) {
+    await stop(userId, username);
+    throw error;
+  }
+}
+
 /**
  * Stop Farming
  * @controller
  */
-export async function stopFarmer(userId: string, username: string) {
+export async function stop(userId: string, username: string) {
   const interval = FarmingIntervals.get(username);
   if (!interval) return;
 
@@ -53,13 +53,13 @@ export async function stopFarmer(userId: string, username: string) {
   const steam = SteamStore.get(userId, username);
   if (steam) steam.idleGames([]);
 
-  await SteamAccountModel.updateField(userId, username, {
-    state: { farming: { active: false, gameIds: [] } },
-  } as Partial<SteamAccount>);
+  await SteamAccountModel.updateField(userId, username, { "state.farming": false });
 }
 
 async function farmingAlgo(userId: string, username: string) {
   const steam = SteamStore.get(userId, username);
+  if (!steam) throw ERRORS.NOTONLINE;
+
   // stop idling
   steam.idleGames([]);
 
@@ -68,51 +68,47 @@ async function farmingAlgo(userId: string, username: string) {
     setTimeout(async () => {
       const farmableGames = await getFarmableGames(userId, username);
       resolve(farmableGames);
-    }, 5000);
+    }, 3000);
   });
 
-  // update farmableGames
-  await SteamAccountModel.updateField(userId, username, {
-    data: { farmableGames: farmableGames },
-  } as Partial<SteamAccount>);
-
-  // finished farming
-  if (!farmableGames.length) {
-    throw ERRORS.NO_FARMABLE_GAMES;
-  }
-
   // update farming state
-  const farming: Farming = {
-    active: true,
-    gameIds: get32FarmableGameIds(farmableGames),
-  };
+  await SteamAccountModel.updateField(userId, username, {
+    "state.farming": !!farmableGames.length,
+    "data.farmableGames": farmableGames,
+  });
 
-  await SteamAccountModel.updateField(userId, username, { state: { farming: farming } } as Partial<SteamAccount>);
+  if (!farmableGames.length) throw ERRORS.NO_FARMABLE_GAMES;
 
-  steam.idleGames(farming.gameIds);
+  steam.idleGames(get32FarmableGameIds(farmableGames));
 }
 
 /**
- * Get farmable Games. retry operation if fails.
+ * wrap around Steamcommunity.GetFarmableGames() so it doesn't fail
  */
-async function getFarmableGames(userId: string, username: string): Promise<FarmableGame[]> {
+export async function getFarmableGames(userId: string, username: string): Promise<FarmableGame[]> {
   const steamAccount = await SteamAccountModel.get(userId, username);
 
   return new Promise((resolve, reject) => {
     let steamcommunity = getSteamCommunity(steamAccount);
-    const operation = new retry({ retries: 3, interval: 3000 });
+    const operation = new retry({ retries: 3, interval: 1000 });
 
     operation.attempt(async (currentAttempt: number) => {
+      // steam must be online
+      if (!SteamStore.has(userId, username)) return reject(ERRORS.NOTONLINE);
+
       try {
         const farmableGames = await steamcommunity.getFarmableGames();
         return resolve(farmableGames);
       } catch (error) {
         console.log(`Attempting getFarmableGames #${currentAttempt}: ${username}`);
-        if (error.message === "CookieExpired") {
-          // this should not fail, but it can
-          const res = await steamWebLogin({ type: "relogin", relogin: { userId, username } });
-          // assign new steamcommunity that contains new cookie
-          steamcommunity = res.steamcommunity;
+
+        if (error instanceof SteamcommunityError) {
+          if (error.message === "CookieExpired") {
+            // this should not fail, but it can
+            const res = await steamWebLogin({ type: "relogin", relogin: { userId, username } });
+            // assign new steamcommunity that contains new cookie
+            steamcommunity = res.steamcommunity;
+          }
         }
 
         // attempt retry

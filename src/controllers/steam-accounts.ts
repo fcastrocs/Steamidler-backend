@@ -8,7 +8,7 @@ import * as SteamcmModel from "../models/steam-servers.js";
 import * as SteamVerifyModel from "../models/steam-verifications.js";
 
 import { ERRORS, eventEmitter, isAuthError, isSteamGuardError } from "../commons.js";
-import { startFarmer, stopFarmer } from "./farmer.js";
+import * as Farmer from "./farmer.js";
 import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
 
@@ -96,7 +96,7 @@ export async function add(userId: string, username: string, password: string, co
     state: {
       status: "online",
       personaState: "online",
-      farming: { active: false, gameIds: [] },
+      farming: false,
       gamesIdsIdle: [],
       proxy: proxy,
     },
@@ -152,6 +152,8 @@ export async function login(userId: string, username: string, code?: string, pas
       loginOptions.twoFactorCode = code;
     }
   }
+
+  console.log(loginOptions);
 
   let steamClient: Steam = null;
 
@@ -219,7 +221,7 @@ export async function logout(userId: string, username: string) {
   // account is online
   const steam = SteamStore.get(userId, username);
   if (steam) {
-    await stopFarmer(userId, username);
+    await Farmer.stop(userId, username);
     steam.disconnect();
     SteamStore.remove(userId, username);
   }
@@ -278,8 +280,8 @@ async function restoreState(userId: string, username: string, state: AccountStat
   steam.changePersonaState(state.personaState);
 
   // restore farming
-  if (state.farming.active) {
-    return await startFarmer(userId, username);
+  if (state.farming) {
+    return await Farmer.start(userId, username);
   }
 
   // restore idling
@@ -307,7 +309,7 @@ function SteamEventListeners(userId: string, username: string) {
     SteamStore.remove(userId, username);
 
     // stop farmer
-    await stopFarmer(userId, username);
+    await Farmer.stop(userId, username);
 
     // set state.status to 'reconnecting'
     await SteamAccountModel.updateField(userId, username, {

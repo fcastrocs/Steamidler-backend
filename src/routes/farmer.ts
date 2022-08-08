@@ -1,4 +1,4 @@
-import { startFarmer, stopFarmer } from "../controllers/farmer.js";
+import { start, stop } from "../controllers/farmer.js";
 import { Router } from "express";
 const router = Router();
 
@@ -16,7 +16,7 @@ router.post(ROUTE + "start", async (req, res) => {
   }
 
   try {
-    await startFarmer(req.session.userId, username);
+    await start(req.session.userId, username);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;
@@ -38,7 +38,7 @@ router.post(ROUTE + "stop", async (req, res) => {
   }
 
   try {
-    await stopFarmer(req.session.userId, username);
+    await stop(req.session.userId, username);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;

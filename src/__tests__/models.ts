@@ -173,8 +173,8 @@ describe("Model steam-servers", async () => {
 describe("Model steam-store", () => {
   const userId = "1";
   const username = "username";
-  const steam = new Steam({});
-  const steam2 = new Steam({});
+  const steam: Steam = {} as Steam;
+  const steam2: Steam = {} as Steam;
 
   step("add()", async () => {
     SteamStore.add(userId, username, steam);

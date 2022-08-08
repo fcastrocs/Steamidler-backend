@@ -40,6 +40,6 @@
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.2.10",
     "steam-client": "github:fcastrocs/Steam-Client",
-    "steamcommunity-api": "^2.0.2"
+    "steamcommunity-api": "^2.0.4"
   }
 }

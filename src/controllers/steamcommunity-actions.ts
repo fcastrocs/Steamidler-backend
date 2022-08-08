@@ -2,7 +2,7 @@ import SteamCommunity, { ProfilePrivacy, Options as SteamWebOptions } from "stea
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { getAgentOptions, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
 import { Proxy, SteamAccount } from "../../@types/index.js";
-import Steam from "steam-client";
+import { Steam } from "steam-client";
 
 /**
  * Login to Steam via web

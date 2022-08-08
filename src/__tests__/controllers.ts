@@ -5,24 +5,34 @@ import * as SteamAccountModel from "../models/steam-accounts.js";
 import { eventEmitter } from "../commons.js";
 import * as SteamClientActions from "../controllers/steamclient-actions.js";
 import * as SteamCommunityActions from "../controllers/steamcommunity-actions.js";
+import * as Farmer from "../controllers/farmer.js";
 import fetch from "node-fetch";
-import { arrayBuffer } from "stream/consumers";
 
 const userId = "1";
 const username = process.env.STEAM_USERNAME;
 const password = process.env.STEAM_PASSWORD;
-
-describe("Controller farmer", () => {
-  //
-});
+const avatar = "https://avatars.akamai.steamstatic.com/1e8368604f30760f678db658ff5f7fba92764b50_full.jpg";
 
 describe("Controller steam-accounts", () => {
-  it("add()", async () => {
-    await assert.rejects(SteamAccountsController.add(userId, username, password), (err: Error) => {
-      assert.equal(err.name, "steamidler");
-      assert.equal(err.message, "Exists");
-      return true;
-    });
+  // step("add()", async () => {
+  //   await assert.rejects(SteamAccountsController.add(userId, username, password, process.env.STEAM_CODE), (err: Error) => {
+  //     console.log(err);
+  //     return true;
+  //   });
+  // });
+
+  step("login()", async () => {
+    if (SteamStore.has(userId, username)) return;
+
+    await SteamAccountsController.login(userId, username);
+    const steamAccount = await SteamAccountModel.get(userId, username);
+    assert.equal(steamAccount.state.status, "online");
+
+    // await assert.rejects(SteamAccountsController.login(userId, username), (err: Error) => {
+    //   assert.equal(err.name, "steamidler");
+    //   assert.equal(err.message, "AlreadyOnline");
+    //   return true;
+    // });
   });
 
   step("logout()", async () => {
@@ -57,6 +67,15 @@ describe("Controller steam-accounts", () => {
 });
 
 describe("Controller steamclient-actions", () => {
+  it("activatef2pgame()", async () => {
+    await SteamClientActions.activatef2pgame(userId, username, [730]);
+    const steamAccount = await SteamAccountModel.get(userId, username);
+    assert.equal(
+      steamAccount.data.games.some((game) => game.gameid === 730),
+      true
+    );
+  });
+
   it("idleGames()", async () => {
     await SteamClientActions.idleGames(userId, username, [730]);
     const steamAccount = await SteamAccountModel.get(userId, username);
@@ -64,19 +83,10 @@ describe("Controller steamclient-actions", () => {
   });
 
   it("changeNick()", async () => {
-    const nick = "kiddo" + Math.floor(Math.random() * 20 + 1);
+    const nick = "Machiavelli" + Math.floor(Math.random() * 20 + 1);
     await SteamClientActions.changeNick(userId, username, nick);
     const steamAccount = await SteamAccountModel.get(userId, username);
     assert.equal(steamAccount.data.nickname, nick);
-  });
-
-  it("activatef2pgame()", async () => {
-    await SteamClientActions.activatef2pgame(userId, username, [1797880]);
-    const steamAccount = await SteamAccountModel.get(userId, username);
-    assert.equal(
-      steamAccount.data.games.some((game) => game.gameid === 1797880),
-      true
-    );
   });
 
   it("cdkeyRedeem()", async () => {
@@ -86,6 +96,21 @@ describe("Controller steamclient-actions", () => {
       return true;
     });
   });
+});
+
+describe("Controller farmer", () => {
+  step("start()", async () => {
+    await Farmer.start(userId, username);
+    const steamAccount = await SteamAccountModel.get(userId, username);
+    assert.equal(steamAccount.state.farming, true);
+    assert.notEqual(steamAccount.data.farmableGames.length, 0);
+  });
+
+  // it("stop()", async () => {
+  //   await Farmer.stop(userId, username);
+  //   const steamAccount = await SteamAccountModel.get(userId, username);
+  //   assert.equal(steamAccount.state.farming, false);
+  // });
 });
 
 describe("Controller steamcommunity-actions", () => {
@@ -100,9 +125,7 @@ describe("Controller steamcommunity-actions", () => {
 
   it("changeAvatar()", async () => {
     // get image blob
-    const blob = await fetch("https://avatars.steamstatic.com/23e6beb43897c50a8e004af188539b274d06310b_full.jpg").then(
-      (res) => res.blob()
-    );
+    const blob = await fetch(avatar).then((res) => res.blob());
 
     // convert to dataURL
     const arrayBuffer = await blob.arrayBuffer();
