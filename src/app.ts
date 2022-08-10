@@ -98,9 +98,9 @@ function beforeMiddleware(client: MongoClient) {
     // skip user path
     if (req.path.includes("/api/user")) return next();
 
-    if (req.session) return next();
+    if (req.session.userId) return next();
 
-    return res.status(401).send("not authenticated");
+    next(new SteamIdlerError("NotAuthenticated"));
   });
 
   // rate limit routes

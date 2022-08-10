@@ -1,6 +1,6 @@
 import SteamCommunity, { ProfilePrivacy, Options as SteamWebOptions } from "steamcommunity-api";
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import { getAgentOptions, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, getAgentOptions, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { Proxy, SteamAccount } from "../../@types/index.js";
 import { Steam } from "steam-client";
 
@@ -52,6 +52,8 @@ export async function steamWebLogin(options: {
  * @controller
  */
 export async function changeAvatar(userId: string, username: string, avatarDataURL: string) {
+  if (typeof avatarDataURL !== "string") throw new SteamIdlerError(ERRORS.INVALID_BODY);
+
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   const avatarUrl = await steamcommunity.changeAvatar(avatarDataURL);
@@ -73,6 +75,8 @@ export async function clearAliases(userId: string, username: string): Promise<vo
  * @controller
  */
 export async function changePrivacy(userId: string, username: string, privacy: ProfilePrivacy): Promise<void> {
+  if (!["public", "friendsOnly", "private"].includes(privacy)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
+
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   await steamcommunity.changePrivacy(privacy);

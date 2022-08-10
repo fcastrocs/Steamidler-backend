@@ -1,5 +1,5 @@
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import { mergeGamesArrays, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, isIntArray, mergeGamesArrays, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { AppInfo } from "steam-client";
 
 /**
@@ -7,6 +7,11 @@ import { AppInfo } from "steam-client";
  * @controller
  */
 export async function idleGames(userId: string, username: string, gameIds: number[]) {
+  isIntArray(gameIds);
+  if (gameIds.length > 32) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
   const { steam } = await SteamAccountExistsOnline(userId, username);
   steam.idleGames(gameIds);
   await SteamAccountModel.updateField(userId, username, { "state.gamesIdsIdle": gameIds });
@@ -27,6 +32,7 @@ export async function changeNick(userId: string, username: string, nick: string)
  * @controller
  */
 export async function activatef2pgame(userId: string, username: string, appids: number[]): Promise<AppInfo[]> {
+  isIntArray(appids);
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, username);
   const games = await steam.activateFreeToPlayGames(appids);
   const { difference, merge } = mergeGamesArrays(steamAccount.data.games, games);

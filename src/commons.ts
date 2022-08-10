@@ -111,3 +111,11 @@ export function mergeGamesArrays(array1: AppInfo[], array2: AppInfo[]) {
   );
   return { merge, difference };
 }
+
+export function isIntArray(variable: unknown) {
+  // must be an array
+  if (!Array.isArray(variable)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
+
+  // must be and int array
+  if (variable.some((i) => !Number.isInteger(i))) throw new SteamIdlerError(ERRORS.INVALID_BODY);
+}
