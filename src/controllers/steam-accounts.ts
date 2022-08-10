@@ -7,7 +7,7 @@ import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";
 import * as SteamVerifyModel from "../models/steam-verifications.js";
 
-import { ERRORS, eventEmitter, isAuthError, isSteamGuardError } from "../commons.js";
+import { ERRORS, eventEmitter, isAuthError, isSteamGuardError, SteamIdlerError } from "../commons.js";
 import * as Farmer from "./farmer.js";
 import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
@@ -17,7 +17,7 @@ import { steamWebLogin } from "./steamcommunity-actions.js";
  * @controller
  */
 export async function add(userId: string, username: string, password: string, code?: string) {
-  if (await SteamAccountModel.get(userId, username)) throw ERRORS.EXISTS;
+  if (await SteamAccountModel.get(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
 
   // set login options
   const loginOptions: LoginOptions = {
@@ -64,12 +64,12 @@ export async function add(userId: string, username: string, password: string, co
 
   // account does not have steam guard enabled
   if (!steamCMLoginRes.data.secure) {
-    throw ERRORS.ENABLE_STEAM_GUARD;
+    throw new SteamIdlerError(ERRORS.ENABLE_STEAM_GUARD);
   }
 
   // account is locked
   if (steamCMLoginRes.data.communityBanned || steamCMLoginRes.data.locked) {
-    throw ERRORS.LOCKED_ACCOUNT;
+    throw new SteamIdlerError(ERRORS.LOCKED_ACCOUNT);
   }
 
   // login to steamcommunity
@@ -119,12 +119,12 @@ export async function add(userId: string, username: string, password: string, co
  */
 export async function login(userId: string, username: string, code?: string, password?: string) {
   if (SteamStore.has(userId, username)) {
-    throw ERRORS.ALREADY_ONLINE;
+    throw new SteamIdlerError(ERRORS.ALREADY_ONLINE);
   }
 
   // check account is not online
   const steamAccount = await SteamAccountModel.get(userId, username);
-  if (!steamAccount) throw ERRORS.NOTFOUND;
+  if (!steamAccount) throw new SteamIdlerError(ERRORS.NOTFOUND);
 
   // set password
   steamAccount.auth.password = password ? password : steamAccount.auth.password;
@@ -152,8 +152,6 @@ export async function login(userId: string, username: string, code?: string, pas
       loginOptions.twoFactorCode = code;
     }
   }
-
-  console.log(loginOptions);
 
   let steamClient: Steam = null;
 
@@ -216,7 +214,7 @@ export async function login(userId: string, username: string, code?: string, pas
  * @controller
  */
 export async function logout(userId: string, username: string) {
-  if (!(await SteamAccountModel.get(userId, username))) throw ERRORS.NOTFOUND;
+  if (!(await SteamAccountModel.get(userId, username))) throw new SteamIdlerError(ERRORS.NOTFOUND);
 
   // account is online
   const steam = SteamStore.get(userId, username);
@@ -276,7 +274,8 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<L
  */
 async function restoreState(userId: string, username: string, state: AccountState) {
   const steam = SteamStore.get(userId, username);
-  if (!steam) throw ERRORS.NOTONLINE;
+  if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
+
   steam.changePersonaState(state.personaState);
 
   // restore farming
@@ -295,7 +294,7 @@ async function restoreState(userId: string, username: string, state: AccountStat
  */
 function SteamEventListeners(userId: string, username: string) {
   const steam = SteamStore.get(userId, username);
-  if (!steam) throw ERRORS.NOTONLINE;
+  if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
   steam.on("loginKey", async (loginKey) => {
     // get steam account because auth can't get updated partiarlly

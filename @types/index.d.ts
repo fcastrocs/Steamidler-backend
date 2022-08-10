@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { AccountAuth, AccountData, State } from "steam-client";
 import { FarmableGame, Item, Cookie } from "steamcommunity-api";
 
@@ -6,7 +7,7 @@ declare global {
     interface ProcessEnv {
       SESSION_SECRET: string;
       ENCRYPTION_KEY: string;
-      NODE_ENV: string;
+      NODE_ENV: "production" | "development";
       PROXY_USER: string;
       PROXY_PASS: string;
       PROXY_TYPE: string;
@@ -21,15 +22,15 @@ declare global {
       STEAM_USERNAME: string;
       STEAM_PASSWORD: string;
       STEAM_CODE: string;
+      STEAM_WEBAPI: string;
+      API_ADMIN_KEY: string;
     }
   }
 }
 
 declare module "express-session" {
   interface SessionData {
-    loggedId: boolean;
     userId: string;
-    isAdmin: boolean;
   }
 }
 
@@ -104,11 +105,9 @@ interface Proxy {
 
 // model User
 interface User {
-  userId: string;
-  nickname: string;
+  _id: ObjectId;
   email: string;
-  avatar: string;
-  role: "admin" | "user";
+  password: string;
   createdAt: Date;
   ip: string;
 }

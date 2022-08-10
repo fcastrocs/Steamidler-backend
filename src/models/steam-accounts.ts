@@ -2,7 +2,7 @@ import { UpdateFilter } from "mongodb";
 import { getCollection } from "../db.js";
 
 import { SteamAccount, SteamAccountEncrypted, SteamAccountNonSensitive } from "../../@types";
-import { decrypt, encrypt, ERRORS } from "../commons.js";
+import { decrypt, encrypt, ERRORS, SteamIdlerError } from "../commons.js";
 const collectionName = "steam-accounts";
 
 /**
@@ -32,9 +32,13 @@ export async function update(steamAccount: SteamAccount) {
  * update fields for a single steamAccount with userId and username
  * Do not use with account auth. Use 'update' instead
  */
-export async function updateField(userId: string, username: string, update: Partial<SteamAccount> | UpdateFilter<SteamAccount>) {
+export async function updateField(
+  userId: string,
+  username: string,
+  update: Partial<SteamAccount> | UpdateFilter<SteamAccount>
+) {
   if (update.userId || update.username) {
-    throw ERRORS.INVALID_UPDATE_FIELDS;
+    throw new SteamIdlerError(ERRORS.INVALID_UPDATE_FIELDS);
   }
 
   // need to encrypt auth before updating

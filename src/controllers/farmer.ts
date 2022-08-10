@@ -1,4 +1,4 @@
-import { ERRORS, getSteamCommunity, SteamAccountExistsOnline } from "../commons.js";
+import { ERRORS, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { FarmableGame, SteamcommunityError } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
@@ -13,7 +13,7 @@ const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
  */
 export async function start(userId: string, username: string) {
   await SteamAccountExistsOnline(userId, username);
-  if (FarmingIntervals.has(username)) throw ERRORS.ALREADY_FARMING;
+  if (FarmingIntervals.has(username)) throw new SteamIdlerError(ERRORS.ALREADY_FARMING);
 
   await runFarmingAlgo(userId, username);
 
@@ -58,7 +58,7 @@ export async function stop(userId: string, username: string) {
 
 async function farmingAlgo(userId: string, username: string) {
   const steam = SteamStore.get(userId, username);
-  if (!steam) throw ERRORS.NOTONLINE;
+  if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
   // stop idling
   steam.idleGames([]);
@@ -77,7 +77,7 @@ async function farmingAlgo(userId: string, username: string) {
     "data.farmableGames": farmableGames,
   });
 
-  if (!farmableGames.length) throw ERRORS.NO_FARMABLE_GAMES;
+  if (!farmableGames.length) throw new SteamIdlerError(ERRORS.NO_FARMABLE_GAMES);
 
   steam.idleGames(get32FarmableGameIds(farmableGames));
 }
@@ -94,7 +94,7 @@ export async function getFarmableGames(userId: string, username: string): Promis
 
     operation.attempt(async (currentAttempt: number) => {
       // steam must be online
-      if (!SteamStore.has(userId, username)) return reject(ERRORS.NOTONLINE);
+      if (!SteamStore.has(userId, username)) return reject(new SteamIdlerError(ERRORS.NOTONLINE));
 
       try {
         const farmableGames = await steamcommunity.getFarmableGames();

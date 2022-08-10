@@ -2,7 +2,7 @@
  * Online steam accounts Steam instance are stored by userId
  */
 import Steam from "steam-client";
-import { ERRORS } from "../commons.js";
+import { ERRORS, SteamIdlerError } from "../commons.js";
 
 type userId = string;
 type username = string;
@@ -16,7 +16,7 @@ export default class SteamStore {
    */
   static add(userId: string, username: string, steam: Steam): void {
     // make sure there are no duplicates.
-    if (this.has(userId, username)) throw ERRORS.EXISTS;
+    if (this.has(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
 
     let accounts = Store.get(userId);
     // this user doesn't have a store

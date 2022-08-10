@@ -5,18 +5,20 @@ const collectionName = "users";
 /**
  * Insert or update User
  */
-export async function upsert(user: User): Promise<void> {
+export async function add(user: User): Promise<User> {
   const collection = await getCollection(collectionName);
-  await collection.updateOne({ userId: user.userId }, { $set: user }, { upsert: true });
+  await collection.insertOne(user);
+  return user;
 }
 
-export async function get(userId: string): Promise<User> {
+export async function get(email: string): Promise<User> {
   const collection = await getCollection(collectionName);
-  const doc = await collection.findOne({ userId });
-  return doc as unknown as User;
+  const doc = await collection.findOne({ email });
+  return doc as User;
 }
 
-export async function remove(userId: string): Promise<void> {
+export async function remove(email: string): Promise<boolean> {
   const collection = await getCollection(collectionName);
-  await collection.deleteOne({ userId });
+  const res = await collection.deleteOne({ email });
+  return !!res.deletedCount;
 }

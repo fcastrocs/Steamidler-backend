@@ -9,7 +9,7 @@ const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/
 /**
  * Fetches Steam CMs from the steam api and saves them to 'steam-cms' collection
  */
-export async function fetchSteamServers(): Promise<void> {
+export async function renew(): Promise<void> {
   const collection = await getCollection(collectionName);
   const data = (await fetch(STEAMCMS_URL).then((res) => res.json())) as GetCMListResponse;
 

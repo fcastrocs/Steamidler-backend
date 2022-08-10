@@ -1,39 +1,40 @@
 import "dotenv/config";
 import assert from "assert";
 import * as ProxyModel from "../models/proxies.js";
-import { createInvite, inviteExists, removeInvite } from "../models/invites.js";
-import { fetchSteamServers, getOne } from "../models/steam-servers.js";
+import * as InvitesModel from "../models/invites.js";
+import * as SteamServersModel from "../models/steam-servers.js";
 import { AccountState, SteamAccount, SteamVerify, User } from "../../@types/index.js";
 import * as SteamVerifyModel from "../models/steam-verifications.js";
 import * as SteamAccountsModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
-import * as UserModel from "../models/users.js";
+import * as UsersModel from "../models/users.js";
 import Steam, { AccountData } from "steam-client";
+import { ObjectId } from "mongodb";
 
 describe("Model invites", async () => {
   const email = "email@gmail.com";
   let code = "";
 
-  step("create()", async () => {
-    code = await createInvite(email);
+  step("add()", async () => {
+    code = await InvitesModel.add(email);
     assert.equal(code.length === 16, true);
     // try to insert duplicate
 
-    await assert.rejects(createInvite(email), (err: Error) => {
+    await assert.rejects(InvitesModel.add(email), (err: Error) => {
       assert.equal(err.name, "steamidler");
       assert.equal(err.message, "Exists");
       return true;
     });
   });
 
-  step("get()", async () => {
-    const invite = await inviteExists(email, code);
+  step("exists()", async () => {
+    const invite = await InvitesModel.exits(email, code);
     assert.equal(invite, true);
   });
 
   it("remove()", async () => {
-    await removeInvite(email);
-    const exists = await inviteExists(email, code);
+    await InvitesModel.remove(email);
+    const exists = await InvitesModel.exits(email, code);
     assert.equal(exists, false);
   });
 });
@@ -161,12 +162,12 @@ describe("Model steam-accounts", async () => {
 });
 
 describe("Model steam-servers", async () => {
-  step("fetchSteamServers()", async () => {
-    await fetchSteamServers();
+  step("renew()", async () => {
+    await SteamServersModel.renew();
   });
 
   step("getOne()", async () => {
-    await getOne();
+    await SteamServersModel.getOne();
   });
 });
 
@@ -251,28 +252,26 @@ describe("Model steam-verifications", async () => {
 
 describe("Model users", async () => {
   const user: User = {
-    userId: "1",
-    nickname: "name",
+    _id: new ObjectId(),
     email: "email@email.com",
-    avatar: "http://avatar.com",
-    role: "admin",
+    password: "12345@",
     createdAt: new Date(),
     ip: "1.1.1.1",
   };
 
-  step("upsert()", async () => {
-    await UserModel.upsert(user);
+  step("add()", async () => {
+    await UsersModel.add(user);
   });
 
   step("get()", async () => {
-    const userReceived = await UserModel.get(user.userId);
+    const userReceived = await UsersModel.get(user.email);
     assert.notEqual(userReceived, null);
-    assert.equal(userReceived.avatar, user.avatar);
+    assert.equal(userReceived.email, user.email);
   });
 
   step("remove()", async () => {
-    await UserModel.remove(user.userId);
-    const userReceived = await UserModel.get(user.userId);
+    await UsersModel.remove(user.email);
+    const userReceived = await UsersModel.get(user.email);
     assert.equal(userReceived, null);
   });
 });

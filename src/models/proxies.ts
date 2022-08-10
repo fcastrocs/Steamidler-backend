@@ -1,4 +1,4 @@
-import { ERRORS } from "../commons.js";
+import { ERRORS, SteamIdlerError } from "../commons.js";
 import { Proxy } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "proxies";
@@ -11,7 +11,7 @@ export async function add(proxies: string[]): Promise<number> {
 
   const documents: Proxy[] = proxies.map((proxy) => {
     const split = proxy.split(":");
-    if (!validate(`${split[0]}:${split[1]}`)) throw ERRORS.PROXY_NOT_VALID;
+    if (!validate(`${split[0]}:${split[1]}`)) throw new SteamIdlerError(ERRORS.PROXY_NOT_VALID);
     const p: Proxy = { ip: split[0], port: Number(split[1]) };
     return { ...p, load: 0 };
   });
@@ -56,7 +56,7 @@ export async function getOne(): Promise<Proxy> {
   const cursor = collection.find({ load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } }, { projection: { load: 0 } });
   const proxies = await cursor.toArray();
   // no proxies or limit reached
-  if (!proxies.length) throw ERRORS.PROXY_LIMIT_REACHED;
+  if (!proxies.length) throw new SteamIdlerError(ERRORS.PROXY_LIMIT_REACHED);
   return proxies[Math.floor(Math.random() * proxies.length)] as unknown as Proxy;
 }
 
