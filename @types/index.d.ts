@@ -24,6 +24,7 @@ declare global {
       STEAM_CODE: string;
       STEAM_WEBAPI: string;
       API_ADMIN_KEY: string;
+      RECAPTCHA_SECRET: string;
     }
   }
 }
@@ -120,4 +121,9 @@ interface Invite {
 
 interface GetCMListResponse {
   response: { serverlist: string[]; serverlist_websockets: string[]; result: number; message: string };
+}
+
+interface GoogleRecaptchaResponse {
+  success: boolean;
+  "error-codes": string[];
 }

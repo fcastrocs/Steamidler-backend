@@ -10,15 +10,15 @@ router.post(ROUTE + "/register", async (req, res, next) => {
   const password = req.body.password;
   const inviteCode = req.body.inviteCode;
   const ip = req.clientIp;
+  const g_response = req.body.g_response;
 
   try {
-    const user = await UsersController.register(email, password, inviteCode, ip);
+    const user = await UsersController.register(email, password, inviteCode, ip, g_response);
     setSession(req, user);
+    res.send(user);
   } catch (error) {
-    return next(error);
+    next(error);
   }
-
-  return res.send();
 });
 
 router.post(ROUTE + "/login", async (req, res, next) => {
@@ -28,15 +28,15 @@ router.post(ROUTE + "/login", async (req, res, next) => {
 
   const email = req.body.email;
   const password = req.body.password;
+  const g_response = req.body.g_response;
 
   try {
-    const user = await UsersController.login(email, password);
+    const user = await UsersController.login(email, password, g_response);
     setSession(req, user);
+    res.send(user);
   } catch (error) {
-    return next(error);
+    next(error);
   }
-
-  return res.send();
 });
 
 /**
@@ -44,6 +44,7 @@ router.post(ROUTE + "/login", async (req, res, next) => {
  */
 router.post(ROUTE + "/logout", async (req, res) => {
   req.session.destroy(() => {
+    res.clearCookie("session");
     res.send();
   });
 });
