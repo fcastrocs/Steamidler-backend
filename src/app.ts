@@ -7,7 +7,7 @@ import rateLimiter from "@machiavelli/express-rate-limiter";
 import { mw as requestIp } from "request-ip";
 import ms from "ms";
 
-import SteamAccount from "./routes/steamAccount.js";
+import SteamAccount from "./routes/steamaccount.js";
 import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
