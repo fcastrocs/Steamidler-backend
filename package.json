@@ -11,8 +11,8 @@
     "test": "mocha --require mocha-steps"
   },
   "engines": {
-    "node": ">=18.7.0",
-    "npm": ">=8.5.5"
+    "node": "18.x.x",
+    "npm": "8.x.x"
   },
   "author": "",
   "license": "ISC",
