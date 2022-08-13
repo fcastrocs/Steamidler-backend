@@ -95,8 +95,9 @@ function beforeMiddleware(client: MongoClient) {
 
   // check for authentication
   app.use((req, res, next) => {
-    // skip user path
-    if (req.path.includes("/api/user")) return next();
+    console.log(req.path);
+    // skip user paths
+    if (["/user/login", "/user/register", "/user/logout"].includes(req.path)) return next();
 
     if (req.session.userId) return next();
 
@@ -122,12 +123,12 @@ function beforeMiddleware(client: MongoClient) {
  * Register Express Routes
  */
 function registerRoutes() {
-  app.use("/api/", adminRoutes);
-  app.use("/api/", userRoutes);
-  app.use("/api/", SteamAccount);
-  app.use("/api/", SteamClientAction);
-  app.use("/api/", SteamcommunityAction);
-  app.use("/api/", farmer);
+  app.use("/", adminRoutes);
+  app.use("/", userRoutes);
+  app.use("/", SteamAccount);
+  app.use("/", SteamClientAction);
+  app.use("/", SteamcommunityAction);
+  app.use("/", farmer);
 }
 
 function afterMiddleWare() {
