@@ -252,6 +252,7 @@ describe("Model steam-verifications", async () => {
 
 describe("Model users", async () => {
   const user: User = {
+    username: "machiavelli",
     _id: new ObjectId(),
     email: "email@email.com",
     password: "12345@",
