@@ -2,7 +2,7 @@ import argon2 from "argon2";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invites.js";
-import { GoogleRecaptchaResponse, User, UserInfo } from "../../@types/index.js";
+import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import fetch from "node-fetch";
 
@@ -14,9 +14,10 @@ const USERNAME_REX = /[a-zA-Z0-9]{3,12}/;
 
 /**
  * Register a new user
+ * @returns User without password
  * @Controller
  */
-export async function register(user: User, inviteCode: string, ip: string, g_response: string): Promise<UserInfo> {
+export async function register(user: User, inviteCode: string, ip: string, g_response: string): Promise<Partial<User>> {
   await recaptchaVerify(g_response);
 
   // validate username
@@ -40,14 +41,16 @@ export async function register(user: User, inviteCode: string, ip: string, g_res
 
   user = await UsersModel.add(user);
   await InviteModel.remove(user.email);
-  return { _id: user._id.toString(), username: user.username };
+  delete user.password; // don't return with password
+  return user;
 }
 
 /**
  * Authenticate user
+ * @returns User without password
  * @Controller
  */
-export async function login(email: string, password: string, g_response: string): Promise<UserInfo> {
+export async function login(email: string, password: string, g_response: string): Promise<Partial<User>> {
   await recaptchaVerify(g_response);
 
   // check if user exists
@@ -57,7 +60,7 @@ export async function login(email: string, password: string, g_response: string)
   // Verify password
   if (await argon2.verify(user.password, password)) {
     delete user.password; // don't return with password
-    return { _id: user._id.toString(), username: user.username };
+    return user;
   }
   throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
 }

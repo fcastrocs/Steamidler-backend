@@ -1,6 +1,6 @@
 import { SteamIdlerError } from "../commons.js";
 import { Request, Router } from "express";
-import { User, UserInfo } from "../../@types/index.js";
+import { User } from "../../@types/index.js";
 import * as UsersController from "../controllers/users.js";
 const router = Router();
 const ROUTE = "/user";
@@ -13,6 +13,7 @@ router.post(ROUTE + "/register", async (req, res, next) => {
   const ip = req.clientIp;
   const g_response = req.body.g_response;
 
+  // create user without _id
   const user: User = {
     username,
     email,
@@ -21,9 +22,9 @@ router.post(ROUTE + "/register", async (req, res, next) => {
   } as User;
 
   try {
-    const userInfo = await UsersController.register(user, inviteCode, ip, g_response);
-    setSession(req, userInfo);
-    res.send(userInfo);
+    const partialUser = await UsersController.register(user, inviteCode, ip, g_response);
+    setSession(req, partialUser);
+    res.send(partialUser);
   } catch (error) {
     next(error);
   }
@@ -39,9 +40,9 @@ router.post(ROUTE + "/login", async (req, res, next) => {
   const g_response = req.body.g_response;
 
   try {
-    const userInfo = await UsersController.login(email, password, g_response);
-    setSession(req, userInfo);
-    res.send(userInfo);
+    const partialUser = await UsersController.login(email, password, g_response);
+    setSession(req, partialUser);
+    res.send(partialUser);
   } catch (error) {
     next(error);
   }
@@ -57,8 +58,8 @@ router.post(ROUTE + "/logout", async (req, res) => {
   });
 });
 
-function setSession(req: Request, user: UserInfo) {
-  req.session.userId = user._id;
+function setSession(req: Request, user: Partial<User>) {
+  req.session.userId = user._id.toString();
 }
 
 export default router;

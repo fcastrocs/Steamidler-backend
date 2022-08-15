@@ -128,8 +128,3 @@ interface GoogleRecaptchaResponse {
   success: boolean;
   "error-codes": string[];
 }
-
-interface UserInfo {
-  _id: string;
-  username: string;
-}
