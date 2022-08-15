@@ -107,6 +107,7 @@ interface Proxy {
 // model User
 interface User {
   _id: ObjectId;
+  username: string;
   email: string;
   password: string;
   createdAt: Date;
@@ -126,4 +127,9 @@ interface GetCMListResponse {
 interface GoogleRecaptchaResponse {
   success: boolean;
   "error-codes": string[];
+}
+
+interface UserInfo {
+  _id: string;
+  username: string;
 }
