@@ -5,7 +5,8 @@ import { FarmableGame, Item, Cookie } from "steamcommunity-api";
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      SESSION_SECRET: string;
+      ACCESS_SECRET: string;
+      REFRESH_SECRET: string;
       ENCRYPTION_KEY: string;
       NODE_ENV: "production" | "development";
       PROXY_USER: string;
@@ -26,12 +27,6 @@ declare global {
       API_ADMIN_KEY: string;
       RECAPTCHA_SECRET: string;
     }
-  }
-}
-
-declare module "express-session" {
-  interface SessionData {
-    userId: string;
   }
 }
 
@@ -112,6 +107,16 @@ interface User {
   password: string;
   createdAt: Date;
   ip: string;
+}
+
+interface RefreshToken {
+  userId: ObjectId;
+  token: string;
+}
+
+interface Cookies {
+  "refresh-token": string;
+  "access-jwt": string;
 }
 
 interface Invite {

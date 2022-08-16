@@ -13,7 +13,7 @@ router.post(ROUTE + "idlegames", async (req, res, next) => {
   const appids: number[] = req.body.appids;
 
   try {
-    await SteamClientAction.idleGames(req.session.userId, username, appids);
+    await SteamClientAction.idleGames(req.body.userId, username, appids);
     res.send();
   } catch (error) {
     next(error);
@@ -29,7 +29,7 @@ router.post(ROUTE + "changenick", async (req, res, next) => {
   const nick = req.body.nick;
 
   try {
-    await SteamClientAction.changeNick(req.session.userId, username, nick);
+    await SteamClientAction.changeNick(req.body.userId, username, nick);
     res.send();
   } catch (error) {
     next(error);
@@ -45,7 +45,7 @@ router.post(ROUTE + "activatef2pgames", async (req, res, next) => {
   const appids = req.body.appids;
 
   try {
-    const games = await SteamClientAction.activatef2pgame(req.session.userId, username, appids);
+    const games = await SteamClientAction.activatef2pgame(req.body.userId, username, appids);
     res.send(games);
   } catch (error) {
     next(error);
@@ -61,7 +61,7 @@ router.post(ROUTE + "cdkeyredeem", async (req, res, next) => {
   const cdkey = req.body.cdkey;
 
   try {
-    const games = await SteamClientAction.cdkeyRedeem(req.session.userId, username, cdkey);
+    const games = await SteamClientAction.cdkeyRedeem(req.body.userId, username, cdkey);
     res.send(games);
   } catch (error) {
     next(error);

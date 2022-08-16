@@ -16,7 +16,7 @@ router.post(ROUTE + "start", async (req, res) => {
   }
 
   try {
-    await start(req.session.userId, username);
+    await start(req.body.userId, username);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;
@@ -38,7 +38,7 @@ router.post(ROUTE + "stop", async (req, res) => {
   }
 
   try {
-    await stop(req.session.userId, username);
+    await stop(req.body.userId, username);
   } catch (error) {
     console.error(error);
     res.statusMessage = error;

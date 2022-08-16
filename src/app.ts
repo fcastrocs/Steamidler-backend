@@ -1,11 +1,8 @@
 import "dotenv/config";
 import express, { Response, Request, NextFunction } from "express";
 import { Db, MongoClient } from "mongodb";
-import session from "express-session";
-import MongoStore from "connect-mongo";
 import rateLimiter from "@machiavelli/express-rate-limiter";
 import { mw as requestIp } from "request-ip";
-import ms from "ms";
 
 import SteamAccount from "./routes/steamaccount.js";
 import userRoutes from "./routes/user.js";
@@ -18,6 +15,7 @@ import * as mongodb from "./db.js";
 import { SteamcommunityError } from "steamcommunity-api";
 import { SteamClientError } from "steam-client";
 import { SteamIdlerError } from "./commons.js";
+import { verifyAuth } from "./controllers/users.js";
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
 const app = express();
@@ -56,6 +54,7 @@ async function createCollections(db: Db) {
   await db.collection("invites").createIndex({ email: 1 }, { unique: true });
   await db.collection("invites").createIndex({ createdAt: 1 }, { expireAfterSeconds: 30 * 60 });
   await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
+  await db.collection("refresh-tokens").createIndex({ userId: 1, token: 1 }, { unique: true });
   await db.collection("steam-verifications").createIndex({ userId: 1, username: 1 }, { unique: true });
   await db.collection("steam-verifications").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
 }
@@ -74,34 +73,23 @@ function beforeMiddleware(client: MongoClient) {
     return next();
   });
 
-  // sessions
-  app.use(
-    session({
-      name: "session",
-      secret: process.env.SESSION_SECRET,
-      saveUninitialized: false,
-      resave: false,
-      cookie: {
-        secure: process.env.NODE_ENV === "production" ? true : false,
-        maxAge: ms("1y"),
-        httpOnly: true,
-      },
-      store: MongoStore.create({
-        clientPromise: mongodb.getClient(),
-        crypto: { secret: process.env.SESSION_SECRET },
-      }),
-    })
-  );
-
   // check for authentication
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     console.log(req.path);
     // skip user paths
     if (["/user/login", "/user/register", "/user/logout"].includes(req.path)) return next();
 
-    if (req.session.userId) return next();
+    try {
+      const { user, accessJWTCookie } = await verifyAuth(req.headers.cookie);
+      req.body.userId = user._id;
 
-    next(new SteamIdlerError("NotAuthenticated"));
+      // accessJWT was renewed
+      if (accessJWTCookie) {
+        res.setHeader("Set-Cookie", accessJWTCookie);
+      }
+    } catch (error) {
+      return next(error);
+    }
   });
 
   // rate limit routes

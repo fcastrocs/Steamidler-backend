@@ -20,7 +20,7 @@ router.post(ROUTE, async (req, res, next) => {
   }
 
   try {
-    await SteamAccount.add(req.session.userId, username, password, code);
+    await SteamAccount.add(req.body.userId, username, password, code);
   } catch (error) {
     return next(error);
   }
@@ -42,7 +42,7 @@ router.post(ROUTE + "/login", async (req, res, next) => {
   }
 
   try {
-    await SteamAccount.login(req.session.userId, username, code, password);
+    await SteamAccount.login(req.body.userId, username, code, password);
   } catch (error) {
     return next(error);
   }
@@ -63,7 +63,7 @@ router.post(ROUTE + "/steamcommunitylogin", async (req, res, next) => {
   try {
     await steamWebLogin({
       type: "relogin",
-      relogin: { userId: req.session.userId, username },
+      relogin: { userId: req.body.userId, username },
     });
   } catch (error) {
     return next(error);
@@ -83,7 +83,7 @@ router.post(ROUTE + "/logout", async (req, res, next) => {
   }
 
   try {
-    await SteamAccount.logout(req.session.userId, username);
+    await SteamAccount.logout(req.body.userId, username);
   } catch (error) {
     return next(error);
   }
@@ -103,7 +103,7 @@ router.delete(ROUTE, async (req, res, next) => {
   }
 
   try {
-    await SteamAccount.remove(req.session.userId, username);
+    await SteamAccount.remove(req.body.userId, username);
   } catch (error) {
     return next(error);
   }

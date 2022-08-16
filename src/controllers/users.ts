@@ -2,9 +2,13 @@ import argon2 from "argon2";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invites.js";
-import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
+import * as RefreshTokensModel from "../models/refresh-tokens.js";
+import { Cookies, GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import fetch from "node-fetch";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import cookie from "cookie";
 
 // https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
 const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.* ).{8,32}$/;
@@ -14,10 +18,10 @@ const USERNAME_REX = /[a-zA-Z0-9]{3,12}/;
 
 /**
  * Register a new user
- * @returns User without password
  * @Controller
  */
-export async function register(user: User, inviteCode: string, ip: string, g_response: string): Promise<Partial<User>> {
+export async function register(user: Partial<User>, inviteCode: string, g_response: string) {
+  // verify google recaptcha
   await recaptchaVerify(g_response);
 
   // validate username
@@ -26,6 +30,7 @@ export async function register(user: User, inviteCode: string, ip: string, g_res
   // validate email
   if (!EMAIL_REX.test(user.email)) throw new SteamIdlerError("InvalidEmail");
 
+  // validate password
   if (!PASSWORD_REGEX.test(user.password)) throw new SteamIdlerError("InvalidPassword");
 
   // check if user exists
@@ -34,23 +39,27 @@ export async function register(user: User, inviteCode: string, ip: string, g_res
   // check if this email has an invite
   if (!(await InviteModel.exits(user.email, inviteCode))) throw new SteamIdlerError(ERRORS.NOTFOUND);
 
-  // adjust user fields
+  // finish creating user
   user._id = new ObjectId();
   user.password = await argon2.hash(user.password);
   user.createdAt = new Date();
 
-  user = await UsersModel.add(user);
+  // store user to database
+  user = await UsersModel.add(user as User);
+
+  // remove database
   await InviteModel.remove(user.email);
-  delete user.password; // don't return with password
-  return user;
+
+  // create authentication
+  return await createAuthentication(user);
 }
 
 /**
  * Authenticate user
- * @returns User without password
  * @Controller
  */
-export async function login(email: string, password: string, g_response: string): Promise<Partial<User>> {
+export async function login(email: string, password: string, g_response: string) {
+  // verify google recaptcha
   await recaptchaVerify(g_response);
 
   // check if user exists
@@ -58,11 +67,48 @@ export async function login(email: string, password: string, g_response: string)
   if (!user) throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
 
   // Verify password
-  if (await argon2.verify(user.password, password)) {
-    delete user.password; // don't return with password
-    return user;
+  if (!(await argon2.verify(user.password, password))) {
+    throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
   }
-  throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
+
+  // create authentication
+  return await createAuthentication(user);
+}
+
+/**
+ * Authenticate user
+ * @Controller
+ */
+export async function logout(cookiesStr: string) {
+  // get tokens
+  const { accessJWT, refreshToken } = getTokensFromCookiesHeader(cookiesStr);
+  const user = jwt.decode(accessJWT) as Partial<User>;
+  await RefreshTokensModel.remove({ userId: user._id, token: refreshToken });
+}
+
+/**
+ * verify authentication before any request
+ */
+export async function verifyAuth(cookiesStr: string) {
+  // get tokens
+  const { accessJWT, refreshToken } = getTokensFromCookiesHeader(cookiesStr);
+
+  // decode user payload from access token
+  const user = jwt.decode(accessJWT) as Partial<User>;
+
+  try {
+    jwt.verify(accessJWT, process.env.ACCESS_SECRET) as Partial<User>;
+    return { user };
+  } catch (err) {
+    // access jwt is not valid
+
+    if (!(await RefreshTokensModel.has({ userId: user._id, token: refreshToken }))) {
+      // both accessJWT and refreshtoken are not valid
+      throw new SteamIdlerError("NotAuthenticated");
+    }
+  }
+
+  return { user, accessJWTCookie: genCookie("acess-token", genAccessJWT(user)) };
 }
 
 async function recaptchaVerify(g_response: string) {
@@ -77,4 +123,45 @@ async function recaptchaVerify(g_response: string) {
 
   if (res.success) return true;
   throw new SteamIdlerError(JSON.stringify(res));
+}
+
+async function createAuthentication(user: Partial<User>) {
+  // generate tokens and cookies
+  const acessJWT = genAccessJWT(user);
+  const refreshToken = genRefreshToken();
+  const accessCookie = genCookie("access-jwt", acessJWT);
+  const refreshCookie = genCookie("refresh-token", refreshToken);
+  // store refresh token
+  await RefreshTokensModel.add({ userId: user._id, token: refreshToken });
+
+  return [accessCookie, refreshCookie];
+}
+
+function genAccessJWT(user: Partial<User>) {
+  return jwt.sign(user, process.env.ACCESS_SECRET, { expiresIn: "5m" });
+}
+
+function genRefreshToken(): string {
+  return crypto.randomBytes(64).toString("hex");
+}
+
+function genCookie(name: string, value: string) {
+  // expires in 10 years
+  const date = new Date();
+  date.setFullYear(date.getFullYear() + 10);
+
+  return cookie.serialize(name, value, {
+    httpOnly: process.env.NODE_ENV === "production" ? true : false,
+    sameSite: process.env.NODE_ENV === "production" ? true : false,
+    secure: true,
+    expires: date,
+    domain: process.env.NODE_ENV === "production" ? ".steamidler.com" : null,
+  });
+}
+
+function getTokensFromCookiesHeader(cookiesStr: string) {
+  const cookies = cookie.parse(cookiesStr) as unknown as Cookies;
+  const accessJWT = cookies["access-jwt"];
+  const refreshToken = cookies["refresh-token"];
+  return { accessJWT, refreshToken };
 }

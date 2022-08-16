@@ -1,5 +1,5 @@
 import { SteamIdlerError } from "../commons.js";
-import { Request, Router } from "express";
+import { Router } from "express";
 import { User } from "../../@types/index.js";
 import * as UsersController from "../controllers/users.js";
 const router = Router();
@@ -22,27 +22,23 @@ router.post(ROUTE + "/register", async (req, res, next) => {
   } as User;
 
   try {
-    const partialUser = await UsersController.register(user, inviteCode, ip, g_response);
-    setSession(req, partialUser);
-    res.send(partialUser);
+    const cookies = await UsersController.register(user, inviteCode, g_response);
+    res.setHeader("Set-Cookie", cookies);
+    res.send({ message: "ok" });
   } catch (error) {
     next(error);
   }
 });
 
 router.post(ROUTE + "/login", async (req, res, next) => {
-  if (req.session.userId) {
-    return next(new SteamIdlerError("AlreadyLoggedIn"));
-  }
-
   const email = req.body.email;
   const password = req.body.password;
   const g_response = req.body.g_response;
 
   try {
-    const partialUser = await UsersController.login(email, password, g_response);
-    setSession(req, partialUser);
-    res.send(partialUser);
+    const cookies = await UsersController.login(email, password, g_response);
+    res.setHeader("Set-Cookie", cookies);
+    res.send({ message: "ok" });
   } catch (error) {
     next(error);
   }
@@ -51,15 +47,13 @@ router.post(ROUTE + "/login", async (req, res, next) => {
 /**
  * Terminate user session
  */
-router.post(ROUTE + "/logout", async (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie("session");
+router.post(ROUTE + "/logout", async (req, res, next) => {
+  try {
+    await UsersController.logout(req.headers.cookie);
     res.send({ message: "ok" });
-  });
+  } catch (error) {
+    next(error);
+  }
 });
-
-function setSession(req: Request, user: Partial<User>) {
-  req.session.userId = user._id.toString();
-}
 
 export default router;
