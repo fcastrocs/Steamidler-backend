@@ -5,7 +5,8 @@ const collectionName = "invites";
 
 export async function add(email: string): Promise<string> {
   // santize email
-  email = email.toString();
+  email = email.toLowerCase();
+
   const collection = await getCollection(collectionName);
   const code = crypto.randomBytes(32).toString("hex"); // generates string of length 16
   const invite: Invite = { email, code, createdAt: new Date() };
