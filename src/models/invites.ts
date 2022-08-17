@@ -5,7 +5,7 @@ const collectionName = "invites";
 
 export async function add(email: string): Promise<string> {
   const collection = await getCollection(collectionName);
-  const code = crypto.randomBytes(8).toString("hex"); // generates string of length 16
+  const code = crypto.randomBytes(32).toString("hex"); // generates string of length 16
   const invite: Invite = { email, code, createdAt: new Date() };
   await collection.insertOne(invite);
   return code;
