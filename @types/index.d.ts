@@ -53,7 +53,7 @@ interface AccountState {
 }
 
 interface SteamAccount {
-  userId: string;
+  userId: ObjectId;
   username: string;
   auth: AccountAuth;
   data: AccountData;
@@ -86,7 +86,7 @@ interface SteamCM {
 
 // model - steam-verify
 interface SteamVerify {
-  userId: string;
+  userId: ObjectId;
   username: string;
   proxy: Proxy;
   authType: SteamGuardError;

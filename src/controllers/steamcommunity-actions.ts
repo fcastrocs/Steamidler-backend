@@ -3,6 +3,7 @@ import * as SteamAccountModel from "../models/steam-accounts.js";
 import { ERRORS, getAgentOptions, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { Proxy, SteamAccount } from "../../@types/index.js";
 import { Steam } from "steam-client";
+import { ObjectId } from "mongodb";
 
 /**
  * Login to Steam via web
@@ -11,7 +12,7 @@ import { Steam } from "steam-client";
 export async function steamWebLogin(options: {
   type: "login" | "relogin";
   login?: { steamid: string; webNonce: string; proxy: Proxy };
-  relogin?: { userId: string; username: string };
+  relogin?: { userId: ObjectId; username: string };
 }) {
   const steamWebOptions: SteamWebOptions = <SteamWebOptions>{};
   let sAccount: SteamAccount;
@@ -51,7 +52,7 @@ export async function steamWebLogin(options: {
  * Change steam account nickname
  * @controller
  */
-export async function changeAvatar(userId: string, username: string, avatarDataURL: string) {
+export async function changeAvatar(userId: ObjectId, username: string, avatarDataURL: string) {
   if (typeof avatarDataURL !== "string") throw new SteamIdlerError(ERRORS.INVALID_BODY);
 
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
@@ -64,7 +65,7 @@ export async function changeAvatar(userId: string, username: string, avatarDataU
  * Clear aliases
  * @controller
  */
-export async function clearAliases(userId: string, username: string): Promise<void> {
+export async function clearAliases(userId: ObjectId, username: string): Promise<void> {
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   await steamcommunity.clearAliases();
@@ -74,7 +75,7 @@ export async function clearAliases(userId: string, username: string): Promise<vo
  * Clear aliases
  * @controller
  */
-export async function changePrivacy(userId: string, username: string, privacy: ProfilePrivacy): Promise<void> {
+export async function changePrivacy(userId: ObjectId, username: string, privacy: ProfilePrivacy): Promise<void> {
   if (!["public", "friendsOnly", "private"].includes(privacy)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
 
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);

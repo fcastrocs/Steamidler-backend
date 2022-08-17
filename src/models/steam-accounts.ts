@@ -1,4 +1,4 @@
-import { UpdateFilter } from "mongodb";
+import { ObjectId, UpdateFilter } from "mongodb";
 import { getCollection } from "../db.js";
 
 import { SteamAccount, SteamAccountEncrypted, SteamAccountNonSensitive } from "../../@types";
@@ -15,25 +15,11 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
 }
 
 /**
- * update steamAccount
- */
-export async function update(steamAccount: SteamAccount) {
-  const collection = await getCollection(collectionName);
-  const encryptedAccount = encryptSteamAccount(steamAccount);
-  await collection.updateOne(
-    { userId: steamAccount.userId, username: steamAccount.username },
-    {
-      $set: encryptedAccount,
-    }
-  );
-}
-
-/**
  * update fields for a single steamAccount with userId and username
  * Do not use with account auth. Use 'update' instead
  */
 export async function updateField(
-  userId: string,
+  userId: ObjectId,
   username: string,
   update: Partial<SteamAccount> | UpdateFilter<SteamAccount>
 ) {
@@ -58,7 +44,7 @@ export async function updateField(
 /**
  * Remove steamAccount with userId and username
  */
-export async function remove(userId: string, username: string): Promise<SteamAccount> {
+export async function remove(userId: ObjectId, username: string): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
   const doc = await collection.findOneAndDelete({ userId, username });
   if (!doc) return null;
@@ -68,7 +54,7 @@ export async function remove(userId: string, username: string): Promise<SteamAcc
 /**
  * Return a steamAccount with userId and username
  */
-export async function get(userId: string, username: string): Promise<SteamAccount> {
+export async function get(userId: ObjectId, username: string): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
   const doc = await collection.findOne({
     userId,
@@ -81,7 +67,7 @@ export async function get(userId: string, username: string): Promise<SteamAccoun
 /**
  * Return all steam accounts without sensitive information
  */
-export async function getAll(userId: string): Promise<SteamAccountNonSensitive[]> {
+export async function getAll(userId: ObjectId): Promise<SteamAccountNonSensitive[]> {
   const collection = await getCollection(collectionName);
   const cursor = collection.find({ userId }, { projection: { auth: 0, userId: 0 } });
   const accounts = (await cursor.toArray()) as unknown as SteamAccountEncrypted[];

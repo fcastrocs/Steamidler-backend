@@ -4,6 +4,7 @@ import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
 import { steamWebLogin } from "./steamcommunity-actions.js";
+import { ObjectId } from "mongodb";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -11,7 +12,7 @@ const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
  * Start Farmer
  * @controller
  */
-export async function start(userId: string, username: string) {
+export async function start(userId: ObjectId, username: string) {
   await SteamAccountExistsOnline(userId, username);
   if (FarmingIntervals.has(username)) throw new SteamIdlerError(ERRORS.ALREADY_FARMING);
 
@@ -31,7 +32,7 @@ export async function start(userId: string, username: string) {
   FarmingIntervals.set(username, interval);
 }
 
-async function runFarmingAlgo(userId: string, username: string) {
+async function runFarmingAlgo(userId: ObjectId, username: string) {
   try {
     await farmingAlgo(userId, username);
   } catch (error) {
@@ -44,7 +45,7 @@ async function runFarmingAlgo(userId: string, username: string) {
  * Stop Farming
  * @controller
  */
-export async function stop(userId: string, username: string) {
+export async function stop(userId: ObjectId, username: string) {
   const interval = FarmingIntervals.get(username);
   if (!interval) return;
 
@@ -56,7 +57,7 @@ export async function stop(userId: string, username: string) {
   await SteamAccountModel.updateField(userId, username, { "state.farming": false });
 }
 
-async function farmingAlgo(userId: string, username: string) {
+async function farmingAlgo(userId: ObjectId, username: string) {
   const steam = SteamStore.get(userId, username);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
@@ -85,7 +86,7 @@ async function farmingAlgo(userId: string, username: string) {
 /**
  * wrap around Steamcommunity.GetFarmableGames() so it doesn't fail
  */
-export async function getFarmableGames(userId: string, username: string): Promise<FarmableGame[]> {
+export async function getFarmableGames(userId: ObjectId, username: string): Promise<FarmableGame[]> {
   const steamAccount = await SteamAccountModel.get(userId, username);
 
   return new Promise((resolve, reject) => {

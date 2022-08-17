@@ -1,10 +1,11 @@
 /**
  * Online steam accounts Steam instance are stored by userId
  */
+import { ObjectId } from "mongodb";
 import Steam from "steam-client";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 
-type userId = string;
+type userId = ObjectId;
 type username = string;
 type Accounts = Map<username, Steam>;
 
@@ -14,7 +15,7 @@ export default class SteamStore {
   /**
    * Stores a steam intance to this user
    */
-  static add(userId: string, username: string, steam: Steam): void {
+  static add(userId: ObjectId, username: string, steam: Steam): void {
     // make sure there are no duplicates.
     if (this.has(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
 
@@ -31,7 +32,7 @@ export default class SteamStore {
   /**
    * Get Steam instance for this account
    */
-  static get(userId: string, username: string): Steam {
+  static get(userId: ObjectId, username: string): Steam {
     const accounts = Store.get(userId);
     if (!accounts) return null;
     return accounts.get(username);
@@ -40,7 +41,7 @@ export default class SteamStore {
   /**
    * Checks if user already has this account in store
    */
-  static has(userId: string, username: string): boolean {
+  static has(userId: ObjectId, username: string): boolean {
     const steam = this.get(userId, username);
     if (!steam) return false;
     return true;
@@ -49,7 +50,7 @@ export default class SteamStore {
   /**
    * Remove an account from user store
    */
-  static remove(userId: string, username: string): Steam {
+  static remove(userId: ObjectId, username: string): Steam {
     const accounts = Store.get(userId);
     if (!accounts) return null;
     const steam = accounts.get(username);

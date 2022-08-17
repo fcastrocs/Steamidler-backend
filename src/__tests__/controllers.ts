@@ -7,12 +7,14 @@ import * as SteamClientActions from "../controllers/steamclient-actions.js";
 import * as SteamCommunityActions from "../controllers/steamcommunity-actions.js";
 import * as Farmer from "../controllers/farmer.js";
 import fetch from "node-fetch";
+import { ObjectId } from "mongodb";
 
-const userId = "1";
+const userId = new ObjectId();
 const username = process.env.STEAM_USERNAME;
 const password = process.env.STEAM_PASSWORD;
 const avatar = "https://avatars.akamai.steamstatic.com/1e8368604f30760f678db658ff5f7fba92764b50_full.jpg";
 
+/*
 describe("Controller steam-accounts", () => {
   // step("add()", async () => {
   //   await assert.rejects(SteamAccountsController.add(userId, username, password, process.env.STEAM_CODE), (err: Error) => {
@@ -143,3 +145,4 @@ describe("Controller steamcommunity-actions", () => {
     await SteamCommunityActions.changePrivacy(userId, username, "public");
   });
 });
+*/

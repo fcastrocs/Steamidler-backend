@@ -17,7 +17,6 @@ export async function add(proxies: string[]): Promise<number> {
   });
 
   // delete existing proxies
-  await collection.deleteMany({});
   const res = await collection.insertMany(documents);
   return res.insertedCount;
 }

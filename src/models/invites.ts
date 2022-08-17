@@ -11,10 +11,9 @@ export async function add(email: string): Promise<string> {
   return code;
 }
 
-export async function exits(email: string, inviteCode: string): Promise<boolean> {
+export async function exits(invite: Omit<Invite, "createdAt">): Promise<boolean> {
   const collection = await getCollection(collectionName);
-  const invite = (await collection.findOne({ email })) as unknown as Invite;
-  if (invite && inviteCode === invite.code) return true;
+  if (await collection.findOne(invite)) return true;
   return false;
 }
 

@@ -3,12 +3,11 @@ import { ERRORS, SteamIdlerError } from "../commons.js";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invites.js";
 import * as RefreshTokensModel from "../models/refresh-tokens.js";
-import { Cookies, GoogleRecaptchaResponse, User } from "../../@types/index.js";
+import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import fetch from "node-fetch";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
-import cookie from "cookie";
 
 // https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
 const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.* ).{8,32}$/;
@@ -22,7 +21,9 @@ const USERNAME_REX = /[a-zA-Z0-9]{3,12}/;
  */
 export async function register(user: Partial<User>, inviteCode: string, g_response: string) {
   // verify google recaptcha
-  await recaptchaVerify(g_response);
+  if (process.env.NODE_ENV === "production") {
+    await recaptchaVerify(g_response);
+  }
 
   // validate username
   if (!USERNAME_REX.test(user.username)) throw new SteamIdlerError("InvalidUsername");
@@ -37,7 +38,9 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
   if (await UsersModel.get(user.email)) throw new SteamIdlerError(ERRORS.EXISTS);
 
   // check if this email has an invite
-  if (!(await InviteModel.exits(user.email, inviteCode))) throw new SteamIdlerError(ERRORS.NOTFOUND);
+  if (!(await InviteModel.exits({ email: user.email, code: inviteCode }))) {
+    throw new SteamIdlerError(ERRORS.NOTFOUND);
+  }
 
   // finish creating user
   user._id = new ObjectId();
@@ -60,7 +63,9 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
  */
 export async function login(email: string, password: string, g_response: string) {
   // verify google recaptcha
-  await recaptchaVerify(g_response);
+  if (process.env.NODE_ENV === "production") {
+    await recaptchaVerify(g_response);
+  }
 
   // check if user exists
   const user = await UsersModel.get(email);
@@ -79,22 +84,22 @@ export async function login(email: string, password: string, g_response: string)
  * Authenticate user
  * @Controller
  */
-export async function logout(cookiesStr: string) {
-  // get tokens
-  const { accessJWT, refreshToken } = getTokensFromCookiesHeader(cookiesStr);
-  const user = jwt.decode(accessJWT) as Partial<User>;
-  await RefreshTokensModel.remove({ userId: user._id, token: refreshToken });
+export async function logout(userId: ObjectId) {
+  await RefreshTokensModel.remove(userId);
 }
 
 /**
- * verify authentication before any request
+ * verify authentication
  */
-export async function verifyAuth(cookiesStr: string) {
-  // get tokens
-  const { accessJWT, refreshToken } = getTokensFromCookiesHeader(cookiesStr);
-
+export async function verifyAuth(accessJWT: string, refreshToken: string) {
   // decode user payload from access token
-  const user = jwt.decode(accessJWT) as Partial<User>;
+  const payload = jwt.decode(accessJWT) as JwtPayload;
+
+  // remove jwt payload properties
+  delete payload.iat;
+  delete payload.exp;
+
+  const user = payload as Partial<User>;
 
   try {
     jwt.verify(accessJWT, process.env.ACCESS_SECRET) as Partial<User>;
@@ -102,13 +107,13 @@ export async function verifyAuth(cookiesStr: string) {
   } catch (err) {
     // access jwt is not valid
 
-    if (!(await RefreshTokensModel.has({ userId: user._id, token: refreshToken }))) {
+    if (!(await RefreshTokensModel.has({ userId: new ObjectId(user._id), token: refreshToken }))) {
       // both accessJWT and refreshtoken are not valid
       throw new SteamIdlerError("NotAuthenticated");
     }
   }
 
-  return { user, accessJWTCookie: genCookie("acess-token", genAccessJWT(user)) };
+  return { user, accessJWT: genAccessJWT(user) };
 }
 
 async function recaptchaVerify(g_response: string) {
@@ -126,15 +131,15 @@ async function recaptchaVerify(g_response: string) {
 }
 
 async function createAuthentication(user: Partial<User>) {
-  // generate tokens and cookies
+  delete user.password; // never return password
+  // generate tokens
   const acessJWT = genAccessJWT(user);
   const refreshToken = genRefreshToken();
-  const accessCookie = genCookie("access-jwt", acessJWT);
-  const refreshCookie = genCookie("refresh-token", refreshToken);
-  // store refresh token
-  await RefreshTokensModel.add({ userId: user._id, token: refreshToken });
 
-  return [accessCookie, refreshCookie];
+  // store refresh token
+  await RefreshTokensModel.upsert({ userId: user._id, token: refreshToken });
+
+  return { user, acessJWT, refreshToken };
 }
 
 function genAccessJWT(user: Partial<User>) {
@@ -143,25 +148,4 @@ function genAccessJWT(user: Partial<User>) {
 
 function genRefreshToken(): string {
   return crypto.randomBytes(64).toString("hex");
-}
-
-function genCookie(name: string, value: string) {
-  // expires in 10 years
-  const date = new Date();
-  date.setFullYear(date.getFullYear() + 10);
-
-  return cookie.serialize(name, value, {
-    httpOnly: process.env.NODE_ENV === "production" ? true : false,
-    sameSite: process.env.NODE_ENV === "production" ? true : false,
-    secure: true,
-    expires: date,
-    domain: process.env.NODE_ENV === "production" ? ".steamidler.com" : null,
-  });
-}
-
-function getTokensFromCookiesHeader(cookiesStr: string) {
-  const cookies = cookie.parse(cookiesStr) as unknown as Cookies;
-  const accessJWT = cookies["access-jwt"];
-  const refreshToken = cookies["refresh-token"];
-  return { accessJWT, refreshToken };
 }

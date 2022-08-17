@@ -1,8 +1,9 @@
 import "dotenv/config";
 import express, { Response, Request, NextFunction } from "express";
-import { Db, MongoClient } from "mongodb";
+import { Db, MongoClient, ObjectId } from "mongodb";
 import rateLimiter from "@machiavelli/express-rate-limiter";
 import { mw as requestIp } from "request-ip";
+import cookieParser from "cookie-parser";
 
 import SteamAccount from "./routes/steamaccount.js";
 import userRoutes from "./routes/user.js";
@@ -14,7 +15,7 @@ import SteamcommunityAction from "./routes/steamcommunity-actions.js";
 import * as mongodb from "./db.js";
 import { SteamcommunityError } from "steamcommunity-api";
 import { SteamClientError } from "steam-client";
-import { SteamIdlerError } from "./commons.js";
+import { setCookie, SteamIdlerError } from "./commons.js";
 import { verifyAuth } from "./controllers/users.js";
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
@@ -47,22 +48,32 @@ const app = express();
  * Creates collections implicitly and indexes
  */
 async function createCollections(db: Db) {
-  await db.collection("steam-servers").createIndex({ ip: 1, port: 1 }, { unique: true });
-  await db.collection("proxies").createIndex({ ip: 1, port: 1 }, { unique: true });
-  await db.collection("proxies").createIndex({ load: 1 });
-  await db.collection("users").createIndex({ email: 1 }, { unique: true });
-  await db.collection("invites").createIndex({ email: 1 }, { unique: true });
-  await db.collection("invites").createIndex({ createdAt: 1 }, { expireAfterSeconds: 30 * 60 });
-  await db.collection("steam-accounts").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("refresh-tokens").createIndex({ userId: 1, token: 1 }, { unique: true });
-  await db.collection("steam-verifications").createIndex({ userId: 1, username: 1 }, { unique: true });
-  await db.collection("steam-verifications").createIndex({ createdAt: 1 }, { expireAfterSeconds: 2.5 * 60 });
+  await db.collection("steam-servers").createIndex(["ip", "port"], { unique: true });
+
+  await db.collection("proxies").createIndex(["ip", "port"], { unique: true });
+  await db.collection("proxies").createIndex("load");
+
+  await db.collection("users").createIndex("email", { unique: true });
+
+  await db.collection("invites").createIndex("email", { unique: true });
+  await db.collection("invites").createIndex(["email", "code"], { unique: true });
+  await db.collection("invites").createIndex("createdAt", { expireAfterSeconds: 30 * 60 });
+
+  await db.collection("steam-accounts").createIndex(["userId", "username"], { unique: true });
+
+  await db.collection("refresh-tokens").createIndex("userId", { unique: true });
+  await db.collection("refresh-tokens").createIndex(["userId", "token"], { unique: true });
+
+  await db.collection("steam-verifications").createIndex("userId", { unique: true });
+  await db.collection("steam-verifications").createIndex(["userId", "username"], { unique: true });
+  await db.collection("steam-verifications").createIndex("createdAt", { expireAfterSeconds: 2.5 * 60 });
 }
 
 /**
  * Configure Express middleware
  */
 function beforeMiddleware(client: MongoClient) {
+  app.use(cookieParser());
   app.use(express.json({ limit: REQUEST_BODY_SIZE }));
 
   // handle bad JSON
@@ -75,20 +86,24 @@ function beforeMiddleware(client: MongoClient) {
 
   // check for authentication
   app.use(async (req, res, next) => {
-    console.log(req.path);
     // skip user paths
-    if (["/user/login", "/user/register", "/user/logout"].includes(req.path)) return next();
+    if (["/user/login", "/user/register"].includes(req.path)) return next();
+    // skip admin paths
+    if (req.path.includes("/admin/")) return next();
+
+    if (!req.cookies || !req.cookies["access-jwt"] || !req.cookies["refresh-token"]) {
+      const error = new SteamIdlerError("NotAuthenticated");
+      return res.status(401).send({ name: error.name, message: error.message });
+    }
 
     try {
-      const { user, accessJWTCookie } = await verifyAuth(req.headers.cookie);
-      req.body.userId = user._id;
-
-      // accessJWT was renewed
-      if (accessJWTCookie) {
-        res.setHeader("Set-Cookie", accessJWTCookie);
-      }
+      const { user, accessJWT } = await verifyAuth(req.cookies["access-jwt"], req.cookies["refresh-token"]);
+      req.body.userId = new ObjectId(user._id);
+      // accessJWT was renewed, set cookie again
+      if (accessJWT) setCookie("access-jwt", accessJWT, res);
+      return next();
     } catch (error) {
-      return next(error);
+      return res.status(401).send({ name: error.name, message: error.message });
     }
   });
 
@@ -120,13 +135,18 @@ function registerRoutes() {
 }
 
 function afterMiddleWare() {
-  // handle errors
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    if (err instanceof SteamcommunityError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
+    if (err) {
+      console.log(err);
+
+      // handle errors
+      if (err instanceof SteamcommunityError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
+        return res.status(400).send({ name: err.name, message: err.message });
+      }
       return res.status(400).send({ name: err.name, message: err.message });
     }
-    console.log(err);
-    return res.status(400).send({ name: err.name, message: err.message });
+
+    return next();
   });
 }
 

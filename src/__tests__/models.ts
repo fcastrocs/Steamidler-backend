@@ -3,11 +3,12 @@ import assert from "assert";
 import * as ProxyModel from "../models/proxies.js";
 import * as InvitesModel from "../models/invites.js";
 import * as SteamServersModel from "../models/steam-servers.js";
-import { AccountState, SteamAccount, SteamVerify, User } from "../../@types/index.js";
+import { AccountState, RefreshToken, SteamAccount, SteamVerify, User } from "../../@types/index.js";
 import * as SteamVerifyModel from "../models/steam-verifications.js";
 import * as SteamAccountsModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
 import * as UsersModel from "../models/users.js";
+import * as RefreshTokensModel from "../models/refresh-tokens.js";
 import Steam, { AccountData } from "steam-client";
 import { ObjectId } from "mongodb";
 
@@ -18,23 +19,24 @@ describe("Model invites", async () => {
   step("add()", async () => {
     code = await InvitesModel.add(email);
     assert.equal(code.length === 16, true);
-    // try to insert duplicate
-
+    // try to insert duplicates
     await assert.rejects(InvitesModel.add(email), (err: Error) => {
-      assert.equal(err.name, "steamidler");
-      assert.equal(err.message, "Exists");
+      assert.equal(err.name, "MongoServerError");
+      assert.equal(err.message.includes("E11000"), true);
       return true;
     });
   });
 
   step("exists()", async () => {
-    const invite = await InvitesModel.exits(email, code);
-    assert.equal(invite, true);
+    let exists = await InvitesModel.exits({ email, code });
+    assert.equal(exists, true);
+    exists = await InvitesModel.exits({ email, code: "code" });
+    assert.equal(exists, false);
   });
 
   it("remove()", async () => {
     await InvitesModel.remove(email);
-    const exists = await InvitesModel.exits(email, code);
+    const exists = await InvitesModel.exits({ email, code });
     assert.equal(exists, false);
   });
 });
@@ -45,12 +47,19 @@ describe("Model proxies", async () => {
   const port = 12324;
 
   step("add()", async () => {
-    // try to add duplicate
     const count = await ProxyModel.add([`${ip}:${port}`]);
     assert.equal(count, 1);
+    // try to add invalid proxy
     await assert.rejects(ProxyModel.add(["123"]), (err: Error) => {
       assert.equal(err.name, "steamidler");
       assert.equal(err.message, "ProxyNotValid");
+      return true;
+    });
+
+    // try to add duplicate
+    await assert.rejects(ProxyModel.add([`${ip}:${port}`]), (err: Error) => {
+      assert.equal(err.name, "MongoBulkWriteError");
+      assert.equal(err.message.includes("E11000"), true);
       return true;
     });
   });
@@ -93,7 +102,7 @@ describe("Model proxies", async () => {
 
 describe("Model steam-accounts", async () => {
   const steamAccount: SteamAccount = {
-    userId: "1",
+    userId: new ObjectId(),
     username: "username",
     auth: {
       password: "password",
@@ -172,7 +181,8 @@ describe("Model steam-servers", async () => {
 });
 
 describe("Model steam-store", () => {
-  const userId = "1";
+  const userId = new ObjectId();
+  const userId2 = new ObjectId();
   const username = "username";
   const steam: Steam = {} as Steam;
   const steam2: Steam = {} as Steam;
@@ -180,20 +190,9 @@ describe("Model steam-store", () => {
   step("add()", async () => {
     SteamStore.add(userId, username, steam);
     SteamStore.add(userId, username + 1, steam2);
-
     // try to add duplicate
-    assert.throws(
-      function () {
-        SteamStore.add(userId, username + 1, steam2);
-      },
-      { message: "Exists", name: "steamidler" }
-    );
-    assert.throws(
-      function () {
-        SteamStore.add(userId, username, steam);
-      },
-      { message: "Exists", name: "steamidler" }
-    );
+    assert.throws(() => SteamStore.add(userId, username + 1, steam2), { message: "Exists", name: "steamidler" });
+    assert.throws(() => SteamStore.add(userId, username, steam), { message: "Exists", name: "steamidler" });
   });
 
   step("has()", async () => {
@@ -203,24 +202,25 @@ describe("Model steam-store", () => {
   });
 
   step("get()", async () => {
-    assert.notEqual(SteamStore.get(userId, username), null);
-    assert.notEqual(SteamStore.get(userId, username + 1), null);
+    assert.equal(SteamStore.get(userId, username), steam);
+    assert.equal(SteamStore.get(userId, username + 1), steam2);
+    assert.notEqual(SteamStore.get(userId, username), steam2);
     assert.equal(SteamStore.get(userId, username + 2), null);
-    assert.equal(SteamStore.get(userId + 1, username + 2), null);
+    assert.equal(SteamStore.get(userId2, username + 2), null);
   });
 
   step("remove()", async () => {
-    assert.notEqual(SteamStore.remove(userId, username), null);
-    assert.notEqual(SteamStore.remove(userId, username + 1), null);
+    assert.equal(SteamStore.remove(userId, username), steam);
+    assert.equal(SteamStore.remove(userId, username + 1), steam2);
     assert.equal(SteamStore.remove(userId, username + 2), null);
-    assert.equal(SteamStore.remove(userId + 1, username + 2), null);
+    assert.equal(SteamStore.remove(userId2, username + 2), null);
   });
 });
 
 describe("Model steam-verifications", async () => {
   const steamVerify: SteamVerify = {
-    userId: "1",
-    username: "2",
+    userId: new ObjectId(),
+    username: "username",
     proxy: { ip: "123", port: 1 },
     authType: "error",
     createdAt: new Date(),
@@ -228,25 +228,24 @@ describe("Model steam-verifications", async () => {
 
   step("add()", async () => {
     await SteamVerifyModel.add(steamVerify);
+    // try to add duplicate
     await assert.rejects(SteamVerifyModel.add(steamVerify), (err: Error) => {
       assert.equal(err.name, "MongoServerError");
-      assert.equal(err.message.includes("duplicate key"), true);
+      assert.equal(err.message.includes("E11000"), true);
       return true;
     });
   });
 
   step("remove()", async () => {
-    await SteamVerifyModel.remove(steamVerify.userId, steamVerify.username);
-    await SteamVerifyModel.add(steamVerify);
+    assert.equal(await SteamVerifyModel.remove(steamVerify.userId), true);
+    assert.equal(await SteamVerifyModel.remove(steamVerify.userId), false);
   });
 
   it("get()", async () => {
-    let sVerify = await SteamVerifyModel.get(steamVerify.userId, steamVerify.username);
-    assert.notEqual(sVerify, null);
-    assert.equal(sVerify.username, steamVerify.username);
-    await SteamVerifyModel.remove(steamVerify.userId, steamVerify.username);
-    sVerify = await SteamVerifyModel.get(steamVerify.userId, steamVerify.username);
-    assert.equal(sVerify, null);
+    await SteamVerifyModel.add(steamVerify);
+    assert.notEqual(await SteamVerifyModel.get(steamVerify.userId), null);
+    await SteamVerifyModel.remove(steamVerify.userId);
+    assert.equal(await SteamVerifyModel.get(steamVerify.userId), null);
   });
 });
 
@@ -262,6 +261,12 @@ describe("Model users", async () => {
 
   step("add()", async () => {
     await UsersModel.add(user);
+    // try to add duplicate
+    await assert.rejects(UsersModel.add(user), (err: Error) => {
+      assert.equal(err.name, "MongoServerError");
+      assert.equal(err.message.includes("E11000"), true);
+      return true;
+    });
   });
 
   step("get()", async () => {
@@ -274,5 +279,28 @@ describe("Model users", async () => {
     await UsersModel.remove(user.email);
     const userReceived = await UsersModel.get(user.email);
     assert.equal(userReceived, null);
+  });
+});
+
+describe("Model refresh-tokens", async () => {
+  const refreshToken: RefreshToken = {
+    userId: new ObjectId(),
+    token: "123",
+  };
+
+  step("upsert()", async () => {
+    await RefreshTokensModel.upsert(refreshToken);
+    // try to add duplicate
+    await RefreshTokensModel.upsert({ userId: refreshToken.userId, token: "321" });
+  });
+
+  step("has()", async () => {
+    assert.equal(await RefreshTokensModel.has(refreshToken), false);
+    assert.equal(await RefreshTokensModel.has({ userId: refreshToken.userId, token: "321" }), true);
+  });
+
+  step("remove()", async () => {
+    assert.equal(await RefreshTokensModel.remove(refreshToken.userId), true);
+    assert.equal(await RefreshTokensModel.has({ userId: refreshToken.userId, token: "321" }), false);
   });
 });

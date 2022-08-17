@@ -7,6 +7,8 @@ import SteamStore from "./models/steam-store.js";
 import Steam, { AppInfo } from "steam-client";
 
 import { EventEmitter } from "events";
+import { Response } from "express";
+import { ObjectId } from "mongodb";
 const eventEmitter = new EventEmitter();
 export { eventEmitter };
 
@@ -55,7 +57,7 @@ export function getAgentOptions(proxy: Proxy) {
 }
 
 export async function SteamAccountExistsOnline(
-  userId: string,
+  userId: ObjectId,
   username: string
 ): Promise<{ steamAccount: SteamAccount; steam: Steam }> {
   const steamAccount = await SteamAccountModel.get(userId, username);
@@ -118,4 +120,16 @@ export function isIntArray(variable: unknown) {
 
   // must be and int array
   if (variable.some((i) => !Number.isInteger(i))) throw new SteamIdlerError(ERRORS.INVALID_BODY);
+}
+
+export function setCookie(name: string, value: string, res: Response) {
+  // expires in 10 years
+  const date = new Date();
+  date.setFullYear(date.getFullYear() + 10);
+  res.cookie(name, value, {
+    httpOnly: true,
+    secure: true,
+    expires: date,
+    domain: process.env.NODE_ENV === "production" ? ".steamidler.com" : "localhost",
+  });
 }

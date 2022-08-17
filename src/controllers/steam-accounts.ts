@@ -11,12 +11,13 @@ import { ERRORS, eventEmitter, isAuthError, isSteamGuardError, SteamIdlerError }
 import * as Farmer from "./farmer.js";
 import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
 import { steamWebLogin } from "./steamcommunity-actions.js";
+import { ObjectId } from "mongodb";
 
 /**
  * Add new account
  * @controller
  */
-export async function add(userId: string, username: string, password: string, code?: string) {
+export async function add(userId: ObjectId, username: string, password: string, code?: string) {
   if (await SteamAccountModel.get(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
 
   // set login options
@@ -26,7 +27,7 @@ export async function add(userId: string, username: string, password: string, co
   };
 
   // check if account is waiting for steam guard code
-  const steamVerify = await SteamVerifyModel.get(userId, username);
+  const steamVerify = await SteamVerifyModel.get(userId);
   if (steamVerify) {
     // steam guard code was not provided
     if (!code) throw new SteamClientError(steamVerify.authType);
@@ -103,7 +104,7 @@ export async function add(userId: string, username: string, password: string, co
   };
 
   // remove steam-verify
-  await SteamVerifyModel.remove(userId, username);
+  await SteamVerifyModel.remove(userId);
 
   // add to store
   SteamStore.add(userId, username, steamCMLoginRes.steam);
@@ -117,7 +118,7 @@ export async function add(userId: string, username: string, password: string, co
  * login a Steam account
  * @controller
  */
-export async function login(userId: string, username: string, code?: string, password?: string) {
+export async function login(userId: ObjectId, username: string, code?: string, password?: string) {
   if (SteamStore.has(userId, username)) {
     throw new SteamIdlerError(ERRORS.ALREADY_ONLINE);
   }
@@ -213,7 +214,7 @@ export async function login(userId: string, username: string, code?: string, pas
  * Logout a Steam account
  * @controller
  */
-export async function logout(userId: string, username: string) {
+export async function logout(userId: ObjectId, username: string) {
   if (!(await SteamAccountModel.get(userId, username))) throw new SteamIdlerError(ERRORS.NOTFOUND);
 
   // account is online
@@ -233,7 +234,7 @@ export async function logout(userId: string, username: string) {
  * Remove a Steam account
  * @controller
  */
-export async function remove(userId: string, username: string) {
+export async function remove(userId: ObjectId, username: string) {
   await logout(userId, username);
   const steamAccount = await SteamAccountModel.remove(userId, username);
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
@@ -272,7 +273,7 @@ async function steamcmLogin(loginOptions: LoginOptions, proxy: Proxy): Promise<L
 /**
  * Restore account state:  personastate, farming, and idling after login
  */
-async function restoreState(userId: string, username: string, state: AccountState) {
+async function restoreState(userId: ObjectId, username: string, state: AccountState) {
   const steam = SteamStore.get(userId, username);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
@@ -292,7 +293,7 @@ async function restoreState(userId: string, username: string, state: AccountStat
 /**
  * Handle account disconnects
  */
-function SteamEventListeners(userId: string, username: string) {
+function SteamEventListeners(userId: ObjectId, username: string) {
   const steam = SteamStore.get(userId, username);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
