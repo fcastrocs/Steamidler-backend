@@ -34,6 +34,9 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
   // validate password
   if (!PASSWORD_REGEX.test(user.password)) throw new SteamIdlerError("InvalidPassword");
 
+  // sanitize email
+  user.email = user.email.toLowerCase();
+
   // check if user exists
   if (await UsersModel.get(user.email)) throw new SteamIdlerError(ERRORS.EXISTS);
 
@@ -41,9 +44,6 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
   if (!(await InviteModel.exits({ email: user.email, code: inviteCode }))) {
     throw new SteamIdlerError(ERRORS.NOTFOUND);
   }
-
-  // sanitize email
-  user.email = user.email.toLowerCase();
 
   // finish creating user
   user._id = new ObjectId();
@@ -69,6 +69,9 @@ export async function login(email: string, password: string, g_response: string)
   if (process.env.NODE_ENV === "production") {
     await recaptchaVerify(g_response);
   }
+
+  // sanitize email
+  email = email.toLowerCase();
 
   // check if user exists
   const user = await UsersModel.get(email);
