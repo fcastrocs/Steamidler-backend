@@ -42,6 +42,9 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
     throw new SteamIdlerError(ERRORS.NOTFOUND);
   }
 
+  // sanitize email
+  user.email = user.email.toLowerCase();
+
   // finish creating user
   user._id = new ObjectId();
   user.password = await argon2.hash(user.password);
