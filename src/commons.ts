@@ -1,14 +1,15 @@
 import crypto from "crypto";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
-import SteamCommunity from "steamcommunity-api";
 import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
 import SteamStore from "./models/steam-store.js";
-import Steam, { AppInfo } from "steam-client";
 
 import { EventEmitter } from "events";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
+import Steam, { Game } from "@machiavelli/steam-client";
+import SteamWeb from "@machiavelli/steam-web";
+
 const eventEmitter = new EventEmitter();
 export { eventEmitter };
 
@@ -73,12 +74,7 @@ export async function SteamAccountExistsOnline(
 }
 
 export function getSteamCommunity(steamAccount: SteamAccount) {
-  return new SteamCommunity({
-    agentOptions: getAgentOptions(steamAccount.state.proxy),
-    webNonce: steamAccount.auth.webNonce,
-    steamid: steamAccount.data.steamId,
-    cookie: steamAccount.auth.cookie,
-  });
+  return new SteamWeb()
 }
 
 export function encrypt(data: string): string {
@@ -101,8 +97,8 @@ export function decrypt(data: string): string {
 /**
  * merge two games arrays and return the merged and the difference arrays
  */
-export function mergeGamesArrays(array1: AppInfo[], array2: AppInfo[]) {
-  const difference: AppInfo[] = [];
+export function mergeGamesArrays(array1: Game[], array2: Game[]) {
+  const difference: Game[] = [];
   const merge = array1.concat(
     array2.filter((item) => {
       const duplicate = array1.some((game) => game.gameid === item.gameid);

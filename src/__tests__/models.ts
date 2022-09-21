@@ -9,8 +9,8 @@ import * as SteamAccountsModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
 import * as UsersModel from "../models/users.js";
 import * as RefreshTokensModel from "../models/refresh-tokens.js";
-import Steam, { AccountData } from "steam-client";
 import { ObjectId } from "mongodb";
+import Steam, { AccountData } from "@machiavelli/steam-client";
 
 describe("Model invites", async () => {
   const email = "email@gmail.com";

@@ -1,10 +1,10 @@
 import { ERRORS, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
-import { FarmableGame, SteamcommunityError } from "steamcommunity-api";
 import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
 import { steamWebLogin } from "./steamcommunity-actions.js";
 import { ObjectId } from "mongodb";
+import { FarmableGame } from "@machiavelli/steam-web";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -52,7 +52,7 @@ export async function stop(userId: ObjectId, username: string) {
   clearInterval(interval);
 
   const steam = SteamStore.get(userId, username);
-  if (steam) steam.idleGames([]);
+  if (steam) steam.client.gamesPlayed([]);
 
   await SteamAccountModel.updateField(userId, username, { "state.farming": false });
 }
@@ -62,7 +62,7 @@ async function farmingAlgo(userId: ObjectId, username: string) {
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
   // stop idling
-  steam.idleGames([]);
+  steam.client.gamesPlayed([]);
 
   // wait a bit of time to get farmableGames so that idleGames takes effect
   const farmableGames: FarmableGame[] = await new Promise((resolve) => {
@@ -80,7 +80,7 @@ async function farmingAlgo(userId: ObjectId, username: string) {
 
   if (!farmableGames.length) throw new SteamIdlerError(ERRORS.NO_FARMABLE_GAMES);
 
-  steam.idleGames(get32FarmableGameIds(farmableGames));
+  steam.client.gamesPlayed(get32FarmableGameIds(farmableGames));
 }
 
 /**
@@ -89,37 +89,39 @@ async function farmingAlgo(userId: ObjectId, username: string) {
 export async function getFarmableGames(userId: ObjectId, username: string): Promise<FarmableGame[]> {
   const steamAccount = await SteamAccountModel.get(userId, username);
 
-  return new Promise((resolve, reject) => {
-    let steamcommunity = getSteamCommunity(steamAccount);
-    const operation = new retry({ retries: 3, interval: 1000 });
+  return null;
 
-    operation.attempt(async (currentAttempt: number) => {
-      // steam must be online
-      if (!SteamStore.has(userId, username)) return reject(new SteamIdlerError(ERRORS.NOTONLINE));
+  // return new Promise((resolve, reject) => {
+  //   let steamcommunity = getSteamCommunity(steamAccount);
+  //   const operation = new retry({ retries: 3, interval: 1000 });
 
-      try {
-        const farmableGames = await steamcommunity.getFarmableGames();
-        return resolve(farmableGames);
-      } catch (error) {
-        console.log(`Attempting getFarmableGames #${currentAttempt}: ${username}`);
+  //   operation.attempt(async (currentAttempt: number) => {
+  //     // steam must be online
+  //     if (!SteamStore.has(userId, username)) return reject(new SteamIdlerError(ERRORS.NOTONLINE));
 
-        if (error instanceof SteamcommunityError) {
-          if (error.message === "CookieExpired") {
-            // this should not fail, but it can
-            const res = await steamWebLogin({ type: "relogin", relogin: { userId, username } });
-            // assign new steamcommunity that contains new cookie
-            steamcommunity = res.steamcommunity;
-          }
-        }
+  //     try {
+  //       const farmableGames = await steamcommunity.getFarmableGames();
+  //       return resolve(farmableGames);
+  //     } catch (error) {
+  //       console.log(`Attempting getFarmableGames #${currentAttempt}: ${username}`);
 
-        // attempt retry
-        if (operation.retry()) return;
+  //       // if (error instanceof SteamcommunityError) {
+  //       //   if (error.message === "CookieExpired") {
+  //       //     // this should not fail, but it can
+  //       //     const res = await steamWebLogin({ type: "relogin", relogin: { userId, username } });
+  //       //     // assign new steamcommunity that contains new cookie
+  //       //     steamcommunity = res.steamcommunity;
+  //       //   }
+  //       // }
 
-        // operation failed
-        reject(error);
-      }
-    });
-  });
+  //       // attempt retry
+  //       if (operation.retry()) return;
+
+  //       // operation failed
+  //       reject(error);
+  //     }
+  //   });
+  // });
 }
 
 function get32FarmableGameIds(FarmableGames: FarmableGame[]): number[] {

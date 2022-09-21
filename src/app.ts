@@ -11,10 +11,10 @@ import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
 import SteamClientAction from "./routes/steamclient-actions.js";
 import SteamcommunityAction from "./routes/steamcommunity-actions.js";
+import { SteamClientError } from "@machiavelli/steam-client";
+import { SteamWebError } from "@machiavelli/steam-web";
 
 import * as mongodb from "./db.js";
-import { SteamcommunityError } from "steamcommunity-api";
-import { SteamClientError } from "steam-client";
 import { setCookie, SteamIdlerError } from "./commons.js";
 import { verifyAuth } from "./controllers/users.js";
 
@@ -140,7 +140,7 @@ function afterMiddleWare() {
       console.log(err);
 
       // handle errors
-      if (err instanceof SteamcommunityError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
+      if (err instanceof SteamWebError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
         return res.status(400).send({ name: err.name, message: err.message });
       }
       return res.status(400).send({ name: err.name, message: err.message });

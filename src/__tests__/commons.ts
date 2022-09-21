@@ -9,7 +9,7 @@ import {
   isSteamGuardError,
   mergeGamesArrays,
 } from "../commons.js";
-import { AppInfo } from "steam-client";
+import { Game } from "@machiavelli/steam-client";
 
 describe("common functions", () => {
   it("isSteamGuardError()", () => {
@@ -53,7 +53,7 @@ describe("common functions", () => {
   step("mergeGamesArrays()", () => {
     const game1 = [{ gameid: 1 }, { gameid: 2 }];
     const game2 = [{ gameid: 1 }, { gameid: 3 }];
-    const { merge, difference } = mergeGamesArrays(game1 as AppInfo[], game2 as AppInfo[]);
+    const { merge, difference } = mergeGamesArrays(game1 as Game[], game2 as Game[]);
     assert.equal(merge.length, 3);
     assert.equal(difference.length, 1);
     assert.equal(
