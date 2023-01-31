@@ -3,11 +3,12 @@ import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";
 import * as Farmer from "../controllers/farmer.js";
-import Steam from "@machiavelli/steam-client";
+import Steam, { SteamClientError } from "@machiavelli/steam-client";
 import { steamWebLogin } from "../controllers/steamcommunity-actions.js";
+import retry from "@machiavelli/retry";
 
 import { ERRORS, SteamIdlerError } from "../commons.js";
-import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
+import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
 import { LoginOptions } from "@machiavelli/steam-client";
 import { WebSocket } from "ws";
@@ -90,13 +91,13 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
 
   // connect to steam
   const { steam } = await connectToSteam(steamAccount.state.proxy);
-  ws.sendInfo("steamaccount/login", "Connected to Steam.");
+  if (ws) ws.sendInfo("steamaccount/login", "Connected to Steam.");
 
   // login to steam
   let loginData;
   try {
     loginData = await steamcmLogin(steamAccount.auth.authTokens, steam);
-    ws.sendInfo("steamaccount/login", "Signed in to steam servers.");
+    if (ws) ws.sendInfo("steamaccount/login", "Signed in to steam servers.");
   } catch (error) {
     // update steam account status
     if (error.message === "AccessDenied") {
@@ -110,7 +111,7 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   const { items, farmableGames } = await steamWebLogin(steamAccount.auth.authTokens.accessToken);
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
-  ws.sendInfo("steamaccount/login", "Signed in to steam web.");
+  if (ws) ws.sendInfo("steamaccount/login", "Signed in to steam web.");
 
   // update account
   await SteamAccountModel.updateField(userId, body.accountName, {
@@ -127,7 +128,7 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   steamAccount = { ...steamAccount, ...loginData };
   delete steamAccount.auth;
   delete steamAccount.state.proxy;
-  ws.sendMessage("steamaccount/login", steamAccount);
+  if (ws) ws.sendMessage("steamaccount/login", steamAccount);
 }
 
 /**
@@ -148,9 +149,9 @@ export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws:
   if (steamAccount.state.status !== "AccessDenied") {
     throw new SteamIdlerError("Account does not need to re-obtain auth Tokens.");
   }
-  
+
   // connect to steam
-  const {steam} = await connectToSteam(steamAccount.state.proxy);
+  const { steam } = await connectToSteam(steamAccount.state.proxy);
   ws.sendInfo("steamaccount/reobtainaccess", "Connected to Steam.");
 
   // get auth tokens
@@ -271,6 +272,7 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
     } else if (body.authType === "SteamGuardCode") {
       // sumit SteamGuardCode to steam
       authTokens = await steam.service.auth.getAuthTokensViaCredentials(body.accountName, body.password);
+      console.log(authTokens);
     }
   } catch (error) {
     steam.disconnect();
@@ -289,9 +291,9 @@ async function restoreState(userId: ObjectId, username: string, state: AccountSt
   steam.client.setPersonaState(state.personaState.personaState);
 
   // restore farming
-  if (state.farming) {
-    return await Farmer.start(userId, username);
-  }
+  // if (state.farming) {
+  //   return await Farmer.start(userId, username);
+  // }
 
   // restore idling
   if (state.gamesIdsIdle.length) {
@@ -302,21 +304,19 @@ async function restoreState(userId: ObjectId, username: string, state: AccountSt
 /**
  * Handle account disconnects
  */
-function SteamEventListeners(userId: ObjectId, username: string) {
-  const steam = SteamStore.get(userId, username);
+function SteamEventListeners(userId: ObjectId, accountName: string) {
+  const steam = SteamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
   steam.on("disconnected", async () => {
-    console.log("disconnected");
-
     // remove from online accounts
-    SteamStore.remove(userId, username);
+    SteamStore.remove(userId, accountName);
 
     // stop farmer
     //await Farmer.stop(userId, username);
 
     // set state.status to 'reconnecting'
-    await SteamAccountModel.updateField(userId, username, {
+    await SteamAccountModel.updateField(userId, accountName, {
       "state.status": "reconnecting" as SteamAccount["state"]["status"],
     });
 
@@ -324,45 +324,42 @@ function SteamEventListeners(userId: ObjectId, username: string) {
     // this is done so that when steam goes offline, the backend doesn't overload.
     const seconds = Math.floor(Math.random() * 20 + 1);
     const retries = Number(process.env.STEAM_RECONNECTS_RETRIES);
-    // const operation = new retry({ retries, interval: seconds * 1000 });
+    const operation = new retry({ retries, interval: seconds * 1000 });
 
     // attempt login
-    // operation.attempt(async (currentAttempt: number) => {
-    //   console.log(`${username}: attempting reconnect...`);
+    operation.attempt(async (currentAttempt: number) => {
+      console.log(`${accountName}: attempting reconnect...`);
 
-    //   try {
-    //     await login(userId, username);
-    //     eventEmitter.emit("reconnected");
-    //     console.log(`${username}: reconnected successfully`);
-    //   } catch (error) {
-    //     console.log(`${username}: reconnect failed try #${currentAttempt} of ${retries}`);
+      try {
+        await login(userId, { accountName }, null);
+        console.log(`${accountName}: reconnected successfully`);
+      } catch (error) {
+        console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}`);
 
-    //     // error originated in steam-client
-    //     // if (error instanceof SteamClientError) {
-    //     //   // relogin failed after 1st attempt using loginKey or sentry, stop retrying
-    //     //   if (currentAttempt > 1 && isAuthError(error.message)) return;
+        // error originated in steam-client
+        if (error instanceof SteamClientError) {
+          // relogin failed after 1st attempt because of AccessDenied
+          if (currentAttempt > 1 && error.message === "AccessDenied") return;
 
-    //     //   // Steam is down
-    //     //   if (error.message === "ServiceUnavailable") {
-    //     //     console.log(`${username}: STEAM IS DOWN, increasing retry interval to 10 minutes`);
-    //     //     // increase interval to 10 minutes
-    //     //     operation.setNewConfig({
-    //     //       retries: Number(process.env.STEAM_DOWN_RETRIES),
-    //     //       interval: Number(process.env.STEAM_DOWN_INTERVAL),
-    //     //     });
-    //     //   }
-    //     // }
+          // Steam is down
+          if (error.message === "ServiceUnavailable") {
+            console.log(`${accountName}: STEAM IS DOWN, increasing retry interval to 10 minutes`);
+            // increase interval to 10 minutes
+            operation.setNewConfig({
+              retries: Number(process.env.STEAM_DOWN_RETRIES),
+              interval: Number(process.env.STEAM_DOWN_INTERVAL),
+            });
+          }
+        }
 
-    //     // retry operation
-    //     if (operation.retry()) return;
+        // retry operation
+        if (operation.retry()) return;
 
-    //     // reconnect failed
-    //     await SteamAccountModel.updateField(userId, username, {
-    //       "state.status": "offline",
-    //     });
-
-    //     eventEmitter.emit("reconnectFailed");
-    //   }
-    // });
+        // reconnect failed
+        await SteamAccountModel.updateField(userId, accountName, {
+          "state.status": "offline" as SteamAccount["state"]["status"],
+        });
+      }
+    });
   });
 }

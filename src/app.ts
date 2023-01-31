@@ -66,14 +66,10 @@ async function createCollections(db: Db) {
   await db.collection("invites").createIndex(["email", "code"], { unique: true });
   await db.collection("invites").createIndex("createdAt", { expireAfterSeconds: 30 * 60 });
 
-  await db.collection("steam-accounts").createIndex(["userId", "username"], { unique: true });
+  await db.collection("steam-accounts").createIndex(["userId", "accountName"], { unique: true });
 
   await db.collection("refresh-tokens").createIndex("userId", { unique: true });
   await db.collection("refresh-tokens").createIndex(["userId", "token"], { unique: true });
-
-  await db.collection("steam-verifications").createIndex("userId", { unique: true });
-  await db.collection("steam-verifications").createIndex(["userId", "username"], { unique: true });
-  await db.collection("steam-verifications").createIndex("createdAt", { expireAfterSeconds: 2.5 * 60 });
 }
 
 /**

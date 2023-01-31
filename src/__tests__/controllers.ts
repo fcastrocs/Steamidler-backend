@@ -2,7 +2,6 @@ import assert from "assert";
 import SteamStore from "../models/steam-store.js";
 import * as SteamAccountsController from "../controllers/steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import { eventEmitter } from "../commons.js";
 import * as SteamClientActions from "../controllers/steamclient-actions.js";
 import * as SteamCommunityActions from "../controllers/steamcommunity-actions.js";
 import * as Farmer from "../controllers/farmer.js";

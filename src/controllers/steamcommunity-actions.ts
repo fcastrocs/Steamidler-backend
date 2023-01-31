@@ -1,10 +1,7 @@
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import { ERRORS, getAgentOptions, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
-import { Proxy, SteamAccount } from "../../@types/index.js";
+import { ERRORS, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
-import Steam from "@machiavelli/steam-client";
 import SteamWeb, { ProfilePrivacy } from "@machiavelli/steam-web";
-import { SocksProxyAgent } from "socks-proxy-agent";
 
 /**
  * Login to Steam via web
@@ -26,7 +23,7 @@ export async function changeAvatar(userId: ObjectId, username: string, avatarDat
   if (typeof avatarDataURL !== "string") throw new SteamIdlerError(ERRORS.INVALID_BODY);
 
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
+  const steamcommunity = new SteamWeb();
   const avatarUrl = await steamcommunity.changeAvatar(avatarDataURL);
   await SteamAccountModel.updateField(userId, username, {
     "data.avatar": avatarUrl,
@@ -39,7 +36,7 @@ export async function changeAvatar(userId: ObjectId, username: string, avatarDat
  */
 export async function clearAliases(userId: ObjectId, username: string): Promise<void> {
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
+  const steamcommunity = new SteamWeb()
   await steamcommunity.clearAliases();
 }
 
@@ -51,7 +48,7 @@ export async function changePrivacy(userId: ObjectId, username: string, privacy:
   if (!["public", "friendsOnly", "private"].includes(privacy)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
 
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
-  const steamcommunity = getSteamCommunity(steamAccount);
+  const steamcommunity = new SteamWeb()
   await steamcommunity.changePrivacy(privacy);
   await SteamAccountModel.updateField(userId, username, {
     "state.personaState": privacy,

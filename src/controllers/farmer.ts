@@ -1,4 +1,4 @@
-import { ERRORS, getSteamCommunity, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
+import { ERRORS, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import retry from "@machiavelli/retry";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";

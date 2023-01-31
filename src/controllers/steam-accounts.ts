@@ -5,7 +5,7 @@ import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
 import * as SteamAccountService from "../services/steam-account.js";
 
-import { ERRORS, eventEmitter, isAuthError, isSteamGuardError, SteamIdlerError } from "../commons.js";
+import { ERRORS, SteamIdlerError } from "../commons.js";
 import * as Farmer from "./farmer.js";
 import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";

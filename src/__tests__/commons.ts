@@ -1,41 +1,9 @@
 import "dotenv/config";
 import assert from "assert";
-import {
-  decrypt,
-  encrypt,
-  isAuthError,
-  isBadPassword,
-  isBadSteamGuardCode,
-  isSteamGuardError,
-  mergeGamesArrays,
-} from "../commons.js";
+import { decrypt, encrypt, mergeGamesArrays } from "../commons.js";
 import { Game } from "@machiavelli/steam-client";
 
 describe("common functions", () => {
-  it("isSteamGuardError()", () => {
-    assert.equal(isSteamGuardError("AccountLogonDenied"), true);
-    assert.equal(isSteamGuardError("AccountLoginDeniedNeedTwoFactor"), true);
-    assert.equal(isSteamGuardError("random"), false);
-  });
-
-  it("isBadSteamGuardCode()", () => {
-    assert.equal(isBadSteamGuardCode("InvalidLoginAuthCode"), true);
-    assert.equal(isBadSteamGuardCode("TwoFactorCodeMismatch"), true);
-    assert.equal(isBadSteamGuardCode("random"), false);
-  });
-
-  it("isBadPassword()", () => {
-    assert.equal(isBadPassword("InvalidPassword"), true);
-    assert.equal(isBadPassword("random"), false);
-  });
-
-  it("isAuthError()", () => {
-    assert.equal(isAuthError("AccountLogonDenied"), true);
-    assert.equal(isAuthError("InvalidLoginAuthCode"), true);
-    assert.equal(isAuthError("InvalidPassword"), true);
-    assert.equal(isBadPassword("random"), false);
-  });
-
   it("encrypt() and decrypt()", async () => {
     assert.equal(decrypt(encrypt("random")), "random");
     assert.equal(decrypt(encrypt("SD$R@#$SD")), "SD$R@#$SD");

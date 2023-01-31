@@ -4,14 +4,9 @@ import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
 import SteamStore from "./models/steam-store.js";
 
-import { EventEmitter } from "events";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
 import Steam, { Game } from "@machiavelli/steam-client";
-import SteamWeb from "@machiavelli/steam-web";
-
-const eventEmitter = new EventEmitter();
-export { eventEmitter };
 
 export class SteamIdlerError extends Error {
   constructor(message: string) {
@@ -19,26 +14,6 @@ export class SteamIdlerError extends Error {
     super.name = "steamidler";
   }
 }
-
-const SteamGuardError: string[] = [
-  "AccountLogonDenied",
-  "AccountLoginDeniedNeedTwoFactor",
-];
-const BadSteamGuardCode: string[] = [
-  "InvalidLoginAuthCode",
-  "TwoFactorCodeMismatch",
-];
-const BadPassword: string[] = ["InvalidPassword"];
-
-export const isSteamGuardError = (error: string) =>
-  SteamGuardError.includes(error);
-export const isBadSteamGuardCode = (error: string) =>
-  BadSteamGuardCode.includes(error);
-export const isBadPassword = (error: string) => BadPassword.includes(error);
-export const isAuthError = (error: string) =>
-  isSteamGuardError(error) ||
-  isBadSteamGuardCode(error) ||
-  isBadPassword(error);
 
 export const ERRORS = {
   EXISTS: "Exists",
@@ -82,10 +57,6 @@ export async function SteamAccountExistsOnline(
     throw new SteamIdlerError(ERRORS.NOTONLINE);
   }
   return { steamAccount, steam };
-}
-
-export function getSteamCommunity(steamAccount: SteamAccount) {
-  return new SteamWeb();
 }
 
 export function encrypt(data: string): string {
