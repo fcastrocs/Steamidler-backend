@@ -1,7 +1,7 @@
 import { setCookie } from "../commons.js";
 import { Router } from "express";
 import { User } from "../../@types/index.js";
-import * as UsersController from "../controllers/users.js";
+import * as UsersController from "../controllers/auth.js";
 const router = Router();
 const ROUTE = "/user";
 
@@ -23,9 +23,9 @@ router.post(ROUTE + "/register", async (req, res, next) => {
 
   try {
     const auth = await UsersController.register(user, inviteCode, g_response);
-    setCookie("access-jwt", auth.acessJWT, res);
+    setCookie("access-token", auth.accessToken, res);
     setCookie("refresh-token", auth.refreshToken, res);
-    res.send(auth.user);
+    res.send("ok");
   } catch (error) {
     next(error);
   }
@@ -38,9 +38,9 @@ router.post(ROUTE + "/login", async (req, res, next) => {
 
   try {
     const auth = await UsersController.login(email, password, g_response);
-    setCookie("access-jwt", auth.acessJWT, res);
+    setCookie("access-token", auth.accessToken, res);
     setCookie("refresh-token", auth.refreshToken, res);
-    res.send(auth.user);
+    res.send("ok");
   } catch (error) {
     next(error);
   }
@@ -52,7 +52,7 @@ router.post(ROUTE + "/login", async (req, res, next) => {
 router.post(ROUTE + "/logout", async (req, res, next) => {
   try {
     await UsersController.logout(req.body.userId);
-    res.clearCookie("access-jwt");
+    res.clearCookie("access-token");
     res.clearCookie("refresh-token");
     res.send({ message: "ok" });
   } catch (error) {

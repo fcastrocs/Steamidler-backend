@@ -15,15 +15,15 @@ export async function add(steamAccount: SteamAccount): Promise<void> {
 }
 
 /**
- * update fields for a single steamAccount with userId and username
+ * update fields for a single steamAccount with userId and accountName
  * Do not use with account auth. Use 'update' instead
  */
 export async function updateField(
   userId: ObjectId,
-  username: string,
+  accountName: string,
   update: Partial<SteamAccount> | UpdateFilter<SteamAccount>
 ) {
-  if (update.userId || update.username) {
+  if (update.userId || update.accountName) {
     throw new SteamIdlerError(ERRORS.INVALID_UPDATE_FIELDS);
   }
 
@@ -34,7 +34,7 @@ export async function updateField(
 
   const collection = await getCollection(collectionName);
   await collection.updateOne(
-    { userId, username },
+    { userId, accountName },
     {
       $set: update,
     }
@@ -42,23 +42,23 @@ export async function updateField(
 }
 
 /**
- * Remove steamAccount with userId and username
+ * Remove steamAccount with userId and accountName
  */
-export async function remove(userId: ObjectId, username: string): Promise<SteamAccount> {
+export async function remove(userId: ObjectId, accountName: string): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
-  const doc = await collection.findOneAndDelete({ userId, username });
+  const doc = await collection.findOneAndDelete({ userId, accountName });
   if (!doc) return null;
   return doc.value as unknown as SteamAccount;
 }
 
 /**
- * Return a steamAccount with userId and username
+ * Return a steamAccount with userId and accountName
  */
-export async function get(userId: ObjectId, username: string): Promise<SteamAccount> {
+export async function get(userId: ObjectId, accountName: string): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
   const doc = await collection.findOne({
     userId,
-    username,
+    accountName,
   });
   if (!doc) return null;
   return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
@@ -92,7 +92,7 @@ function decryptSteamAccount(steamAccount: SteamAccountEncrypted): SteamAccount 
   const account: SteamAccount = (({ auth, ...others }) => {
     return { ...others, auth: decryptedAuth };
   })(steamAccount);
-
-  account.auth.sentry = Buffer.from(decryptedAuth.sentry.data);
+  // sentry will be deprecated by steam soon, probably.
+  // account.auth.sentry = Buffer.from(decryptedAuth.sentry.data);
   return account;
 }

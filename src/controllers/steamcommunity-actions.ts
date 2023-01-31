@@ -3,18 +3,19 @@ import { ERRORS, getAgentOptions, getSteamCommunity, SteamAccountExistsOnline, S
 import { Proxy, SteamAccount } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import Steam from "@machiavelli/steam-client";
-import { ProfilePrivacy } from "@machiavelli/steam-web";
+import SteamWeb, { ProfilePrivacy } from "@machiavelli/steam-web";
+import { SocksProxyAgent } from "socks-proxy-agent";
 
 /**
  * Login to Steam via web
  * @controller
  */
-export async function steamWebLogin(options: {
-  type: "login" | "relogin";
-  login?: { steamid: string; webNonce: string; proxy: Proxy };
-  relogin?: { userId: ObjectId; username: string };
-}) {
-  //
+export async function steamWebLogin(refreshToken: string) {
+  const steamWeb = new SteamWeb();
+  const session = await steamWeb.login(refreshToken);
+  const items = await steamWeb.getCardsInventory();
+  const farmableGames = await steamWeb.getFarmableGames();
+  return { items, farmableGames };
 }
 
 /**
@@ -27,7 +28,9 @@ export async function changeAvatar(userId: ObjectId, username: string, avatarDat
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   const avatarUrl = await steamcommunity.changeAvatar(avatarDataURL);
-  await SteamAccountModel.updateField(userId, username, { "data.avatar": avatarUrl });
+  await SteamAccountModel.updateField(userId, username, {
+    "data.avatar": avatarUrl,
+  });
 }
 
 /**
@@ -50,5 +53,7 @@ export async function changePrivacy(userId: ObjectId, username: string, privacy:
   const { steamAccount } = await SteamAccountExistsOnline(userId, username);
   const steamcommunity = getSteamCommunity(steamAccount);
   await steamcommunity.changePrivacy(privacy);
-  await SteamAccountModel.updateField(userId, username, { "state.personaState": privacy });
+  await SteamAccountModel.updateField(userId, username, {
+    "state.personaState": privacy,
+  });
 }

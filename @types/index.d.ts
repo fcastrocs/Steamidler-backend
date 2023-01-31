@@ -1,6 +1,8 @@
+import { AuthTokens } from "@machiavelli/steam-client/@types/services/Auth";
 import { ObjectId } from "mongodb";
-import { AccountAuth, AccountData, State } from "steam-client";
+import { AccountAuth, AccountData } from "@machiavelli/steam-client";
 import { FarmableGame, Item, Cookie } from "steamcommunity-api";
+import { State } from "./addSteamAccount";
 
 declare global {
   namespace NodeJS {
@@ -30,11 +32,32 @@ declare global {
   }
 }
 
-declare module "steam-client" {
-  interface AccountAuth {
-    password: string;
+declare module "http" {
+  interface IncomingMessage {
+    body: { userId: ObjectId };
+  }
+}
+
+declare module "ws" {
+  interface WebSocket {
+    isAlive: boolean;
+    userId: string;
+    sendMessage: (type: string, message: any) => void;
+    sendError: (code: number, type: string, message: string) => void;
+    sendInfo: (type: string, info: any) => void;
+  }
+}
+
+interface WebSocketReqBody {
+  type: string;
+  body: { [key: string]: T };
+}
+
+declare module "@machiavelli/steam-client" {
+  export interface AccountAuth {
+    password?: string;
     cookie: Cookie;
-    type: "email" | "mobile";
+    authTokens: AuthTokens;
   }
 
   interface AccountData {
@@ -44,9 +67,8 @@ declare module "steam-client" {
 }
 
 interface AccountState {
-  error?: "string";
   farming: boolean;
-  status: "online" | "offline" | "reconnecting";
+  status: "online" | "offline" | "reconnecting" | "AccessDenied";
   personaState: State;
   gamesIdsIdle: number[];
   proxy: Proxy;
@@ -54,7 +76,7 @@ interface AccountState {
 
 interface SteamAccount {
   userId: ObjectId;
-  username: string;
+  accountName: string;
   auth: AccountAuth;
   data: AccountData;
   state: AccountState;
@@ -126,7 +148,12 @@ interface Invite {
 }
 
 interface GetCMListResponse {
-  response: { serverlist: string[]; serverlist_websockets: string[]; result: number; message: string };
+  response: {
+    serverlist: string[];
+    serverlist_websockets: string[];
+    result: number;
+    message: string;
+  };
 }
 
 interface GoogleRecaptchaResponse {

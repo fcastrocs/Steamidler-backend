@@ -1,25 +1,33 @@
 import "dotenv/config";
 import express, { Response, Request, NextFunction } from "express";
-import { Db, MongoClient, ObjectId } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 import rateLimiter from "@machiavelli/express-rate-limiter";
-import { mw as requestIp } from "request-ip";
 import cookieParser from "cookie-parser";
 
 import SteamAccount from "./routes/steamaccount.js";
-import userRoutes from "./routes/user.js";
+import userRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
 import SteamClientAction from "./routes/steamclient-actions.js";
 import SteamcommunityAction from "./routes/steamcommunity-actions.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
+import * as SteamAccountController from "./controllers/steam-accounts.js";
+import * as SteamCommunityController from "./controllers/steamcommunity-actions.js";
 
 import * as mongodb from "./db.js";
 import { setCookie, SteamIdlerError } from "./commons.js";
-import { verifyAuth } from "./controllers/users.js";
+import { verifyAuth } from "./controllers/auth.js";
+import { readFileSync } from "fs";
+import https from "https";
+import wss from "./websocket.js";
+
+const app = express();
+const httpsServer = CreateHttpsServer();
+const WebSocketAPI = new wss();
+WebSocketAPI.upgrade(httpsServer);
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
-const app = express();
 
 // Start the app
 (async () => {
@@ -35,13 +43,12 @@ const app = express();
 
   console.log("Registering routes...");
   registerRoutes();
+  registerWebSocketRoutes();
 
   console.log("Applying after middleware...");
   afterMiddleWare();
 
-  console.log("Starting HTTP server...");
-  const res = await startExpress();
-  console.log(res);
+  console.log("\nREADY\n");
 })();
 
 /**
@@ -70,7 +77,7 @@ async function createCollections(db: Db) {
 }
 
 /**
- * Configure Express middleware
+ * Express before-Middleware
  */
 function beforeMiddleware(client: MongoClient) {
   app.use(cookieParser());
@@ -88,19 +95,20 @@ function beforeMiddleware(client: MongoClient) {
   app.use(async (req, res, next) => {
     // skip user paths
     if (["/user/login", "/user/register"].includes(req.path)) return next();
+
     // skip admin paths
     if (req.path.includes("/admin/")) return next();
 
-    if (!req.cookies || !req.cookies["access-jwt"] || !req.cookies["refresh-token"]) {
+    if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
       const error = new SteamIdlerError("NotAuthenticated");
       return res.status(401).send({ name: error.name, message: error.message });
     }
 
     try {
-      const { user, accessJWT } = await verifyAuth(req.cookies["access-jwt"], req.cookies["refresh-token"]);
-      req.body.userId = new ObjectId(user._id);
-      // accessJWT was renewed, set cookie again
-      if (accessJWT) setCookie("access-jwt", accessJWT, res);
+      const auth = await verifyAuth(req.cookies["access-token"], req.cookies["refresh-token"]);
+      req.body.userId = auth.userId;
+      // access-token was renewed, set cookie again
+      if (auth.accessToken) setCookie("access-token", auth.accessToken, res);
       return next();
     } catch (error) {
       return res.status(401).send({ name: error.name, message: error.message });
@@ -117,9 +125,6 @@ function beforeMiddleware(client: MongoClient) {
   //     expireAfterSeconds: 3 * 60,
   //   })
   // );
-
-  // request IP
-  app.use(requestIp());
 }
 
 /**
@@ -134,6 +139,18 @@ function registerRoutes() {
   app.use("/", farmer);
 }
 
+function registerWebSocketRoutes() {
+  WebSocketAPI.addRoute("steamaccount/add", SteamAccountController.add);
+  WebSocketAPI.addRoute("steamaccount/login", SteamAccountController.login);
+  WebSocketAPI.addRoute("steamaccount/logout", SteamAccountController.logout);
+  WebSocketAPI.addRoute("steamaccount/loginWeb", SteamCommunityController.steamWebLogin);
+  WebSocketAPI.addRoute("steamaccount/reobtainaccess", SteamAccountController.reObtainAccess);
+  WebSocketAPI.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
+}
+
+/**
+ * Express after-Middleware
+ */
 function afterMiddleWare() {
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     if (err) {
@@ -150,14 +167,18 @@ function afterMiddleWare() {
   });
 }
 
-/**
- * Start Express
- */
-function startExpress() {
-  const port = process.env.NODE_ENV === "production" ? process.env.PORT : 8000;
-  return new Promise((resolve) => {
-    app.listen(port, () => {
-      resolve(`\nListening at http://localhost:${port}`);
+function CreateHttpsServer() {
+  const port = process.env.PORT || 8000;
+
+  return https
+    .createServer(
+      {
+        key: readFileSync("./cert/key.pem"),
+        cert: readFileSync("./cert/cert.pem"),
+      },
+      app
+    )
+    .listen(port, () => {
+      console.log(`HTTPS server is running at port ${port}`);
     });
-  });
 }

@@ -3,51 +3,112 @@ import retry from "@machiavelli/retry";
 import SteamStore from "../models/steam-store.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
-import * as SteamcmModel from "../models/steam-servers.js";
-import * as SteamVerifyModel from "../models/steam-verifications.js";
+import * as SteamAccountService from "../services/steam-account.js";
 
 import { ERRORS, eventEmitter, isAuthError, isSteamGuardError, SteamIdlerError } from "../commons.js";
 import * as Farmer from "./farmer.js";
 import { AccountState, LoginRes, Proxy, SteamAccount } from "../../@types";
-import { steamWebLogin } from "./steamcommunity-actions.js";
 import { ObjectId } from "mongodb";
 import { LoginOptions } from "@machiavelli/steam-client";
+import { WebSocket } from "ws";
+import { AddAccountBody, LoginBody, UpdateWithSteamGuardCodeBody } from "../../@types/addSteamAccount";
 
 /**
  * Add new account
  * @controller
  */
-export async function add(userId: ObjectId, username: string, password: string, code?: string) {
-  if (await SteamAccountModel.get(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
-  //
+export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  if (!body.authType) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  if (body.authType !== "QRcode" && body.authType !== "SteamGuardCode") {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  if (body.authType === "SteamGuardCode" && !body.accountName && !body.password) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  // lowercase accountName
+  if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
+
+  await SteamAccountService.add(userId, body, ws);
+}
+
+export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWithSteamGuardCodeBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  if (!body.code) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  await SteamAccountService.updateWithSteamGuardCode(userId, body, ws);
 }
 
 /**
  * login a Steam account
  * @controller
  */
-export async function login(userId: ObjectId, username: string, code?: string, password?: string) {
-  //
+export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  if (!body.accountName) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  await SteamAccountService.login(userId, body, ws);
 }
 
 /**
  * Logout a Steam account
  * @controller
  */
-export async function logout(userId: ObjectId, username: string) {
-  if (!(await SteamAccountModel.get(userId, username))) throw new SteamIdlerError(ERRORS.NOTFOUND);
-
-  // account is online
-  const steam = SteamStore.get(userId, username);
-  if (steam) {
-    await Farmer.stop(userId, username);
-    steam.disconnect();
-    SteamStore.remove(userId, username);
+export async function logout(userId: ObjectId, body: LoginBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
-  await SteamAccountModel.updateField(userId, username, {
-    "state.status": "offline" as SteamAccount["state"]["status"],
-  });
+  if (!body.accountName) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  await SteamAccountService.logout(userId, body, ws);
+}
+
+/**
+ * Logout a Steam account
+ * @controller
+ */
+export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  if (!body.authType) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  if (body.authType !== "QRcode" && body.authType !== "SteamGuardCode") {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  if (body.authType === "SteamGuardCode" && !body.accountName && !body.password) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  // lowercase accountName
+  if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
+
+  await SteamAccountService.reObtainAccess(userId, body, ws);
 }
 
 /**
@@ -55,7 +116,7 @@ export async function logout(userId: ObjectId, username: string) {
  * @controller
  */
 export async function remove(userId: ObjectId, username: string) {
-  await logout(userId, username);
+  //await logout(userId, username);
   const steamAccount = await SteamAccountModel.remove(userId, username);
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
 }
@@ -74,7 +135,7 @@ async function restoreState(userId: ObjectId, username: string, state: AccountSt
   const steam = SteamStore.get(userId, username);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
-  steam.client.setPersonaState(state.personaState);
+  steam.client.setPersonaState(state.personaState.personaState);
 
   // restore farming
   if (state.farming) {

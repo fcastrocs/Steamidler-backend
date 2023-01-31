@@ -7,7 +7,6 @@ import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import fetch from "node-fetch";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import crypto from "crypto";
 
 // https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
 const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.* ).{8,32}$/;
@@ -53,11 +52,11 @@ export async function register(user: Partial<User>, inviteCode: string, g_respon
   // store user to database
   user = await UsersModel.add(user as User);
 
-  // remove database
+  // remove invite
   await InviteModel.remove(user.email);
 
   // create authentication
-  return await createAuthentication(user);
+  return await createAuthentication(user._id);
 }
 
 /**
@@ -83,7 +82,7 @@ export async function login(email: string, password: string, g_response: string)
   }
 
   // create authentication
-  return await createAuthentication(user);
+  return await createAuthentication(user._id);
 }
 
 /**
@@ -97,29 +96,37 @@ export async function logout(userId: ObjectId) {
 /**
  * verify authentication
  */
-export async function verifyAuth(accessJWT: string, refreshToken: string) {
-  // decode user payload from access token
-  const payload = jwt.decode(accessJWT) as JwtPayload;
-
-  // remove jwt payload properties
-  delete payload.iat;
-  delete payload.exp;
-
-  const user = payload as Partial<User>;
-
+export async function verifyAuth(
+  accessToken: string,
+  refreshToken: string
+): Promise<{ accessToken?: string; userId: ObjectId }> {
+  // verify access-token
   try {
-    jwt.verify(accessJWT, process.env.ACCESS_SECRET) as Partial<User>;
-    return { user };
-  } catch (err) {
-    // access jwt is not valid
-
-    if (!(await RefreshTokensModel.has({ userId: new ObjectId(user._id), token: refreshToken }))) {
-      // both accessJWT and refreshtoken are not valid
+    const payload = jwt.verify(accessToken, process.env.ACCESS_SECRET) as JwtPayload;
+    if (payload.aud !== "access") throw "bad";
+    return { userId: new ObjectId(payload.sub) };
+  } catch (error) {
+    if (!(error instanceof jwt.TokenExpiredError)) {
       throw new SteamIdlerError("NotAuthenticated");
     }
   }
 
-  return { user, accessJWT: genAccessJWT(user) };
+  // access token is not valid, validate refresh-token, the refresh access-token
+  try {
+    const payload = jwt.verify(refreshToken, process.env.ACCESS_SECRET) as JwtPayload;
+    if (payload.aud !== "refresh") throw "bad";
+  } catch (error) {
+    throw new SteamIdlerError("NotAuthenticated");
+  }
+
+  // check refresh-token  matches the one in DB, otherwise this is an invalid token
+  const payload = jwt.decode(refreshToken) as JwtPayload;
+  const userId = new ObjectId(payload.sub);
+  if (!(await RefreshTokensModel.has({ userId, token: refreshToken }))) {
+    throw new SteamIdlerError("NotAuthenticated");
+  }
+
+  return { accessToken: genAccessToken(userId), userId };
 }
 
 async function recaptchaVerify(g_response: string) {
@@ -136,22 +143,29 @@ async function recaptchaVerify(g_response: string) {
   throw new SteamIdlerError(JSON.stringify(res));
 }
 
-async function createAuthentication(user: Partial<User>) {
-  delete user.password; // never return password
+async function createAuthentication(userId: ObjectId) {
   // generate tokens
-  const acessJWT = genAccessJWT(user);
-  const refreshToken = genRefreshToken();
+  const accessToken = genAccessToken(userId);
+  const refreshToken = genRefreshToken(userId);
 
   // store refresh token
-  await RefreshTokensModel.upsert({ userId: user._id, token: refreshToken });
+  await RefreshTokensModel.upsert({ userId, token: refreshToken });
 
-  return { user, acessJWT, refreshToken };
+  return { accessToken, refreshToken };
 }
 
-function genAccessJWT(user: Partial<User>) {
-  return jwt.sign(user, process.env.ACCESS_SECRET, { expiresIn: "5m" });
+function genAccessToken(userId: ObjectId) {
+  return jwt.sign({}, process.env.ACCESS_SECRET, {
+    expiresIn: "2h",
+    audience: "access",
+    subject: userId.toString(),
+  });
 }
 
-function genRefreshToken(): string {
-  return crypto.randomBytes(64).toString("hex");
+function genRefreshToken(userId: ObjectId) {
+  return jwt.sign({}, process.env.ACCESS_SECRET, {
+    expiresIn: "1y",
+    audience: "refresh",
+    subject: userId.toString(),
+  });
 }
