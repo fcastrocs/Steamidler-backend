@@ -4,7 +4,6 @@ import { Db, MongoClient } from "mongodb";
 import rateLimiter from "@machiavelli/express-rate-limiter";
 import cookieParser from "cookie-parser";
 
-import SteamAccount from "./routes/steamaccount.js";
 import userRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
@@ -129,7 +128,6 @@ function beforeMiddleware(client: MongoClient) {
 function registerRoutes() {
   app.use("/", adminRoutes);
   app.use("/", userRoutes);
-  app.use("/", SteamAccount);
   app.use("/", SteamClientAction);
   app.use("/", SteamcommunityAction);
   app.use("/", farmer);
@@ -141,6 +139,7 @@ function registerWebSocketRoutes() {
   WebSocketAPI.addRoute("steamaccount/logout", SteamAccountController.logout);
   WebSocketAPI.addRoute("steamaccount/loginWeb", SteamCommunityController.steamWebLogin);
   WebSocketAPI.addRoute("steamaccount/authrenew", SteamAccountController.authRenew);
+  WebSocketAPI.addRoute("steamaccount/remove", SteamAccountController.remove);
   WebSocketAPI.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
 }
 

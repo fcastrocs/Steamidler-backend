@@ -17,7 +17,6 @@ export default class WebSocketAPIServer {
 
       // terminate existing websocket for this user
       if (this.websockets[userId]) {
-        console.log("Disconnected");
         this.websockets[userId].isAlive = false;
         this.websockets[userId].terminate();
       }
@@ -64,7 +63,6 @@ export default class WebSocketAPIServer {
           this.websockets[ws.userId].isAlive = false;
           this.websockets[ws.userId].terminate();
           this.websockets[ws.userId] = null;
-          console.log("Disconnected");
         }
       });
 

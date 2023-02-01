@@ -12,7 +12,13 @@ import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
 import { LoginOptions } from "@machiavelli/steam-client";
 import { WebSocket } from "ws";
-import { AddAccountBody, LoginBody, LogoutBody, UpdateWithSteamGuardCodeBody } from "../../@types/addSteamAccount.js";
+import {
+  AddAccountBody,
+  LoginBody,
+  LogoutBody,
+  RemoveBody,
+  UpdateWithSteamGuardCodeBody,
+} from "../../@types/addSteamAccount.js";
 import { AuthTokens, Confirmation } from "@machiavelli/steam-client/@types/services/Auth.js";
 
 /**
@@ -203,16 +209,16 @@ export async function logout(userId: ObjectId, body: LogoutBody, ws: WebSocket) 
     "state.status": "offline" as SteamAccount["state"]["status"],
   });
 
-  ws.sendMessage("steamaccount/logout", "Logged out.");
+  if (ws) ws.sendMessage("steamaccount/logout", "Logged out.");
 }
 
 /**
  * Remove a Steam account
  * @controller
  */
-export async function remove(userId: ObjectId, accountName: string, ws: WebSocket) {
-  await logout(userId, { accountName }, ws);
-  const steamAccount = await SteamAccountModel.remove(userId, accountName);
+export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) {
+  await logout(userId, { accountName: body.accountName }, ws);
+  const steamAccount = await SteamAccountModel.remove(userId, body.accountName);
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
   ws.sendMessage("steamaccount/remove", "Account removed.");
 }
@@ -284,6 +290,17 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
 async function restoreState(userId: ObjectId, accountName: string, state: AccountState) {
   const steam = SteamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
+
+  steam.on("AccountLoggedOff", async (eresult) => {
+    await logout(userId, { accountName }, null);
+    // access revoked
+    if (eresult === "Revoked") {
+      await SteamAccountModel.updateField(userId, accountName, {
+        "state.status": "AccessDenied" as SteamAccount["state"]["status"],
+      });
+    }
+    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
+  });
 
   //steam.client.setPersonaState(state.personaState.personaState);
 

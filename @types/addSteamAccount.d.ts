@@ -29,3 +29,7 @@ export interface LoginBody {
 export interface LogoutBody {
   accountName: string;
 }
+
+export interface RemoveBody {
+  accountName: string;
+}
