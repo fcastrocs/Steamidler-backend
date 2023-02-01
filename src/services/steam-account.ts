@@ -4,7 +4,7 @@ import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";
 import * as Farmer from "../controllers/farmer.js";
 import Steam, { SteamClientError } from "@machiavelli/steam-client";
-import { steamWebLogin } from "../controllers/steamcommunity-actions.js";
+import { steamWebLogin } from "../services/steamweb.js";
 import retry from "@machiavelli/retry";
 
 import { ERRORS, SteamIdlerError } from "../commons.js";
@@ -52,7 +52,7 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
   // login to steam
   const loginData = await steamcmLogin(authTokens, steam);
   ws.sendInfo("steamaccount/add", "Signed in to steam servers.");
-  const { items, farmableGames } = await steamWebLogin(authTokens.accessToken);
+  const { items, farmableGames } = await steamWebLogin(authTokens.accessToken, proxy);
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
   ws.sendInfo("steamaccount/add", "Signed in to steam web.");
@@ -118,7 +118,10 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   }
 
   // login to steam web
-  const { items, farmableGames } = await steamWebLogin(steamAccount.auth.authTokens.accessToken);
+  const { items, farmableGames } = await steamWebLogin(
+    steamAccount.auth.authTokens.accessToken,
+    steamAccount.state.proxy
+  );
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
   if (ws) ws.sendInfo("steamaccount/login", "Signed in to steam web.");
