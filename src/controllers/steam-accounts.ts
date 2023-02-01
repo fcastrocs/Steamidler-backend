@@ -88,7 +88,7 @@ export async function logout(userId: ObjectId, body: LoginBody, ws: WebSocket) {
  * Logout a Steam account
  * @controller
  */
-export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
   if (!userId || !body || !ws) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
@@ -108,7 +108,7 @@ export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws:
   // lowercase accountName
   if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
 
-  await SteamAccountService.reObtainAccess(userId, body, ws);
+  await SteamAccountService.authRenew(userId, body, ws);
 }
 
 /**

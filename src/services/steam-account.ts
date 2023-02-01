@@ -69,6 +69,9 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
   await SteamAccountModel.add(steamaccount);
   SteamStore.add(userId, authTokens.accountName, steam);
 
+  // add listeners
+  SteamEventListeners(userId, steamaccount.accountName);
+
   delete steamaccount.auth;
   delete steamaccount.state.proxy;
   ws.sendMessage("steamaccount/add", steamaccount);
@@ -108,6 +111,7 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
     throw error;
   }
 
+  // login to steam web
   const { items, farmableGames } = await steamWebLogin(steamAccount.auth.authTokens.accessToken);
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
@@ -123,6 +127,9 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   // store steam instance
   SteamStore.add(userId, steamAccount.accountName, steam);
 
+  // restore account state
+  await restoreState(userId, body.accountName, steamAccount.state);
+  // add listeners
   SteamEventListeners(userId, steamAccount.accountName);
 
   steamAccount = { ...steamAccount, ...loginData };
@@ -135,7 +142,7 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
  * reobtain authTokens, and login
  * @service
  */
-export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
   // get account
   let steamAccount = await SteamAccountModel.get(userId, body.accountName);
   if (!steamAccount) {
@@ -147,32 +154,22 @@ export async function reObtainAccess(userId: ObjectId, body: AddAccountBody, ws:
   }
 
   if (steamAccount.state.status !== "AccessDenied") {
-    throw new SteamIdlerError("Account does not need to re-obtain auth Tokens.");
+    throw new SteamIdlerError("Account does not need to renew auth tokens.");
   }
 
   // connect to steam
   const { steam } = await connectToSteam(steamAccount.state.proxy);
-  ws.sendInfo("steamaccount/reobtainaccess", "Connected to Steam.");
+  ws.sendInfo("steamaccount/authrenew", "Connected to Steam.");
 
   // get auth tokens
   const authTokens = await getAuthtokens("add", body, steam, ws);
 
-  // login to steam
-  const data = await steamcmLogin(authTokens, steam);
-  ws.sendInfo("steamaccount/reobtainaccess", "Signed in to steam servers.");
-  await steamWebLogin(steamAccount.auth.authTokens.accessToken);
-  ws.sendInfo("steamaccount/reobtainaccess", "Signed in to steam web.");
-
-  // update account
+  // update steam account auth
   await SteamAccountModel.updateField(userId, body.accountName, {
     auth: { ...steamAccount.auth, authTokens },
-    "state.status": "online" as SteamAccount["state"]["status"],
   });
 
-  SteamStore.add(userId, steamAccount.accountName, steam);
-  SteamEventListeners(userId, steamAccount.accountName);
-  delete steamAccount.auth;
-  ws.sendMessage("steamaccount/reobtainaccess", steamAccount);
+  ws.sendMessage("steamaccount/authrenew", "Steam account auth tokens renewed.");
 }
 
 /**
@@ -213,10 +210,11 @@ export async function logout(userId: ObjectId, body: LogoutBody, ws: WebSocket) 
  * Remove a Steam account
  * @controller
  */
-export async function remove(userId: ObjectId, username: string) {
-  await logout(userId, { accountName: username }, null);
-  const steamAccount = await SteamAccountModel.remove(userId, username);
+export async function remove(userId: ObjectId, accountName: string, ws: WebSocket) {
+  await logout(userId, { accountName }, ws);
+  const steamAccount = await SteamAccountModel.remove(userId, accountName);
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
+  ws.sendMessage("steamaccount/remove", "Account removed.");
 }
 
 async function steamcmLogin(authtokens: AuthTokens, steam: Steam) {
@@ -272,7 +270,6 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
     } else if (body.authType === "SteamGuardCode") {
       // sumit SteamGuardCode to steam
       authTokens = await steam.service.auth.getAuthTokensViaCredentials(body.accountName, body.password);
-      console.log(authTokens);
     }
   } catch (error) {
     steam.disconnect();
@@ -284,11 +281,11 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
 /**
  * Restore account state:  personastate, farming, and idling after login
  */
-async function restoreState(userId: ObjectId, username: string, state: AccountState) {
-  const steam = SteamStore.get(userId, username);
-  if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
+async function restoreState(userId: ObjectId, accountName: string, state: AccountState) {
+  const steam = SteamStore.get(userId, accountName);
+  if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  steam.client.setPersonaState(state.personaState.personaState);
+  //steam.client.setPersonaState(state.personaState.personaState);
 
   // restore farming
   // if (state.farming) {
@@ -306,7 +303,13 @@ async function restoreState(userId: ObjectId, username: string, state: AccountSt
  */
 function SteamEventListeners(userId: ObjectId, accountName: string) {
   const steam = SteamStore.get(userId, accountName);
-  if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
+  if (!steam) throw new SteamIdlerError("Account is not online.");
+
+  steam.on("PersonaStateChanged", async (state) => {
+    await SteamAccountModel.updateField(userId, accountName, {
+      "data.state": state,
+    });
+  });
 
   steam.on("disconnected", async () => {
     // remove from online accounts

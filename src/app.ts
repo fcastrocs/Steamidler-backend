@@ -140,7 +140,7 @@ function registerWebSocketRoutes() {
   WebSocketAPI.addRoute("steamaccount/login", SteamAccountController.login);
   WebSocketAPI.addRoute("steamaccount/logout", SteamAccountController.logout);
   WebSocketAPI.addRoute("steamaccount/loginWeb", SteamCommunityController.steamWebLogin);
-  WebSocketAPI.addRoute("steamaccount/reobtainaccess", SteamAccountController.reObtainAccess);
+  WebSocketAPI.addRoute("steamaccount/authrenew", SteamAccountController.authRenew);
   WebSocketAPI.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
 }
 

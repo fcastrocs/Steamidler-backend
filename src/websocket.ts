@@ -116,15 +116,11 @@ export default class WebSocketAPIServer {
     try {
       await service(ws.userId, message.body, ws);
     } catch (error) {
-      console.log(error);
-      
       if (error instanceof SteamIdlerError) {
         ws.sendError(400, "SteamIdlerError", error.message);
       } else if (error instanceof SteamClientError) {
         ws.sendError(400, "SteamIdlerError", error.message);
       } else {
-        console.log(error);
-        
         ws.sendError(500, "Exception", error.message);
       }
     }
