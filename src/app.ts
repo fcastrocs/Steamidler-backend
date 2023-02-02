@@ -166,7 +166,15 @@ function afterMiddleWare() {
 function CreateHttpsServer() {
   const port = process.env.PORT || 8000;
 
-  return https.createServer(app).listen(port, () => {
-    console.log(`HTTP server is running at port ${port}`);
-  });
+  return https
+    .createServer(
+      {
+        key: readFileSync("./cert/key.pem"),
+        cert: readFileSync("./cert/cert.pem"),
+      },
+      app
+    )
+    .listen(port, () => {
+      console.log(`HTTPS server is running at port ${port}`);
+    });
 }
