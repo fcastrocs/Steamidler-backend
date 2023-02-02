@@ -19,7 +19,7 @@ import {
   RemoveBody,
   UpdateWithSteamGuardCodeBody,
 } from "../../@types/addSteamAccount.js";
-import { AuthTokens, Confirmation } from "@machiavelli/steam-client/@types/services/Auth.js";
+import { AuthTokens, Confirmation } from "@machiavelli/steam-client";
 
 /**
  * Add new account
