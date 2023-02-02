@@ -1,6 +1,6 @@
 import { RawData, WebSocket, WebSocketServer } from "ws";
 import { WebSocketReqBody } from "../@types";
-import http from "http";
+import https from "https";
 import { verifyAuth } from "./controllers/auth.js";
 import Cookie from "cookie";
 import { SteamIdlerError } from "./commons.js";
@@ -127,8 +127,8 @@ export default class WebSocketAPIServer {
   /**
    * Handle http socket to websocket upgrade
    */
-  public upgrade(httpServer: http.Server) {
-    httpServer.on("upgrade", (req, socket, head) => {
+  public upgrade(httpsServer: https.Server) {
+    httpsServer.on("upgrade", (req, socket, head) => {
       this.wss.handleUpgrade(req, socket, head, async (ws) => {
         if (!req.headers.cookie) {
           return ws.close(4001, "Not authenticated");
