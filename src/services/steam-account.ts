@@ -294,17 +294,6 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
   const steam = SteamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  steam.on("AccountLoggedOff", async (eresult) => {
-    await logout(userId, { accountName }, null);
-    // access revoked
-    if (eresult === "Revoked") {
-      await SteamAccountModel.updateField(userId, accountName, {
-        "state.status": "AccessDenied" as SteamAccount["state"]["status"],
-      });
-    }
-    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
-  });
-
   //steam.client.setPersonaState(state.personaState.personaState);
 
   // restore farming
@@ -329,6 +318,17 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
     await SteamAccountModel.updateField(userId, accountName, {
       "data.state": state,
     });
+  });
+
+  steam.on("AccountLoggedOff", async (eresult) => {
+    await logout(userId, { accountName }, null);
+    // access revoked
+    if (eresult === "Revoked") {
+      await SteamAccountModel.updateField(userId, accountName, {
+        "state.status": "AccessDenied" as SteamAccount["state"]["status"],
+      });
+    }
+    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
   });
 
   steam.on("disconnected", async () => {
