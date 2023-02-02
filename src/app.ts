@@ -17,13 +17,13 @@ import * as mongodb from "./db.js";
 import { setCookie, SteamIdlerError } from "./commons.js";
 import { verifyAuth } from "./controllers/auth.js";
 import { readFileSync } from "fs";
-import https from "https";
+import http from "http";
 import wss from "./websocket.js";
 
 const app = express();
-const httpsServer = CreateHttpsServer();
+const httpServer = CreateHttpServer();
 const WebSocketAPI = new wss();
-WebSocketAPI.upgrade(httpsServer);
+WebSocketAPI.upgrade(httpServer);
 
 const REQUEST_BODY_SIZE = 1048576; // 1 MB
 
@@ -163,18 +163,10 @@ function afterMiddleWare() {
   });
 }
 
-function CreateHttpsServer() {
+function CreateHttpServer() {
   const port = process.env.PORT || 8000;
 
-  return https
-    .createServer(
-      {
-        key: readFileSync("./cert/key.pem"),
-        cert: readFileSync("./cert/cert.pem"),
-      },
-      app
-    )
-    .listen(port, () => {
-      console.log(`HTTPS server is running at port ${port}`);
-    });
+  return http.createServer(app).listen(port, () => {
+    console.log(`HTTP server is running at port ${port}`);
+  });
 }
