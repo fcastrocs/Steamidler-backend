@@ -3,6 +3,7 @@ import express, { Response, Request, NextFunction } from "express";
 import { Db, MongoClient } from "mongodb";
 import rateLimiter from "@machiavelli/express-rate-limiter";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 
 import userRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
@@ -74,6 +75,11 @@ async function createCollections(db: Db) {
  * Express before-Middleware
  */
 function beforeMiddleware(client: MongoClient) {
+  app.use(
+    cors({
+      origin: "http://steamidler.com",
+    })
+  );
   app.use(cookieParser());
   app.use(express.json({ limit: REQUEST_BODY_SIZE }));
 
