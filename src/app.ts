@@ -77,7 +77,7 @@ async function createCollections(db: Db) {
 function beforeMiddleware(client: MongoClient) {
   app.use(
     cors({
-      origin: "http://steamidler.com",
+      origin: ["http://steamidler.com", "https://steamidler.com"],
     })
   );
   app.use(cookieParser());
