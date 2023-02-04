@@ -79,7 +79,7 @@ function beforeMiddleware(client: MongoClient) {
     cors({
       origin: ["http://steamidler.com", "https://steamidler.com"],
       credentials: true,
-      allowedHeaders: ["origin", "X-Requested-With", "Content-Type", "Accept"],
+      allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept"],
     })
   );
   app.use(cookieParser());
