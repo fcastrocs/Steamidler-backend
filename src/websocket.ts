@@ -1,10 +1,10 @@
 import { RawData, WebSocket, WebSocketServer } from "ws";
 import { WebSocketReqBody } from "../@types";
 import http from "http";
-import { verifyAuth } from "./controllers/auth.js";
 import Cookie from "cookie";
 import { SteamIdlerError } from "./commons.js";
 import { SteamClientError } from "@machiavelli/steam-client";
+import { verifyAuth } from "./services/user.js";
 
 export default class WebSocketAPIServer {
   private readonly websockets: { [objectId: string]: WebSocket } = {};

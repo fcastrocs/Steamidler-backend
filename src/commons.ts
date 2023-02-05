@@ -61,11 +61,7 @@ export async function SteamAccountExistsOnline(
 
 export function encrypt(data: string): string {
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(
-    "aes-256-cbc",
-    Buffer.from(process.env.ENCRYPTION_KEY),
-    iv
-  );
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(data, "utf-8", "hex");
   encrypted += cipher.final("hex");
   return `${iv.toString("hex")}:${encrypted}`;
@@ -74,11 +70,7 @@ export function encrypt(data: string): string {
 export function decrypt(data: string): string {
   const dataParts = data.split(":");
   const iv = Buffer.from(dataParts[0], "hex");
-  const decipher = crypto.createDecipheriv(
-    "aes-256-cbc",
-    Buffer.from(process.env.ENCRYPTION_KEY),
-    iv
-  );
+  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(process.env.ENCRYPTION_KEY), iv);
   let decrypted = decipher.update(dataParts[1], "hex", "utf-8");
   decrypted += decipher.final("utf-8");
   return decrypted;
@@ -105,8 +97,7 @@ export function isIntArray(variable: unknown) {
   if (!Array.isArray(variable)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
 
   // must be and int array
-  if (variable.some((i) => !Number.isInteger(i)))
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  if (variable.some((i) => !Number.isInteger(i))) throw new SteamIdlerError(ERRORS.INVALID_BODY);
 }
 
 export function setCookie(name: string, value: string, res: Response) {
@@ -114,10 +105,9 @@ export function setCookie(name: string, value: string, res: Response) {
   const date = new Date();
   date.setFullYear(date.getFullYear() + 10);
   res.cookie(name, value, {
-    httpOnly: true,
-    secure: true,
     expires: date,
-    domain:
-      process.env.NODE_ENV === "production" ? ".steamidler.com" : "localhost",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    domain: process.env.NODE_ENV === "production" ? ".steamidler.com" : "localhost",
   });
 }

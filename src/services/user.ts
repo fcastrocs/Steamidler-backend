@@ -1,96 +1,72 @@
-import argon2 from "argon2";
 import { ERRORS, SteamIdlerError } from "../commons.js";
+import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
+import { ObjectId } from "mongodb";
+import argon2 from "argon2";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invites.js";
 import * as RefreshTokensModel from "../models/refresh-tokens.js";
-import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
-import { ObjectId } from "mongodb";
-import fetch from "node-fetch";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import fetch from "node-fetch";
+import { RegisterBody, LoginBody, LogoutBody } from "../../@types/controllers/user.js";
 
-// https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
-const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.* ).{8,32}$/;
-const EMAIL_REX =
-  /^(("[\w\-\s]+")|([\w-]+(?:\.[\w-]+)*)|("[\w\-\s]+")([\w-]+(?:\.[\w-]+)*))(@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,24}(?:\.[a-z]{2})?)$)|(@\[?((25[0-5]\.|2[0-4][0-9]\.|1[0-9]{2}\.|[0-9]{1,2}\.))((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\.){2}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\]?$)/i;
-const USERNAME_REX = /[a-zA-Z0-9]{3,12}/;
-
-/**
- * Register a new user
- * @Controller
- */
-export async function register(user: Partial<User>, inviteCode: string, g_response: string) {
-  // verify google recaptcha
-  if (process.env.NODE_ENV === "production") {
-    await recaptchaVerify(g_response);
+export async function register(body: RegisterBody) {
+  // check if this email has an invite
+  if (!(await InviteModel.exits({ email: body.email, code: body.inviteCode }))) {
+    throw new SteamIdlerError("Invalid invite code.");
   }
-
-  // validate username
-  if (!USERNAME_REX.test(user.username)) throw new SteamIdlerError("InvalidUsername");
-
-  // validate email
-  if (!EMAIL_REX.test(user.email)) throw new SteamIdlerError("InvalidEmail");
-
-  // validate password
-  if (!PASSWORD_REGEX.test(user.password)) throw new SteamIdlerError("InvalidPassword");
-
-  // sanitize email
-  user.email = user.email.toLowerCase();
 
   // check if user exists
-  if (await UsersModel.get(user.email)) throw new SteamIdlerError(ERRORS.EXISTS);
+  if (await UsersModel.get(body.email)) throw new SteamIdlerError("Email already exists.");
 
-  // check if this email has an invite
-  if (!(await InviteModel.exits({ email: user.email, code: inviteCode }))) {
-    throw new SteamIdlerError(ERRORS.NOTFOUND);
-  }
+  const user: User = {
+    _id: new ObjectId(),
+    username: body.username,
+    email: body.email,
+    password: body.password,
+    ip: body.ip,
+  } as User;
 
   // finish creating user
-  user._id = new ObjectId();
   user.password = await argon2.hash(user.password);
   user.createdAt = new Date();
 
   // store user to database
-  user = await UsersModel.add(user as User);
+  await UsersModel.add(user);
 
   // remove invite
   await InviteModel.remove(user.email);
 
   // create authentication
-  return await createAuthentication(user._id);
+  const auth = await createAuthentication(user._id);
+
+  return { accessToken: auth.accessToken, refreshToken: auth.refreshToken };
 }
 
-/**
- * Authenticate user
- * @Controller
- */
-export async function login(email: string, password: string, g_response: string) {
+export async function login(body: LoginBody) {
   // verify google recaptcha
   if (process.env.NODE_ENV === "production") {
-    await recaptchaVerify(g_response);
+    await recaptchaVerify(body.g_response);
   }
 
-  // sanitize email
-  email = email.toLowerCase();
-
   // check if user exists
-  const user = await UsersModel.get(email);
-  if (!user) throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
+  const user = await UsersModel.get(body.email);
+  if (!user) throw new SteamIdlerError("Check your credentials.");
 
   // Verify password
-  if (!(await argon2.verify(user.password, password))) {
-    throw new SteamIdlerError(ERRORS.BAD_PASSWORD_EMAIL);
+  if (!(await argon2.verify(user.password, body.password))) {
+    throw new SteamIdlerError("Check your credentials.");
   }
 
   // create authentication
-  return await createAuthentication(user._id);
+  const auth = await createAuthentication(user._id);
+  return { accessToken: auth.accessToken, refreshToken: auth.refreshToken };
 }
 
 /**
- * Authenticate user
- * @Controller
+ * Terminate user session
  */
-export async function logout(userId: ObjectId) {
-  await RefreshTokensModel.remove(userId);
+export async function logout(body: LogoutBody) {
+  await RefreshTokensModel.remove(body.userId);
 }
 
 /**

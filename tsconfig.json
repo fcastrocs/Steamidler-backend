@@ -13,8 +13,7 @@
     "allowUnreachableCode": false,
     "noImplicitReturns": true,
     "outDir": "lib/",
-    "baseUrl": "src/"
   },
-  "include": ["src/**/*", "@types"],
+  "include": ["./src/**/*", "@types/**/*"],
   "compileOnSave": false
 }
