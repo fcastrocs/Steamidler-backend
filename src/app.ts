@@ -5,7 +5,7 @@ import rateLimiter from "@machiavelli/express-rate-limiter";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-import userRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
 import SteamClientAction from "./routes/steamclient-actions.js";
@@ -16,10 +16,9 @@ import * as steamweb from "./controllers/steamweb.js";
 
 import * as mongodb from "./db.js";
 import { setCookie, SteamIdlerError } from "./commons.js";
-import { verifyAuth } from "./controllers/auth.js";
-import { readFileSync } from "fs";
 import http from "http";
 import wss from "./websocket.js";
+import { verifyAuth } from "./services/user.js";
 
 const app = express();
 const httpServer = CreateHttpServer();
@@ -77,11 +76,11 @@ async function createCollections(db: Db) {
 function beforeMiddleware(client: MongoClient) {
   app.use(
     cors({
-      origin: ["http://steamidler.com", "https://steamidler.com"],
+      origin: process.env.NODE_ENV === "production" ? "https://steamidler.com" : "http://localhost:3000",
       credentials: true,
-      allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept"],
     })
   );
+
   app.use(cookieParser());
   app.use(express.json({ limit: REQUEST_BODY_SIZE }));
 
