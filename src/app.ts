@@ -76,7 +76,7 @@ async function createCollections(db: Db) {
 function beforeMiddleware(client: MongoClient) {
   app.use(
     cors({
-      origin: process.env.NODE_ENV === "production" ? "https://steamidler.com" : "http://localhost:3000",
+      origin: process.env.ORIGIN || "http://localhost:3000",
       credentials: true,
     })
   );
@@ -172,7 +172,6 @@ function afterMiddleWare() {
 
 function CreateHttpServer() {
   const port = process.env.PORT || 8000;
-
   return http.createServer(app).listen(port, () => {
     console.log(`HTTP server is running at port ${port}`);
   });

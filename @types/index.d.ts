@@ -10,7 +10,7 @@ declare global {
       ACCESS_SECRET: string;
       REFRESH_SECRET: string;
       ENCRYPTION_KEY: string;
-      NODE_ENV: "production" | "development";
+      NODE_ENV: "production" | "development" | "stage";
       PROXY_USER: string;
       PROXY_PASS: string;
       PROXY_TYPE: string;

@@ -106,8 +106,8 @@ export function setCookie(name: string, value: string, res: Response) {
   date.setFullYear(date.getFullYear() + 10);
   res.cookie(name, value, {
     expires: date,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "stage",
     httpOnly: true,
-    domain: process.env.NODE_ENV === "production" ? ".steamidler.com" : "localhost",
+    domain: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "stage" ? ".steamidler.com" : "localhost",
   });
 }
