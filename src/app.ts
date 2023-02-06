@@ -76,7 +76,7 @@ async function createCollections(db: Db) {
 function beforeMiddleware(client: MongoClient) {
   app.use(
     cors({
-      origin: process.env.ORIGIN || "http://localhost:3000",
+      origin: "https://steamidler.com",
       credentials: true,
     })
   );
