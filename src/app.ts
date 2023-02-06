@@ -8,6 +8,7 @@ import cors from "cors";
 import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
+import index from "./routes/index.js";
 import SteamClientAction from "./routes/steamclient-actions.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
@@ -76,7 +77,7 @@ async function createCollections(db: Db) {
 function beforeMiddleware(client: MongoClient) {
   app.use(
     cors({
-      origin: "https://steamidler.com",
+      origin: process.env.ORIGIN || "http://localhost:3000",
       credentials: true,
     })
   );
@@ -101,8 +102,7 @@ function beforeMiddleware(client: MongoClient) {
     if (req.path.includes("/admin/")) return next();
 
     if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
-      const error = new SteamIdlerError("NotAuthenticated");
-      return res.status(401).send({ name: error.name, message: error.message });
+      return res.status(401).send({ "api-version": process.env.npm_package_version, authenticated: false });
     }
 
     try {
@@ -112,7 +112,7 @@ function beforeMiddleware(client: MongoClient) {
       if (auth.accessToken) setCookie("access-token", auth.accessToken, res);
       return next();
     } catch (error) {
-      return res.status(401).send({ name: error.name, message: error.message });
+      return res.status(401).send({ authenticated: false, name: error.name, message: error.message });
     }
   });
 
@@ -132,6 +132,8 @@ function beforeMiddleware(client: MongoClient) {
  * Register Express Routes
  */
 function registerRoutes() {
+  app.use("/", index);
+
   app.use("/", adminRoutes);
   app.use("/", userRoutes);
   app.use("/", SteamClientAction);

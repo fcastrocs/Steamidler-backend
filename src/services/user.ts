@@ -16,7 +16,7 @@ export async function register(body: RegisterBody) {
   }
 
   // check if user exists
-  if (await UsersModel.get(body.email)) throw new SteamIdlerError("Email already exists.");
+  if (await UsersModel.get({ email: body.email })) throw new SteamIdlerError("Email already exists.");
 
   const user: User = {
     _id: new ObjectId(),
@@ -49,7 +49,7 @@ export async function login(body: LoginBody) {
   }
 
   // check if user exists
-  const user = await UsersModel.get(body.email);
+  const user = await UsersModel.get({ email: body.email });
   if (!user) throw new SteamIdlerError("Check your credentials.");
 
   // Verify password

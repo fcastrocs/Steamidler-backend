@@ -270,14 +270,14 @@ describe("Model users", async () => {
   });
 
   step("get()", async () => {
-    const userReceived = await UsersModel.get(user.email);
+    const userReceived = await UsersModel.get({ email: user.email });
     assert.notEqual(userReceived, null);
     assert.equal(userReceived.email, user.email);
   });
 
   step("remove()", async () => {
     await UsersModel.remove(user.email);
-    const userReceived = await UsersModel.get(user.email);
+    const userReceived = await UsersModel.get({ email: user.email });
     assert.equal(userReceived, null);
   });
 });
