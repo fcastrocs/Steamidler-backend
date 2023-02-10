@@ -42,9 +42,9 @@ declare module "ws" {
   interface WebSocket {
     isAlive: boolean;
     userId: string;
-    sendMessage: (type: string, message: any) => void;
-    sendError: (code: number, type: string, message: string) => void;
-    sendInfo: (type: string, info: any) => void;
+    sendSuccess: (type: string, message?: any) => void;
+    sendError: (name: string, message: string) => void;
+    sendInfo: (type: string, message: any) => void;
   }
 }
 

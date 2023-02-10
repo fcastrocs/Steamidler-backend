@@ -14,7 +14,7 @@ export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws:
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   const avatarURL = await steamWeb.changeAvatar(body.avatarDataURL);
-  ws.sendMessage("steamweb/changeavatar", { avatarURL: avatarURL });
+  ws.sendSuccess("steamweb/changeavatar", { avatarURL: avatarURL });
 }
 
 /**
@@ -25,7 +25,7 @@ export async function clearAliases(userId: ObjectId, body: ClearAliasesBody, ws:
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   await steamWeb.clearAliases();
-  ws.sendMessage("steamweb/clearaliases", "Aliases cleared.");
+  ws.sendSuccess("steamweb/clearaliases", "Aliases cleared.");
 }
 
 /**
@@ -36,7 +36,7 @@ export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody, w
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   await steamWeb.changePrivacy(body.privacy);
-  ws.sendMessage("steamweb/changeprivacy", "Privacy changed.");
+  ws.sendSuccess("steamweb/changeprivacy", "Privacy changed.");
 }
 
 /**

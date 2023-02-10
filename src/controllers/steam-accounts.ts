@@ -3,7 +3,13 @@ import * as SteamAccountService from "../services/steam-account.js";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
 import { WebSocket } from "ws";
-import { AddAccountBody, LoginBody, RemoveBody, UpdateWithSteamGuardCodeBody } from "../../@types/addSteamAccount";
+import {
+  AddAccountBody,
+  GetBody,
+  LoginBody,
+  RemoveBody,
+  UpdateWithSteamGuardCodeBody,
+} from "../../@types/addSteamAccount";
 
 /**
  * Add new account
@@ -117,4 +123,32 @@ export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) 
   }
 
   await SteamAccountService.remove(userId, body, ws);
+}
+
+/**
+ * Get a Steam account
+ * @controller
+ */
+export async function get(userId: ObjectId, body: GetBody, ws: WebSocket) {
+  if (!userId || !body || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  if (!body.accountName) {
+    throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  }
+
+  await SteamAccountService.get(userId, body, ws);
+}
+
+/**
+ * Remove a Steam account
+ * @controller
+ */
+export async function getAll(userId: ObjectId, body: any, ws: WebSocket) {
+  if (!userId || !ws) {
+    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
+  }
+
+  await SteamAccountService.getAll(userId, ws);
 }

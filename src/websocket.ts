@@ -13,6 +13,7 @@ export default class WebSocketAPIServer {
 
   constructor() {
     this.wss.on("connection", (ws, req) => {
+      console.log("connnected");
       const userId = req.body.userId.toString();
 
       // terminate existing websocket for this user
@@ -26,39 +27,40 @@ export default class WebSocketAPIServer {
       ws.userId = userId;
       ws.isAlive = true;
 
-      ws.sendError = (code: number, type: string, message: string) => {
+      ws.sendError = (name: string, message: string) => {
         ws.send(
           JSON.stringify({
-            success: false,
-            code,
-            type,
+            type: "error",
+            name,
             message,
+            success: false,
           })
         );
       };
 
-      ws.sendMessage = (type: string, message: any) => {
+      ws.sendSuccess = (type: string, message?: any) => {
         ws.send(
           JSON.stringify({
             success: true,
             type,
+            message: message,
+          })
+        );
+      };
+
+      ws.sendInfo = (type: string, message: any) => {
+        ws.send(
+          JSON.stringify({
+            type,
             message,
           })
         );
       };
 
-      ws.sendInfo = (type: string, info: any) => {
-        ws.send(
-          JSON.stringify({
-            type,
-            info,
-          })
-        );
-      };
-
-      ws.sendInfo("connected", "I am listening!");
+      ws.sendSuccess("connected");
 
       ws.on("close", () => {
+        console.log("disconnected ws");
         if (ws.isAlive) {
           this.websockets[ws.userId].isAlive = false;
           this.websockets[ws.userId].terminate();
@@ -78,7 +80,7 @@ export default class WebSocketAPIServer {
         try {
           message = JSON.parse(data.toString()) as WebSocketReqBody;
         } catch (error) {
-          ws.sendError(400, "BadRequest", "Bad Content-Type");
+          ws.sendError("BadRequest", "Bad Content-Type");
         }
 
         this.requestHandler(message, ws);
@@ -108,18 +110,18 @@ export default class WebSocketAPIServer {
   private async requestHandler(message: WebSocketReqBody, ws: WebSocket) {
     const service = this.Router.get(message.type);
     if (!service) {
-      return ws.sendError(404, "NotFound", "Bad route");
+      return ws.sendError("NotFound", "Bad route");
     }
 
     try {
       await service(ws.userId, message.body, ws);
     } catch (error) {
       if (error instanceof SteamIdlerError) {
-        ws.sendError(400, "SteamIdlerError", error.message);
+        ws.sendError("SteamIdlerError", error.message);
       } else if (error instanceof SteamClientError) {
-        ws.sendError(400, "SteamIdlerError", error.message);
+        ws.sendError("SteamIdlerError", error.message);
       } else {
-        ws.sendError(500, "Exception", error.message);
+        ws.sendError("UnexpectedException", error.message);
       }
     }
   }

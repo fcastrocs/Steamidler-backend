@@ -1,4 +1,4 @@
-import { ERRORS, SteamIdlerError } from "../commons.js";
+import { SteamIdlerError } from "../commons.js";
 import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
 import argon2 from "argon2";
@@ -9,6 +9,9 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import fetch from "node-fetch";
 import { RegisterBody, LoginBody, LogoutBody } from "../../@types/controllers/user.js";
 
+/**
+ * @Service
+ */
 export async function register(body: RegisterBody) {
   // check if this email has an invite
   if (!(await InviteModel.exits({ email: body.email, code: body.inviteCode }))) {
@@ -42,6 +45,9 @@ export async function register(body: RegisterBody) {
   return { accessToken: auth.accessToken, refreshToken: auth.refreshToken };
 }
 
+/**
+ * @Service
+ */
 export async function login(body: LoginBody) {
   // verify google recaptcha
   if (process.env.NODE_ENV === "production") {
@@ -63,14 +69,15 @@ export async function login(body: LoginBody) {
 }
 
 /**
- * Terminate user session
+ * @Service
  */
 export async function logout(body: LogoutBody) {
   await RefreshTokensModel.remove(body.userId);
 }
 
 /**
- * verify authentication
+ * Verify authentication
+ * @Service
  */
 export async function verifyAuth(
   accessToken: string,

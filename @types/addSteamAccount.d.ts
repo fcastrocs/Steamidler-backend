@@ -33,3 +33,7 @@ export interface LogoutBody {
 export interface RemoveBody {
   accountName: string;
 }
+
+export interface GetBody {
+  accountName: string;
+}

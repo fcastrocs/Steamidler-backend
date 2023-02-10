@@ -96,7 +96,7 @@ function beforeMiddleware(client: MongoClient) {
   // check for authentication
   app.use(async (req, res, next) => {
     // skip user paths
-    if (["/user/login", "/user/register"].includes(req.path)) return next();
+    if (["/user/login", "/user/register", "user/verifyauth"].includes(req.path)) return next();
 
     // skip admin paths
     if (req.path.includes("/admin/")) return next();
@@ -141,6 +141,8 @@ function registerRoutes() {
 }
 
 function registerWebSocketRoutes() {
+  WebSocketAPI.addRoute("steamaccount/get", SteamAccountController.get);
+  WebSocketAPI.addRoute("steamaccount/getall", SteamAccountController.getAll);
   WebSocketAPI.addRoute("steamaccount/add", SteamAccountController.add);
   WebSocketAPI.addRoute("steamaccount/login", SteamAccountController.login);
   WebSocketAPI.addRoute("steamaccount/logout", SteamAccountController.logout);

@@ -40,4 +40,26 @@ router.post(ROUTE + "/logout", async (req, res, next) => {
   }
 });
 
+router.get(ROUTE + "/verifyauth", async (req, res, next) => {
+  if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
+    return res.status(401).send({ authenticated: false });
+  }
+
+  try {
+    const auth = await UsersController.verifyAuth({
+      accessToken: req.cookies["access-token"],
+      refreshToken: req.cookies["refresh-token"],
+    });
+    // set new access token
+    if (auth.accessToken) {
+      setCookie("access-token", auth.accessToken, res);
+    }
+    return res.send({ success: true });
+  } catch (error) {
+    res.clearCookie("access-token");
+    res.clearCookie("refresh-token");
+    return next(error);
+  }
+});
+
 export default router;

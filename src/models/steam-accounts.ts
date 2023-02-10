@@ -70,8 +70,7 @@ export async function get(userId: ObjectId, accountName: string): Promise<SteamA
 export async function getAll(userId: ObjectId): Promise<SteamAccountNonSensitive[]> {
   const collection = await getCollection(collectionName);
   const cursor = collection.find({ userId }, { projection: { auth: 0, userId: 0 } });
-  const accounts = (await cursor.toArray()) as unknown as SteamAccountEncrypted[];
-  return accounts as SteamAccountNonSensitive[];
+  return (await cursor.toArray()) as unknown as SteamAccountNonSensitive[];
 }
 
 /**

@@ -48,3 +48,11 @@ export async function login(body: LoginBody) {
 export async function logout(body: LogoutBody) {
   return await UserService.logout(body);
 }
+
+/**
+ * Authenticate user
+ * @Controller
+ */
+export async function verifyAuth(body: { accessToken: string; refreshToken: string }) {
+  return await UserService.verifyAuth(body.accessToken, body.refreshToken);
+}
