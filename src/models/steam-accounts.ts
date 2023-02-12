@@ -64,6 +64,13 @@ export async function get(userId: ObjectId, accountName: string): Promise<SteamA
   return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
 }
 
+export async function getByAccountName(accountName: string): Promise<SteamAccount> {
+  const collection = await getCollection(collectionName);
+  const doc = await collection.findOne({ accountName });
+  if (!doc) return null;
+  return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
+}
+
 /**
  * Return all steam accounts without sensitive information
  */

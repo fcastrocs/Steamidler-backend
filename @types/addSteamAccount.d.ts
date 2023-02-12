@@ -20,6 +20,7 @@ export type AuthType = "QRcode" | "SteamGuardCode";
 
 export interface UpdateWithSteamGuardCodeBody {
   code: string;
+  guardType: "deviceCode" | "emailCode";
 }
 
 export interface LoginBody {

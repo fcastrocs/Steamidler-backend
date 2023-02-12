@@ -30,7 +30,7 @@ import { AuthTokens, Confirmation } from "@machiavelli/steam-client";
 export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
   // check account already exists
   if (body.accountName) {
-    if (await SteamAccountModel.get(userId, body.accountName)) {
+    if (await SteamAccountModel.getByAccountName(body.accountName)) {
       throw new SteamIdlerError("Account already exists.");
     }
   }
@@ -40,11 +40,13 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
   ws.sendInfo("steamaccount/add", "Connected to Steam.");
 
   // get auth tokens
-  const authTokens = await getAuthtokens("add", body, steam, ws);
+  const authTokens = await getAuthtokens(body, steam, ws);
+
+  ws.sendInfo("steamaccount/add", "Received auth tokens.");
 
   // check if account already exists
   if (body.authType === "QRcode") {
-    if (await SteamAccountModel.get(userId, authTokens.accountName)) {
+    if (await SteamAccountModel.getByAccountName(authTokens.accountName)) {
       throw new SteamIdlerError("Account already exists.");
     }
   }
@@ -153,18 +155,21 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
 /**
  *  emits "steamaccount/waitingForConfirmation" -> confirmation
  */
-async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Steam, ws: WebSocket) {
+async function getAuthtokens(body: AddAccountBody, steam: Steam, ws: WebSocket) {
   // register event before getting authTokens
-  steam.once("waitingForConfirmation", (confirmation: Confirmation) => {
-    // got confirmation from user
-    if (confirmation.guardType && (confirmation.guardType === "emailCode" || confirmation.guardType === "deviceCode")) {
-      ws.once("updateWithSteamGuardCode", (body: UpdateWithSteamGuardCodeBody) => {
-        steam.service.auth.updateWithSteamGuardCode(body.code, confirmation.guardType);
-      });
-    }
-
+  steam.on("waitingForConfirmation", (confirmation: Confirmation) => {
     // send confirmation request to user
     ws.sendInfo("steamaccount/waitingForConfirmation", confirmation);
+  });
+
+  // got steam guard code confirmation from user
+  ws.on("updateWithSteamGuardCode", async (body: UpdateWithSteamGuardCodeBody, callback: (error?: Error) => void) => {
+    try {
+      await steam.service.auth.updateWithSteamGuardCode(body.code, body.guardType);
+      callback();
+    } catch (error) {
+      callback(error);
+    }
   });
 
   // get authTokens
@@ -175,7 +180,12 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
     } else if (body.authType === "SteamGuardCode") {
       authTokens = await steam.service.auth.getAuthTokensViaCredentials(body.accountName, body.password);
     }
+
+    ws.sendSuccess("steamaccount/confirmedByUser");
+
+    ws.removeAllListeners("updateWithSteamGuardCode");
   } catch (error) {
+    ws.removeAllListeners("updateWithSteamGuardCode");
     steam.disconnect();
     throw error;
   }
@@ -187,13 +197,23 @@ async function getAuthtokens(routeName: string, body: AddAccountBody, steam: Ste
  * @service
  * emits "steamaccount/updateWithSteamGuardCode" -> null
  */
-export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWithSteamGuardCodeBody, ws: WebSocket) {
+export async function updateWithSteamGuardCode(body: UpdateWithSteamGuardCodeBody, ws: WebSocket): Promise<void> {
   if (!ws.listeners("updateWithSteamGuardCode").length) {
     ws.sendError("steamaccount/updateWithSteamGuardCode", "Account is not waiting for confirmation.");
-  } else {
-    ws.sendSuccess("steamaccount/updateWithSteamGuardCode");
-    ws.emit("updateWithSteamGuardCode", body);
+    return;
   }
+
+  return new Promise((resolve, reject) => {
+    function callback(error?: Error) {
+      if (!error) {
+        resolve();
+      } else {
+        reject(error);
+      }
+    }
+
+    ws.emit("updateWithSteamGuardCode", body, callback);
+  });
 }
 
 /**
@@ -244,7 +264,7 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebS
   ws.sendInfo("steamaccount/authrenew", "Connected to Steam.");
 
   // get auth tokens
-  const authTokens = await getAuthtokens("add", body, steam, ws);
+  const authTokens = await getAuthtokens(body, steam, ws);
 
   // update steam account auth
   await SteamAccountModel.updateField(userId, body.accountName, {

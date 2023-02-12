@@ -43,11 +43,11 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
-  if (!body.code) {
+  if (!body.code || !body.guardType) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.updateWithSteamGuardCode(userId, body, ws);
+  await SteamAccountService.updateWithSteamGuardCode(body, ws);
 }
 
 /**
