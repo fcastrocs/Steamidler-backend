@@ -89,12 +89,13 @@ export async function verifyAuth(
     if (payload.aud !== "access") throw "bad";
     return { userId: new ObjectId(payload.sub) };
   } catch (error) {
+    // do not throw if the access-token is expired, we should renew it.
     if (!(error instanceof jwt.TokenExpiredError)) {
       throw new SteamIdlerError("NotAuthenticated");
     }
   }
 
-  // access token is not valid, validate refresh-token, the refresh access-token
+  // validate refresh-token before renewing access-token
   try {
     const payload = jwt.verify(refreshToken, process.env.ACCESS_SECRET) as JwtPayload;
     if (payload.aud !== "refresh") throw "bad";
@@ -102,7 +103,7 @@ export async function verifyAuth(
     throw new SteamIdlerError("NotAuthenticated");
   }
 
-  // check refresh-token  matches the one in DB, otherwise this is an invalid token
+  // validate refresh-token against DB
   const payload = jwt.decode(refreshToken) as JwtPayload;
   const userId = new ObjectId(payload.sub);
   if (!(await RefreshTokensModel.has({ userId, token: refreshToken }))) {

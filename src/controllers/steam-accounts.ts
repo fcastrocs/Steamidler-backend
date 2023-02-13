@@ -2,7 +2,6 @@ import * as SteamAccountService from "../services/steam-account.js";
 
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
-import { WebSocket } from "ws";
 import {
   AddAccountBody,
   GetBody,
@@ -15,8 +14,8 @@ import {
  * Add new account
  * @controller
  */
-export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function add(userId: ObjectId, body: AddAccountBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -35,11 +34,11 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
   // lowercase accountName
   if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
 
-  await SteamAccountService.add(userId, body, ws);
+  await SteamAccountService.add(userId, body);
 }
 
-export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWithSteamGuardCodeBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWithSteamGuardCodeBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -47,15 +46,15 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.updateWithSteamGuardCode(body, ws);
+  await SteamAccountService.updateWithSteamGuardCode(userId, body);
 }
 
 /**
  * login a Steam account
  * @controller
  */
-export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function login(userId: ObjectId, body: LoginBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -63,15 +62,15 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.login(userId, body, ws);
+  await SteamAccountService.login(userId, body);
 }
 
 /**
  * Logout a Steam account
  * @controller
  */
-export async function logout(userId: ObjectId, body: LoginBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function logout(userId: ObjectId, body: LoginBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -79,15 +78,15 @@ export async function logout(userId: ObjectId, body: LoginBody, ws: WebSocket) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.logout(userId, body, ws);
+  await SteamAccountService.logout(userId, body);
 }
 
 /**
  * Logout a Steam account
  * @controller
  */
-export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function authRenew(userId: ObjectId, body: AddAccountBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -106,15 +105,15 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebS
   // lowercase accountName
   if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
 
-  await SteamAccountService.authRenew(userId, body, ws);
+  await SteamAccountService.authRenew(userId, body);
 }
 
 /**
  * Remove a Steam account
  * @controller
  */
-export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function remove(userId: ObjectId, body: RemoveBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -122,15 +121,15 @@ export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) 
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.remove(userId, body, ws);
+  await SteamAccountService.remove(userId, body);
 }
 
 /**
  * Get a Steam account
  * @controller
  */
-export async function get(userId: ObjectId, body: GetBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+export async function get(userId: ObjectId, body: GetBody) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -138,17 +137,17 @@ export async function get(userId: ObjectId, body: GetBody, ws: WebSocket) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamAccountService.get(userId, body, ws);
+  await SteamAccountService.get(userId, body);
 }
 
 /**
  * Remove a Steam account
  * @controller
  */
-export async function getAll(userId: ObjectId, body: any, ws: WebSocket) {
-  if (!userId || !ws) {
+export async function getAll(userId: ObjectId, body: any) {
+  if (!userId) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
-  await SteamAccountService.getAll(userId, ws);
+  await SteamAccountService.getAll(userId);
 }

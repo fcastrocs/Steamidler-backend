@@ -5,27 +5,42 @@ import Cookie from "cookie";
 import { SteamIdlerError } from "./commons.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { verifyAuth } from "./services/user.js";
+import { ObjectId } from "mongodb";
 
 export default class WebSocketAPIServer {
-  private readonly websockets: { [objectId: string]: WebSocket } = {};
-  private readonly wss = new WebSocketServer({ noServer: true });
+  private readonly websockets: Map<string, WebSocket> = new Map();
+  private readonly ws = new WebSocketServer({ noServer: true });
   private readonly Router = new Map<string, Function>();
 
   constructor() {
-    this.wss.on("connection", (ws, req) => {
-      console.log("connnected");
+    this.ws.on("connection", (ws, req) => {
       const userId = req.body.userId.toString();
 
       // terminate existing websocket for this user
-      if (this.websockets[userId]) {
-        this.websockets[userId].isAlive = false;
-        this.websockets[userId].terminate();
+      if (this.websockets.has(userId)) {
+        const ws = this.websockets.get(userId);
+        ws.isAlive = false;
+        ws.terminate();
       }
 
       // establish websocket
-      this.websockets[userId] = ws;
+      this.websockets.set(userId, ws);
       ws.userId = userId;
       ws.isAlive = true;
+
+      // message listener
+      ws.on("message", (data: RawData, isBinary: boolean) => {
+        let message = {} as WebSocketReqBody;
+
+        // make sure body is a JSON
+        try {
+          message = JSON.parse(data.toString()) as WebSocketReqBody;
+        } catch (error) {
+          ws.sendError("BadRequest", "Bad Content-Type");
+        }
+
+        this.requestHandler(message, ws.userId);
+      });
 
       ws.sendError = (name: string, message: string) => {
         ws.send(
@@ -57,73 +72,67 @@ export default class WebSocketAPIServer {
         );
       };
 
-      ws.sendSuccess("connected");
-
       ws.on("close", () => {
-        console.log("disconnected ws");
         if (ws.isAlive) {
-          this.websockets[ws.userId].isAlive = false;
-          this.websockets[ws.userId].terminate();
-          this.websockets[ws.userId] = null;
+          ws.isAlive = false;
+          ws.terminate();
+          // this.websockets.delete(userId);
         }
       });
 
       // got ping response from user
-      ws.on("pong", () => {
-        ws.isAlive = true;
-      });
+      ws.on("pong", () => (ws.isAlive = true));
 
-      ws.on("message", (data: RawData, isBinary: boolean) => {
-        let message = {} as WebSocketReqBody;
+      ws.sendSuccess("connected");
+    });
 
-        // make sure body is a JSON
-        try {
-          message = JSON.parse(data.toString()) as WebSocketReqBody;
-        } catch (error) {
-          ws.sendError("BadRequest", "Bad Content-Type");
+    this.heartbeat();
+  }
+
+  private heartbeat() {
+    // ping websockets interval
+    setInterval(() => {
+      for (const ws of this.ws.clients) {
+        // make sure it has not been previously disconnected
+        if (!ws.isAlive) {
+          ws.terminate();
+          this.websockets.delete(ws.userId);
+          continue;
         }
 
-        this.requestHandler(message, ws);
-      });
-
-      // ping websockets interval
-      // setInterval(() => {
-      //   for (const ws of this.wss.clients) {
-      //     // make sure it has not been previously disconnected
-      //     if (!ws.isAlive) {
-      //       this.websockets[ws.userId] = null;
-      //       ws.terminate();
-      //       continue;
-      //     }
-
-      //     ws.isAlive = false;
-      //     ws.ping();
-      //   }
-      // }, 10000);
-    });
+        ws.isAlive = false;
+        ws.ping();
+      }
+    }, 10000);
   }
 
   public addRoute(route: string, controller: Function) {
     this.Router.set(route, controller);
   }
 
-  private async requestHandler(message: WebSocketReqBody, ws: WebSocket) {
+  private async requestHandler(message: WebSocketReqBody, userId: string) {
     const service = this.Router.get(message.type);
     if (!service) {
-      return ws.sendError("NotFound", "Bad route");
+      this.send({ type: "Error", userId, routeName: "NotFound", message: "Bad route" });
     }
 
     try {
-      await service(ws.userId, message.body, ws);
+      await service(userId, message.body);
     } catch (error) {
-      if (error instanceof SteamIdlerError) {
-        ws.sendError("SteamIdlerError", error.message);
-      } else if (error instanceof SteamClientError) {
-        ws.sendError("SteamIdlerError", error.message);
-      } else {
-        ws.sendError("UnexpectedException", error.message);
-      }
+      this.send({ type: "Error", userId, routeName: error.name, message: error.message });
     }
+  }
+
+  public send(body: {
+    type: "Info" | "Error" | "Success";
+    routeName: string;
+    userId: ObjectId | string;
+    message?: any;
+  }) {
+    const ws = this.websockets.get(body.userId.toString());
+    if (!ws) return;
+
+    ws[`send${body.type}`](body.routeName, body.message);
   }
 
   /**
@@ -131,7 +140,7 @@ export default class WebSocketAPIServer {
    */
   public upgrade(httpServer: http.Server) {
     httpServer.on("upgrade", (req, socket, head) => {
-      this.wss.handleUpgrade(req, socket, head, async (ws) => {
+      this.ws.handleUpgrade(req, socket, head, async (ws) => {
         if (!req.headers.cookie) {
           return ws.close(4001, "Not authenticated");
         }
@@ -145,7 +154,7 @@ export default class WebSocketAPIServer {
         try {
           const auth = await verifyAuth(cookie["access-token"], cookie["refresh-token"]);
           req.body = { userId: auth.userId };
-          this.wss.emit("connection", ws, req);
+          this.ws.emit("connection", ws, req);
         } catch (error) {
           return ws.close(4001, "Not authenticated");
         }

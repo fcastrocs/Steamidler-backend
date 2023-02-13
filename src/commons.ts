@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "./models/steam-accounts.js";
 import { Proxy, SteamAccount } from "../@types";
-import SteamStore from "./models/steam-store.js";
+import { steamStore } from "./app.js";
 
 import { Response } from "express";
 import { ObjectId } from "mongodb";
@@ -52,7 +52,7 @@ export async function SteamAccountExistsOnline(
     throw new SteamIdlerError(ERRORS.NOTFOUND);
   }
 
-  const steam = SteamStore.get(userId, username);
+  const steam = steamStore.get(userId, username);
   if (!steam) {
     throw new SteamIdlerError(ERRORS.NOTONLINE);
   }

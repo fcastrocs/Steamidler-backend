@@ -4,6 +4,7 @@ import * as SteamAccountModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
 import { ObjectId } from "mongodb";
 import { FarmableGame } from "@machiavelli/steam-web";
+import { steamStore } from "../app.js";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -50,14 +51,14 @@ export async function stop(userId: ObjectId, username: string) {
 
   clearInterval(interval);
 
-  const steam = SteamStore.get(userId, username);
+  const steam = steamStore.get(userId, username);
   if (steam) steam.client.gamesPlayed([]);
 
   await SteamAccountModel.updateField(userId, username, { "state.farming": false });
 }
 
 async function farmingAlgo(userId: ObjectId, username: string) {
-  const steam = SteamStore.get(userId, username);
+  const steam = steamStore.get(userId, username);
   if (!steam) throw new SteamIdlerError(ERRORS.NOTONLINE);
 
   // stop idling

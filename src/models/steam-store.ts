@@ -6,55 +6,51 @@ import { ObjectId } from "mongodb";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 
 type userId = ObjectId;
-type username = string;
-type Accounts = Map<username, Steam>;
-
-const Store: Map<userId, Accounts> = new Map();
+type accountName = string;
+type Accounts = Map<accountName, Steam>;
 
 export default class SteamStore {
+  private store: Map<userId, Accounts> = new Map();
+
+  constructor() {}
+
   /**
    * Stores a steam intance to this user
    */
-  static add(userId: ObjectId, username: string, steam: Steam): void {
-    // make sure there are no duplicates.
-    if (this.has(userId, username)) throw new SteamIdlerError(ERRORS.EXISTS);
-
-    let accounts = Store.get(userId);
+  public add(userId: ObjectId, accountName: string, steam: Steam): void {
+    let accounts = this.store.get(userId);
     // this user doesn't have a store
     if (!accounts) {
       accounts = new Map();
     }
+
+    // make sure there are no duplicates.
+    if (accounts.get(accountName)) {
+      throw new SteamIdlerError(ERRORS.EXISTS);
+    }
+
     // save steam instance
-    accounts.set(username, steam);
-    Store.set(userId, accounts);
+    accounts.set(accountName, steam);
+    this.store.set(userId, accounts);
   }
 
   /**
    * Get Steam instance for this account
    */
-  static get(userId: ObjectId, username: string): Steam {
-    const accounts = Store.get(userId);
+  public get(userId: ObjectId, accountName: string): Steam {
+    const accounts = this.store.get(userId);
     if (!accounts) return null;
-    return accounts.get(username);
-  }
-
-  /**
-   * Checks if user already has this account in store
-   */
-  static has(userId: ObjectId, username: string): boolean {
-    const steam = this.get(userId, username);
-    if (!steam) return false;
-    return true;
+    return accounts.get(accountName);
   }
 
   /**
    * Remove an account from user store
    */
-  static remove(userId: ObjectId, username: string): Steam {
-    const accounts = Store.get(userId);
+  public remove(userId: ObjectId, accountName: string): Steam {
+    const accounts = this.store.get(userId);
     if (!accounts) return null;
-    const steam = accounts.get(username);
-    accounts.delete(username);
+    const steam = accounts.get(accountName);
+    accounts.delete(accountName);
     return steam;
   }
 }

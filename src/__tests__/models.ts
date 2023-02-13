@@ -7,6 +7,7 @@ import { AccountState, RefreshToken, SteamAccount, SteamVerify, User } from "../
 import * as SteamVerifyModel from "../models/steam-verifications.js";
 import * as SteamAccountsModel from "../models/steam-accounts.js";
 import SteamStore from "../models/steam-store.js";
+const steamStore = new SteamStore();
 import * as UsersModel from "../models/users.js";
 import * as RefreshTokensModel from "../models/refresh-tokens.js";
 import { ObjectId } from "mongodb";
@@ -188,32 +189,26 @@ describe("Model steam-store", () => {
   const steam2: Steam = {} as Steam;
 
   step("add()", async () => {
-    SteamStore.add(userId, username, steam);
-    SteamStore.add(userId, username + 1, steam2);
+    steamStore.add(userId, username, steam);
+    steamStore.add(userId, username + 1, steam2);
     // try to add duplicate
-    assert.throws(() => SteamStore.add(userId, username + 1, steam2), { message: "Exists", name: "steamidler" });
-    assert.throws(() => SteamStore.add(userId, username, steam), { message: "Exists", name: "steamidler" });
-  });
-
-  step("has()", async () => {
-    assert.equal(SteamStore.has(userId, username), true);
-    assert.equal(SteamStore.has(userId, username + 1), true);
-    assert.equal(SteamStore.has(userId, username + 2), false);
+    assert.throws(() => steamStore.add(userId, username + 1, steam2), { message: "Exists", name: "steamidler" });
+    assert.throws(() => steamStore.add(userId, username, steam), { message: "Exists", name: "steamidler" });
   });
 
   step("get()", async () => {
-    assert.equal(SteamStore.get(userId, username), steam);
-    assert.equal(SteamStore.get(userId, username + 1), steam2);
-    assert.notEqual(SteamStore.get(userId, username), steam2);
-    assert.equal(SteamStore.get(userId, username + 2), null);
-    assert.equal(SteamStore.get(userId2, username + 2), null);
+    assert.equal(steamStore.get(userId, username), steam);
+    assert.equal(steamStore.get(userId, username + 1), steam2);
+    assert.notEqual(steamStore.get(userId, username), steam2);
+    assert.equal(steamStore.get(userId, username + 2), null);
+    assert.equal(steamStore.get(userId2, username + 2), null);
   });
 
   step("remove()", async () => {
-    assert.equal(SteamStore.remove(userId, username), steam);
-    assert.equal(SteamStore.remove(userId, username + 1), steam2);
-    assert.equal(SteamStore.remove(userId, username + 2), null);
-    assert.equal(SteamStore.remove(userId2, username + 2), null);
+    assert.equal(steamStore.remove(userId, username), steam);
+    assert.equal(steamStore.remove(userId, username + 1), steam2);
+    assert.equal(steamStore.remove(userId, username + 2), null);
+    assert.equal(steamStore.remove(userId2, username + 2), null);
   });
 });
 

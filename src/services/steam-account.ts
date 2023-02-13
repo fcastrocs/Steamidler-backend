@@ -1,4 +1,3 @@
-import SteamStore from "../models/steam-store.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import * as ProxyModel from "../models/proxies.js";
 import * as SteamcmModel from "../models/steam-servers.js";
@@ -11,7 +10,6 @@ import { ERRORS, SteamIdlerError } from "../commons.js";
 import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
 import { LoginOptions } from "@machiavelli/steam-client";
-import { WebSocket } from "ws";
 import {
   AddAccountBody,
   GetBody,
@@ -22,12 +20,16 @@ import {
 } from "../../@types/addSteamAccount.js";
 import { AuthTokens, Confirmation } from "@machiavelli/steam-client";
 
+import { wsServer, steamStore, steamTempStore } from "../app.js";
+
 /**
  * Add new account
  * @service
  * emits "steamaccount/add" -> steamaccount
  */
-export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+export async function add(userId: ObjectId, body: AddAccountBody) {
+  const wsBody = { userId, routeName: "steamaccount/add" };
+
   // check account already exists
   if (body.accountName) {
     if (await SteamAccountModel.getByAccountName(body.accountName)) {
@@ -35,14 +37,18 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
     }
   }
 
+  if (steamTempStore.get(userId, body.accountName)) {
+    throw new SteamIdlerError("Account is waiting for confirmation.");
+  }
+
   // connect to steam
   const { steam, proxy } = await connectToSteam();
-  ws.sendInfo("steamaccount/add", "Connected to Steam.");
+  wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
   // get auth tokens
-  const authTokens = await getAuthtokens(body, steam, ws);
+  const authTokens = await getAuthtokens(userId, body, steam);
 
-  ws.sendInfo("steamaccount/add", "Received auth tokens.");
+  wsServer.send({ ...wsBody, type: "Info", message: "Received auth tokens." });
 
   // check if account already exists
   if (body.authType === "QRcode") {
@@ -51,15 +57,18 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
     }
   }
 
-  ws.sendInfo("steamaccount/add", "Signin in to Steam.");
+  wsServer.send({ ...wsBody, type: "Info", message: "Signin in to Steam." });
 
   // login to steam
   const loginData = await steamcmLogin(authTokens, steam);
-  ws.sendInfo("steamaccount/add", "Signed in to steam servers.");
+
+  wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam servers." });
+
   const { items, farmableGames } = await steamWebLogin(authTokens.accessToken, proxy);
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
-  ws.sendInfo("steamaccount/add", "Signed in to steam web.");
+
+  wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   const steamaccount: SteamAccount = {
     userId,
@@ -77,14 +86,15 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
   // save account
   steamaccount.auth.authTokens = authTokens;
   await SteamAccountModel.add(steamaccount);
-  SteamStore.add(userId, authTokens.accountName, steam);
+  steamStore.add(userId, authTokens.accountName, steam);
 
   // add listeners
-  SteamEventListeners(userId, steamaccount.accountName, ws);
+  SteamEventListeners(userId, steamaccount.accountName);
 
   delete steamaccount.auth;
   delete steamaccount.state.proxy;
-  ws.sendSuccess("steamaccount/add", steamaccount);
+
+  wsServer.send({ ...wsBody, type: "Success", message: steamaccount });
 }
 
 /**
@@ -92,26 +102,29 @@ export async function add(userId: ObjectId, body: AddAccountBody, ws: WebSocket)
  * @service
  * emits "steamaccount/login" -> steamaccount
  */
-export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
+export async function login(userId: ObjectId, body: LoginBody) {
+  const wsBody = { userId, routeName: "steamaccount/login" };
+
   // get account
   let steamAccount = await SteamAccountModel.get(userId, body.accountName);
   if (!steamAccount) {
     throw new SteamIdlerError("Account was not found.");
   }
 
-  if (SteamStore.has(userId, body.accountName)) {
+  if (steamStore.get(userId, body.accountName)) {
     throw new SteamIdlerError("Account is already online.");
   }
 
   // connect to steam
   const { steam } = await connectToSteam(steamAccount.state.proxy);
-  if (ws) ws.sendInfo("steamaccount/login", "Connected to Steam.");
+
+  wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
   // login to steam
   let loginData;
   try {
     loginData = await steamcmLogin(steamAccount.auth.authTokens, steam);
-    if (ws) ws.sendInfo("steamaccount/login", "Signed in to steam servers.");
+    wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam servers." });
   } catch (error) {
     // update steam account status
     if (error.message === "AccessDenied") {
@@ -129,7 +142,7 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   );
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
-  if (ws) ws.sendInfo("steamaccount/login", "Signed in to steam web.");
+  wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   // update account
   await SteamAccountModel.updateField(userId, body.accountName, {
@@ -139,37 +152,30 @@ export async function login(userId: ObjectId, body: LoginBody, ws: WebSocket) {
   });
 
   // store steam instance
-  SteamStore.add(userId, steamAccount.accountName, steam);
+  steamStore.add(userId, steamAccount.accountName, steam);
 
   // restore account state
   await restoreState(userId, body.accountName, steamAccount.state);
   // add listeners
-  SteamEventListeners(userId, steamAccount.accountName, ws);
+  SteamEventListeners(userId, steamAccount.accountName);
 
   steamAccount = { ...steamAccount, ...loginData };
   delete steamAccount.auth;
   delete steamAccount.state.proxy;
-  if (ws) ws.sendSuccess("steamaccount/login", steamAccount);
+  wsServer.send({ ...wsBody, type: "Success", message: steamAccount });
 }
 
 /**
  *  emits "steamaccount/waitingForConfirmation" -> confirmation
  */
-async function getAuthtokens(body: AddAccountBody, steam: Steam, ws: WebSocket) {
+async function getAuthtokens(userId: ObjectId, body: AddAccountBody, steam: Steam) {
   // register event before getting authTokens
   steam.on("waitingForConfirmation", (confirmation: Confirmation) => {
-    // send confirmation request to user
-    ws.sendInfo("steamaccount/waitingForConfirmation", confirmation);
-  });
-
-  // got steam guard code confirmation from user
-  ws.on("updateWithSteamGuardCode", async (body: UpdateWithSteamGuardCodeBody, callback: (error?: Error) => void) => {
-    try {
-      await steam.service.auth.updateWithSteamGuardCode(body.code, body.guardType);
-      callback();
-    } catch (error) {
-      callback(error);
+    if (!steamTempStore.get(userId, body.accountName)) {
+      steamTempStore.add(userId, body.accountName, steam);
     }
+    // send confirmation request to user
+    wsServer.send({ userId, type: "Info", routeName: "steamaccount/waitingForConfirmation", message: confirmation });
   });
 
   // get authTokens
@@ -181,11 +187,10 @@ async function getAuthtokens(body: AddAccountBody, steam: Steam, ws: WebSocket) 
       authTokens = await steam.service.auth.getAuthTokensViaCredentials(body.accountName, body.password);
     }
 
-    ws.sendSuccess("steamaccount/confirmedByUser");
-
-    ws.removeAllListeners("updateWithSteamGuardCode");
+    steamTempStore.remove(userId, body.accountName);
+    wsServer.send({ userId, type: "Success", routeName: "steamaccount/confirmedByUser" });
   } catch (error) {
-    ws.removeAllListeners("updateWithSteamGuardCode");
+    steamTempStore.remove(userId, body.accountName);
     steam.disconnect();
     throw error;
   }
@@ -197,22 +202,24 @@ async function getAuthtokens(body: AddAccountBody, steam: Steam, ws: WebSocket) 
  * @service
  * emits "steamaccount/updateWithSteamGuardCode" -> null
  */
-export async function updateWithSteamGuardCode(body: UpdateWithSteamGuardCodeBody, ws: WebSocket): Promise<void> {
-  if (!ws.listeners("updateWithSteamGuardCode").length) {
-    ws.sendError("steamaccount/updateWithSteamGuardCode", "Account is not waiting for confirmation.");
-    return;
+export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWithSteamGuardCodeBody): Promise<void> {
+  const steam = steamTempStore.get(userId, body.accountName);
+
+  if (!steam) {
+    return wsServer.send({
+      userId,
+      type: "Error",
+      routeName: "steamaccount/updateWithSteamGuardCode",
+      message: "Account is not waiting for confirmation.",
+    });
   }
 
-  return new Promise((resolve, reject) => {
-    function callback(error?: Error) {
-      if (!error) {
-        resolve();
-      } else {
-        reject(error);
-      }
-    }
+  await steam.service.auth.updateWithSteamGuardCode(body.code, body.guardType);
 
-    ws.emit("updateWithSteamGuardCode", body, callback);
+  return wsServer.send({
+    userId,
+    type: "Success",
+    routeName: "steamaccount/updateWithSteamGuardCode",
   });
 }
 
@@ -221,22 +228,22 @@ export async function updateWithSteamGuardCode(body: UpdateWithSteamGuardCodeBod
  * @service
  * emits "steamaccount/logout" -> null
  */
-export async function logout(userId: ObjectId, body: LogoutBody, ws: WebSocket) {
+export async function logout(userId: ObjectId, body: LogoutBody) {
   if (!(await SteamAccountModel.get(userId, body.accountName))) throw new SteamIdlerError(ERRORS.NOTFOUND);
 
   // account is online
-  const steam = SteamStore.get(userId, body.accountName);
+  const steam = steamStore.get(userId, body.accountName);
   if (steam) {
     // await Farmer.stop(userId, username);
     steam.disconnect();
-    SteamStore.remove(userId, body.accountName);
+    steamStore.remove(userId, body.accountName);
   }
 
   await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "offline" as SteamAccount["state"]["status"],
   });
 
-  if (ws) ws.sendSuccess("steamaccount/logout");
+  wsServer.send({ userId, routeName: "steamaccount/logout", type: "Success" });
 }
 
 /**
@@ -244,14 +251,14 @@ export async function logout(userId: ObjectId, body: LogoutBody, ws: WebSocket) 
  * @service
  * emits "steamaccount/authrenew" -> null
  */
-export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebSocket) {
+export async function authRenew(userId: ObjectId, body: AddAccountBody) {
   // get account
   let steamAccount = await SteamAccountModel.get(userId, body.accountName);
   if (!steamAccount) {
     throw new SteamIdlerError("Account was not found.");
   }
 
-  if (SteamStore.has(userId, body.accountName)) {
+  if (steamStore.get(userId, body.accountName)) {
     throw new SteamIdlerError("Account is already online.");
   }
 
@@ -261,17 +268,17 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebS
 
   // connect to steam
   const { steam } = await connectToSteam(steamAccount.state.proxy);
-  ws.sendInfo("steamaccount/authrenew", "Connected to Steam.");
+  wsServer.send({ userId, routeName: "steamaccount/authrenew", type: "Info", message: "Connected to Steam." });
 
   // get auth tokens
-  const authTokens = await getAuthtokens(body, steam, ws);
+  const authTokens = await getAuthtokens(userId, body, steam);
 
   // update steam account auth
   await SteamAccountModel.updateField(userId, body.accountName, {
     auth: { ...steamAccount.auth, authTokens },
   });
 
-  ws.sendSuccess("steamaccount/authrenew", "");
+  wsServer.send({ userId, routeName: "steamaccount/authrenew", type: "Success" });
 }
 
 /**
@@ -279,11 +286,11 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody, ws: WebS
  * @Service
  * emits "steamaccount/remove" -> null
  */
-export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) {
-  await logout(userId, { accountName: body.accountName }, ws);
+export async function remove(userId: ObjectId, body: RemoveBody) {
+  await logout(userId, { accountName: body.accountName });
   const steamAccount = await SteamAccountModel.remove(userId, body.accountName);
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
-  ws.sendSuccess("steamaccount/remove");
+  wsServer.send({ userId, routeName: "steamaccount/remove", type: "Success" });
 }
 
 /**
@@ -291,11 +298,11 @@ export async function remove(userId: ObjectId, body: RemoveBody, ws: WebSocket) 
  * @Service
  * emits "steamaccount/get" -> steamaccount
  */
-export async function get(userId: ObjectId, body: GetBody, ws: WebSocket) {
+export async function get(userId: ObjectId, body: GetBody) {
   const steamAccount = await SteamAccountModel.get(userId, body.accountName);
   delete steamAccount.auth;
   delete steamAccount.userId;
-  ws.sendSuccess("steamaccount/get", steamAccount);
+  wsServer.send({ userId, routeName: "steamaccount/get", type: "Success", message: steamAccount });
 }
 
 /**
@@ -303,9 +310,9 @@ export async function get(userId: ObjectId, body: GetBody, ws: WebSocket) {
  * @Service
  * emits "steamaccount/getall" -> steamAccounts[]
  */
-export async function getAll(userId: ObjectId, ws: WebSocket) {
+export async function getAll(userId: ObjectId) {
   const steamAccounts = await SteamAccountModel.getAll(userId);
-  ws.sendSuccess("steamaccount/getall", steamAccounts);
+  wsServer.send({ userId, routeName: "steamaccount/getall", type: "Success", message: steamAccounts });
 }
 
 async function steamcmLogin(authtokens: AuthTokens, steam: Steam) {
@@ -342,7 +349,7 @@ async function connectToSteam(proxy?: Proxy) {
  * Restore account state:  personastate, farming, and idling after login
  */
 async function restoreState(userId: ObjectId, accountName: string, state: AccountState) {
-  const steam = SteamStore.get(userId, accountName);
+  const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
   //steam.client.setPersonaState(state.personaState.personaState);
@@ -361,19 +368,19 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
 /**
  * Handle account disconnects
  */
-function SteamEventListeners(userId: ObjectId, accountName: string, ws: WebSocket) {
-  const steam = SteamStore.get(userId, accountName);
+function SteamEventListeners(userId: ObjectId, accountName: string) {
+  const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
   steam.on("PersonaStateChanged", async (state) => {
-    if (ws) ws.sendInfo("PersonaStateChanged", { accountName, state });
+    wsServer.send({ userId, routeName: "PersonaStateChanged", type: "Info", message: state });
     await SteamAccountModel.updateField(userId, accountName, {
       "data.state": state,
     });
   });
 
   steam.on("AccountLoggedOff", async (eresult) => {
-    await logout(userId, { accountName }, null);
+    await logout(userId, { accountName });
     // access revoked
     if (eresult === "Revoked") {
       await SteamAccountModel.updateField(userId, accountName, {
@@ -385,7 +392,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string, ws: WebSocke
 
   steam.on("disconnected", async () => {
     // remove from online accounts
-    SteamStore.remove(userId, accountName);
+    steamStore.remove(userId, accountName);
 
     // stop farmer
     //await Farmer.stop(userId, username);
@@ -406,7 +413,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string, ws: WebSocke
       console.log(`${accountName}: attempting reconnect...`);
 
       try {
-        await login(userId, { accountName }, null);
+        await login(userId, { accountName });
         console.log(`${accountName}: reconnected successfully`);
       } catch (error) {
         console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}`);
