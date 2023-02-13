@@ -198,6 +198,18 @@ async function getAuthtokens(userId: ObjectId, body: AddAccountBody, steam: Stea
 }
 
 /**
+ * cancel confirmation for steam account
+ * @service
+ * emits "steamaccount/cancelconfirmation" -> null
+ */
+export async function cancelConfirmation(userId: ObjectId, body: { accountName: string }) {
+  const steam = steamTempStore.remove(userId, body.accountName);
+  if (!steam) return;
+  steam.removeAllListeners("waitingForConfirmation");
+  wsServer.send({ type: "Success", routeName: "steamaccount/cancelConfirmation", userId });
+}
+
+/**
  * updateWithSteamGuardCode
  * @service
  * emits "steamaccount/updateWithSteamGuardCode" -> null

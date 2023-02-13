@@ -161,4 +161,8 @@ export default class WebSocketAPIServer {
       });
     });
   }
+
+  public getClient(userId: ObjectId) {
+    return this.websockets.get(userId.toString());
+  }
 }

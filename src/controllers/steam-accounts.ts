@@ -151,3 +151,11 @@ export async function getAll(userId: ObjectId, body: any) {
 
   await SteamAccountService.getAll(userId);
 }
+
+/**
+ * cancel confirmation
+ * @controller
+ */
+export async function cancelConfirmation(userId: ObjectId, body: { accountName: string }) {
+  await SteamAccountService.cancelConfirmation(userId, body);
+}

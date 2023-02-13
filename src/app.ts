@@ -137,6 +137,7 @@ function registerRoutes() {
   wsServer.addRoute("steamaccount/authrenew", SteamAccountController.authRenew);
   wsServer.addRoute("steamaccount/remove", SteamAccountController.remove);
   wsServer.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
+  wsServer.addRoute("steamaccount/cancelConfirmation", SteamAccountController.cancelConfirmation);
 
   wsServer.addRoute("steamweb/changeavatar", steamweb.changeAvatar);
   wsServer.addRoute("steamweb/clearaliases", steamweb.clearAliases);
