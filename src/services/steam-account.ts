@@ -204,8 +204,9 @@ async function getAuthtokens(userId: ObjectId, body: AddAccountBody, steam: Stea
  */
 export async function cancelConfirmation(userId: ObjectId, body: { accountName: string }) {
   const steam = steamTempStore.remove(userId, body.accountName);
-  if (!steam) return;
-  steam.removeAllListeners("waitingForConfirmation");
+  if (steam) {
+    steam.removeAllListeners("waitingForConfirmation");
+  }
   wsServer.send({ type: "Success", routeName: "steamaccount/cancelConfirmation", userId });
 }
 
