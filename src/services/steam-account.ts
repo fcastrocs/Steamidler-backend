@@ -160,7 +160,6 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   steamAccount = { ...steamAccount, ...loginData };
   delete steamAccount.auth;
-  delete steamAccount.state.proxy;
   wsServer.send({ ...wsBody, type: "Success", message: steamAccount });
 }
 
