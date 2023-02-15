@@ -69,7 +69,6 @@ declare module "@machiavelli/steam-client" {
 interface AccountState {
   farming: boolean;
   status: "online" | "offline" | "reconnecting" | "AccessDenied";
-  personaState: State;
   gamesIdsIdle: number[];
   proxy: Proxy;
 }

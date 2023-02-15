@@ -76,7 +76,6 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
     state: {
       farming: false,
       status: "online",
-      personaState: null,
       gamesIdsIdle: [],
       proxy: { ip: proxy.ip, port: proxy.port },
     },
