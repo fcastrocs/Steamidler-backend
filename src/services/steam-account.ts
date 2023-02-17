@@ -32,7 +32,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
 
   // check account already exists
   if (body.accountName) {
-    if (await SteamAccountModel.getByAccountName(body.accountName)) {
+    if (await SteamAccountModel.get({ accountName: body.accountName })) {
       throw new SteamIdlerError("Account already exists.");
     }
   }
@@ -52,7 +52,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
 
   // check if account already exists
   if (body.authType === "QRcode") {
-    if (await SteamAccountModel.getByAccountName(authTokens.accountName)) {
+    if (await SteamAccountModel.get({ accountName: authTokens.accountName })) {
       throw new SteamIdlerError("Account already exists.");
     }
   }
@@ -105,7 +105,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   const wsBody = { userId, routeName: "steamaccount/login" };
 
   // get account
-  let steamAccount = await SteamAccountModel.get(userId, body.accountName);
+  let steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
   if (!steamAccount) {
     throw new SteamIdlerError("Account was not found.");
   }
@@ -240,7 +240,8 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
  * emits "steamaccount/logout" -> null
  */
 export async function logout(userId: ObjectId, body: LogoutBody) {
-  if (!(await SteamAccountModel.get(userId, body.accountName))) throw new SteamIdlerError(ERRORS.NOTFOUND);
+  if (!(await SteamAccountModel.getByUserId(userId, { accountName: body.accountName })))
+    throw new SteamIdlerError(ERRORS.NOTFOUND);
 
   // account is online
   const steam = steamStore.get(userId, body.accountName);
@@ -264,7 +265,7 @@ export async function logout(userId: ObjectId, body: LogoutBody) {
  */
 export async function authRenew(userId: ObjectId, body: AddAccountBody) {
   // get account
-  let steamAccount = await SteamAccountModel.get(userId, body.accountName);
+  let steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
   if (!steamAccount) {
     throw new SteamIdlerError("Account was not found.");
   }
@@ -310,7 +311,7 @@ export async function remove(userId: ObjectId, body: RemoveBody) {
  * emits "steamaccount/get" -> steamaccount
  */
 export async function get(userId: ObjectId, body: GetBody) {
-  const steamAccount = await SteamAccountModel.get(userId, body.accountName);
+  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
   delete steamAccount.auth;
   delete steamAccount.userId;
   wsServer.send({ userId, routeName: "steamaccount/get", type: "Success", message: steamAccount });

@@ -52,21 +52,24 @@ export async function remove(userId: ObjectId, accountName: string): Promise<Ste
 }
 
 /**
- * Return a steamAccount with userId and accountName
+ * Return a steamAccount with userId and filter
  */
-export async function get(userId: ObjectId, accountName: string): Promise<SteamAccount> {
+export async function getByUserId(
+  userId: ObjectId,
+  filter: { accountName?: string; steamId?: string }
+): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
-  const doc = await collection.findOne({
-    userId,
-    accountName,
-  });
+  const doc = await collection.findOne({ ...filter, userId });
   if (!doc) return null;
   return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
 }
 
-export async function getByAccountName(accountName: string): Promise<SteamAccount> {
+/**
+ * Get steam account by filter
+ */
+export async function get(filter: { steamId?: string; accountName?: string }): Promise<SteamAccount> {
   const collection = await getCollection(collectionName);
-  const doc = await collection.findOne({ accountName });
+  const doc = await collection.findOne(filter);
   if (!doc) return null;
   return decryptSteamAccount(doc as unknown as SteamAccountEncrypted);
 }

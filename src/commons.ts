@@ -45,14 +45,14 @@ export function getAgentOptions(proxy: Proxy) {
 
 export async function SteamAccountExistsOnline(
   userId: ObjectId,
-  username: string
+  accountName: string
 ): Promise<{ steamAccount: SteamAccount; steam: Steam }> {
-  const steamAccount = await SteamAccountModel.get(userId, username);
+  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName });
   if (!steamAccount) {
     throw new SteamIdlerError(ERRORS.NOTFOUND);
   }
 
-  const steam = steamStore.get(userId, username);
+  const steam = steamStore.get(userId, accountName);
   if (!steam) {
     throw new SteamIdlerError(ERRORS.NOTONLINE);
   }

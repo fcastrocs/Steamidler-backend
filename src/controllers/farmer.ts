@@ -86,8 +86,8 @@ async function farmingAlgo(userId: ObjectId, username: string) {
 /**
  * wrap around Steamcommunity.GetFarmableGames() so it doesn't fail
  */
-export async function getFarmableGames(userId: ObjectId, username: string): Promise<FarmableGame[]> {
-  const steamAccount = await SteamAccountModel.get(userId, username);
+export async function getFarmableGames(userId: ObjectId, accountName: string): Promise<FarmableGame[]> {
+  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName });
 
   return null;
 
