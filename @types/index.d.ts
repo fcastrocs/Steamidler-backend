@@ -76,6 +76,7 @@ interface AccountState {
 interface SteamAccount {
   userId: ObjectId;
   accountName: string;
+  steamId: string;
   auth: AccountAuth;
   data: AccountData;
   state: AccountState;

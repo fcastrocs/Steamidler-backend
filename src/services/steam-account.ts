@@ -73,6 +73,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
   const steamaccount: SteamAccount = {
     userId,
     accountName: authTokens.accountName,
+    steamId: loginData.data.steamId,
     state: {
       farming: false,
       status: "online",
