@@ -2,7 +2,7 @@ import assert from "assert";
 import SteamStore from "../models/steam-store.js";
 import * as SteamAccountsController from "../controllers/steam-accounts.js";
 import * as SteamAccountModel from "../models/steam-accounts.js";
-import * as SteamClientActions from "../controllers/steamclient-actions.js";
+import * as SteamClientActions from "../controllers/steam-account-actions.js";
 import * as SteamCommunityActions from "../controllers/steamweb.js";
 import * as Farmer from "../controllers/farmer.js";
 import fetch from "node-fetch";

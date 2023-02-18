@@ -37,5 +37,6 @@ export interface RemoveBody {
 }
 
 export interface GetBody {
-  accountName: string;
+  accountName?: string;
+  steamId?: string;
 }

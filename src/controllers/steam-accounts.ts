@@ -133,7 +133,7 @@ export async function get(userId: ObjectId, body: GetBody) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
-  if (!body.accountName) {
+  if (!body.accountName && !body.steamId) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 

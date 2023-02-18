@@ -9,10 +9,10 @@ import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import farmer from "./routes/farmer.js";
 import index from "./routes/index.js";
-import SteamClientAction from "./routes/steamclient-actions.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
 import * as SteamAccountController from "./controllers/steam-accounts.js";
+import * as SteamAccountActionsController from "./controllers/steam-account-actions.js";
 import * as steamweb from "./controllers/steamweb.js";
 
 const steamStore = new SteamStore();
@@ -126,7 +126,6 @@ function registerRoutes() {
   app.use("/", index);
   app.use("/", adminRoutes);
   app.use("/", userRoutes);
-  app.use("/", SteamClientAction);
   app.use("/", farmer);
 
   wsServer.addRoute("steamaccount/get", SteamAccountController.get);
@@ -138,6 +137,12 @@ function registerRoutes() {
   wsServer.addRoute("steamaccount/remove", SteamAccountController.remove);
   wsServer.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
   wsServer.addRoute("steamaccount/cancelConfirmation", SteamAccountController.cancelConfirmation);
+
+  wsServer.addRoute("steamaccount/idlegames", SteamAccountActionsController.idleGames);
+  wsServer.addRoute("steamaccount/changeplayername", SteamAccountActionsController.changePlayerName);
+  wsServer.addRoute("steamaccount/activatef2pgame", SteamAccountActionsController.activatef2pgame);
+  wsServer.addRoute("steamaccount/cdkeyredeem", SteamAccountActionsController.cdkeyRedeem);
+  wsServer.addRoute("steamaccount/changepersonastate", SteamAccountActionsController.changePersonaState);
 
   wsServer.addRoute("steamweb/changeavatar", steamweb.changeAvatar);
   wsServer.addRoute("steamweb/clearaliases", steamweb.clearAliases);

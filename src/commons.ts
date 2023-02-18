@@ -94,10 +94,10 @@ export function mergeGamesArrays(array1: Game[], array2: Game[]) {
 
 export function isIntArray(variable: unknown) {
   // must be an array
-  if (!Array.isArray(variable)) throw new SteamIdlerError(ERRORS.INVALID_BODY);
-
+  if (!Array.isArray(variable)) return false;
   // must be and int array
-  if (variable.some((i) => !Number.isInteger(i))) throw new SteamIdlerError(ERRORS.INVALID_BODY);
+  if (variable.some((i) => !Number.isInteger(i))) return false;
+  return true;
 }
 
 export function setCookie(name: string, value: string, res: Response) {

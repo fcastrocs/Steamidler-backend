@@ -137,7 +137,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   // login to steam web
   const { items, farmableGames } = await steamWebLogin(
-    steamAccount.auth.authTokens.accessToken,
+    steamAccount.auth.authTokens.refreshToken,
     steamAccount.state.proxy
   );
   loginData.data.items = items;
@@ -312,7 +312,7 @@ export async function remove(userId: ObjectId, body: RemoveBody) {
  * emits "steamaccount/get" -> steamaccount
  */
 export async function get(userId: ObjectId, body: GetBody) {
-  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
+  const steamAccount = await SteamAccountModel.getByUserId(userId, body);
   delete steamAccount.auth;
   delete steamAccount.userId;
   wsServer.send({ userId, routeName: "steamaccount/get", type: "Success", message: steamAccount });
