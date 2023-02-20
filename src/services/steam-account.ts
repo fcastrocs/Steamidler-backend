@@ -385,11 +385,13 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
   const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
+  // state change on this steam account
   steam.on("PersonaStateChanged", async (state) => {
-    wsServer.send({ userId, routeName: "PersonaStateChanged", type: "Info", message: state });
-    await SteamAccountModel.updateField(userId, accountName, {
+    const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
       "data.state": state,
     });
+
+    wsServer.send({ userId, routeName: "PersonaStateChanged", type: "Info", message: steamAccount });
   });
 
   steam.on("AccountLoggedOff", async (eresult) => {

@@ -8,10 +8,11 @@ const collectionName = "steam-accounts";
 /**
  * Add steamAccount to collection
  */
-export async function add(steamAccount: SteamAccount): Promise<void> {
+export async function add(steamAccount: SteamAccount) {
   const collection = await getCollection(collectionName);
   const encrypedAccount = encryptSteamAccount(steamAccount);
-  await collection.insertOne(encrypedAccount);
+  steamAccount = (await collection.insertOne(encrypedAccount)) as unknown as SteamAccount;
+  return getNonSensitiveAccount(steamAccount);
 }
 
 /**
@@ -33,22 +34,24 @@ export async function updateField(
   }
 
   const collection = await getCollection(collectionName);
-  await collection.updateOne(
+  const steamAccount = await collection.findOneAndUpdate(
     { userId, accountName },
     {
       $set: update,
-    }
+    },
+    { returnDocument: "after" }
   );
+  return getNonSensitiveAccount(steamAccount.value as unknown as SteamAccount);
 }
 
 /**
  * Remove steamAccount with userId and accountName
  */
-export async function remove(userId: ObjectId, accountName: string): Promise<SteamAccount> {
+export async function remove(userId: ObjectId, accountName: string) {
   const collection = await getCollection(collectionName);
   const doc = await collection.findOneAndDelete({ userId, accountName });
   if (!doc) return null;
-  return doc.value as unknown as SteamAccount;
+  return getNonSensitiveAccount(doc.value as unknown as SteamAccount);
 }
 
 /**
@@ -67,7 +70,7 @@ export async function getByUserId(
 /**
  * Get steam account by filter
  */
-export async function get(filter: { steamId?: string; accountName?: string }): Promise<SteamAccount> {
+export async function get(filter: { steamId?: string; accountName?: string }) {
   const collection = await getCollection(collectionName);
   const doc = await collection.findOne(filter);
   if (!doc) return null;
@@ -104,4 +107,9 @@ function decryptSteamAccount(steamAccount: SteamAccountEncrypted): SteamAccount 
   // sentry will be deprecated by steam soon, probably.
   // account.auth.sentry = Buffer.from(decryptedAuth.sentry.data);
   return account;
+}
+
+function getNonSensitiveAccount(steamAccount: SteamAccount) {
+  delete steamAccount.auth;
+  return steamAccount as SteamAccountNonSensitive;
 }
