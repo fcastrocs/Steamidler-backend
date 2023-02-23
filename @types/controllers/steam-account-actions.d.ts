@@ -4,6 +4,7 @@ interface Base {
 
 interface IdleGamesBody extends Base {
   gameIds: number[];
+  forcePlay: boolean;
 }
 
 interface ChangePlayerNameBody extends Base {

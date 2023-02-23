@@ -121,9 +121,9 @@ export async function login(userId: ObjectId, body: LoginBody) {
   wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
   // login to steam
-  let loginData;
+  let loginRes;
   try {
-    loginData = await steamcmLogin(steamAccount.auth.authTokens, steam);
+    loginRes = await steamcmLogin(steamAccount.auth.authTokens, steam);
     wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam servers." });
   } catch (error) {
     // update steam account status
@@ -140,15 +140,15 @@ export async function login(userId: ObjectId, body: LoginBody) {
     steamAccount.auth.authTokens.refreshToken,
     steamAccount.state.proxy
   );
-  loginData.data.items = items;
-  loginData.data.farmableGames = farmableGames;
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   // update account
-  await SteamAccountModel.updateField(userId, body.accountName, {
+  loginRes.data.items = items;
+  loginRes.data.farmableGames = farmableGames;
+
+  const nonSensitiveAccount = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "online" as SteamAccount["state"]["status"],
-    "data.items": items,
-    "dat.farmableGames": farmableGames,
+    data: loginRes.data,
   });
 
   // store steam instance
@@ -159,9 +159,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   // add listeners
   SteamEventListeners(userId, steamAccount.accountName);
 
-  steamAccount = { ...steamAccount, ...loginData };
-  delete steamAccount.auth;
-  wsServer.send({ ...wsBody, type: "Success", message: steamAccount });
+  wsServer.send({ ...wsBody, type: "Success", message: nonSensitiveAccount });
 }
 
 /**
@@ -252,11 +250,11 @@ export async function logout(userId: ObjectId, body: LogoutBody) {
     steamStore.remove(userId, body.accountName);
   }
 
-  await SteamAccountModel.updateField(userId, body.accountName, {
+  const nonSensitiveAcc = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "offline" as SteamAccount["state"]["status"],
   });
 
-  wsServer.send({ userId, routeName: "steamaccount/logout", type: "Success" });
+  wsServer.send({ userId, routeName: "steamaccount/logout", type: "Success", message: nonSensitiveAcc });
 }
 
 /**
@@ -300,10 +298,17 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody) {
  * emits "steamaccount/remove" -> null
  */
 export async function remove(userId: ObjectId, body: RemoveBody) {
-  await logout(userId, { accountName: body.accountName });
+  const steam = steamStore.get(userId, body.accountName);
+  if (steam) {
+    steam.disconnect();
+    steamStore.remove(userId, body.accountName);
+    wsServer.send({ userId, routeName: "steamaccount/remove", type: "Info", message: "Account logged out." });
+  }
   const steamAccount = await SteamAccountModel.remove(userId, body.accountName);
+  wsServer.send({ userId, routeName: "steamaccount/remove", type: "Info", message: "Account removed from database." });
+
   await ProxyModel.decreaseLoad(steamAccount.state.proxy);
-  wsServer.send({ userId, routeName: "steamaccount/remove", type: "Success" });
+  wsServer.send({ userId, routeName: "steamaccount/remove", type: "Success", message: steamAccount.accountName });
 }
 
 /**
@@ -373,9 +378,9 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
   // }
 
   // restore idling
-  if (state.gamesIdsIdle.length) {
-    steam.client.gamesPlayed(state.gamesIdsIdle);
-  }
+  // if (state.gamesIdsIdle.length) {
+  //   await steam.client.gamesPlayed(state.gamesIdsIdle);
+  // }
 }
 
 /**

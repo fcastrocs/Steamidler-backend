@@ -9,7 +9,7 @@ import * as SteamWebService from "../services/steamweb.js";
  * @controller
  */
 export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws: WebSocket) {
-  if (!userId || !body || !ws) {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -17,7 +17,7 @@ export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws:
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamWebService.changeAvatar(userId, body, ws);
+  await SteamWebService.changeAvatar(userId, body);
 }
 
 /**

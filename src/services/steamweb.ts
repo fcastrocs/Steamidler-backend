@@ -1,20 +1,21 @@
-import { ERRORS, getAgentOptions, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
+import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
 import { ObjectId } from "mongodb";
-import SteamWeb, { ProfilePrivacy } from "@machiavelli/steam-web";
+import SteamWeb from "@machiavelli/steam-web";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { Proxy } from "../../@types/index.js";
 import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamweb.js";
 import { WebSocket } from "ws";
+import { wsServer } from "../app.js";
 
 /**
  * Change steam account nickname
  * @service
  */
-export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws: WebSocket) {
+export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   const avatarURL = await steamWeb.changeAvatar(body.avatarDataURL);
-  ws.sendSuccess("steamweb/changeavatar", { avatarURL: avatarURL });
+  wsServer.send({ userId, routeName: "steamweb/changeavatar", type: "Success", message: avatarURL });
 }
 
 /**

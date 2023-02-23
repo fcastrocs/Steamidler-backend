@@ -1,8 +1,8 @@
 import { AuthTokens } from "@machiavelli/steam-client/@types/services/Auth";
 import { ObjectId } from "mongodb";
 import { AccountAuth, AccountData } from "@machiavelli/steam-client";
-import { FarmableGame, Item, Cookie } from "steamcommunity-api";
 import { State } from "./addSteamAccount";
+import { FarmableGame, Item } from "@machiavelli/steam-web";
 
 declare global {
   namespace NodeJS {
@@ -56,7 +56,6 @@ interface WebSocketReqBody {
 declare module "@machiavelli/steam-client" {
   export interface AccountAuth {
     password?: string;
-    cookie: Cookie;
     authTokens: AuthTokens;
   }
 
@@ -68,7 +67,7 @@ declare module "@machiavelli/steam-client" {
 
 interface AccountState {
   farming: boolean;
-  status: "online" | "offline" | "reconnecting" | "AccessDenied";
+  status: "online" | "offline" | "reconnecting" | "AccessDenied" | "ingame";
   gamesIdsIdle: number[];
   proxy: Proxy;
 }

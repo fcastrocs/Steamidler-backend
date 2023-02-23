@@ -1,7 +1,6 @@
 import * as SteamAccountModel from "../models/steam-accounts.js";
 import { mergeGamesArrays, SteamAccountExistsOnline } from "../commons.js";
 import { ObjectId } from "mongodb";
-import { Game } from "@machiavelli/steam-client";
 import { wsServer } from "../app.js";
 
 /**
@@ -10,13 +9,15 @@ import { wsServer } from "../app.js";
  */
 export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
   const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
-  steam.client.gamesPlayed(body.gameIds);
-  await SteamAccountModel.updateField(userId, body.accountName, { "state.gameIdsIdling": body.gameIds });
+  await steam.client.gamesPlayed(body.gameIds, { forcePlay: body.forcePlay });
+  const steamAccount = await SteamAccountModel.updateField(userId, body.accountName, {
+    "state.gamesIdsIdle": body.gameIds,
+  });
   wsServer.send({
     type: "Success",
     routeName: "steamaccount/idlegames",
     userId,
-    message: { gameIdsIdling: body.gameIds },
+    message: steamAccount,
   });
 }
 
@@ -74,7 +75,7 @@ export async function cdkeyRedeem(userId: ObjectId, body: CdkeyRedeemBody) {
  * Activate free to play game.
  * @Service
  */
-export async function changePersonaState(userId: ObjectId, body: ChangePersonaStateBody): Promise<void> {
+export async function changePersonaState(userId: ObjectId, body: ChangePersonaStateBody) {
   const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
   steam.client.setPersonaState("Offline");
   wsServer.send({
