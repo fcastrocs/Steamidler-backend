@@ -1,7 +1,7 @@
 import { ERRORS, SteamIdlerError } from "../commons.js";
-import * as ProxiesModel from "../models/proxies.js";
-import * as SteamServersModel from "../models/steam-servers.js";
-import * as InvitesModel from "../models/invites.js";
+import * as ProxieModel from "../models/proxy.js";
+import * as SteamServerModel from "../models/steamServer.js";
+import * as InviteModel from "../models/invite.js";
 
 const verifyAdminKey = (adminKey: string) => {
   if (!process.env.API_ADMIN_KEY) throw new SteamIdlerError(ERRORS.UNEXPECTED);
@@ -20,7 +20,7 @@ export async function addProxies(proxies: string, adminKey: string): Promise<num
   verifyAdminKey(adminKey);
   const array = proxies.split(/\r?\n/).filter((proxy) => proxy);
   if (!array.length) throw new SteamIdlerError("InvalidBody");
-  return await ProxiesModel.add(array);
+  return await ProxieModel.add(array);
 }
 
 /**
@@ -29,7 +29,7 @@ export async function addProxies(proxies: string, adminKey: string): Promise<num
  */
 export async function renewSteamServers(adminKey: string): Promise<void> {
   verifyAdminKey(adminKey);
-  await SteamServersModel.renew();
+  await SteamServerModel.renew();
 }
 
 /**
@@ -38,5 +38,5 @@ export async function renewSteamServers(adminKey: string): Promise<void> {
  */
 export async function createInvite(email: string, adminKey: string): Promise<string> {
   verifyAdminKey(adminKey);
-  return await InvitesModel.add(email);
+  return await InviteModel.add(email);
 }

@@ -1,6 +1,13 @@
 import { ERRORS, isIntArray, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
-import * as actionsService from "../services/steam-account-actions.js";
+import * as steamClientService from "../services/steamClient.js";
+import {
+  Activatef2pgameBody,
+  CdkeyRedeemBody,
+  ChangePersonaStateBody,
+  ChangePlayerNameBody,
+  IdleGamesBody,
+} from "../../@types/controllers/steamAccount.js";
 
 /**
  * Change steam account nickname
@@ -16,7 +23,7 @@ export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
   if (body.gameIds.length > 32) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
-  await actionsService.idleGames(userId, body);
+  await steamClientService.idleGames(userId, body);
 }
 
 /**
@@ -27,7 +34,7 @@ export async function changePlayerName(userId: ObjectId, body: ChangePlayerNameB
   if (!body.accountName || !body.playerName || typeof body.playerName !== "string") {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
-  await actionsService.changePlayerName(userId, body);
+  await steamClientService.changePlayerName(userId, body);
 }
 
 /**
@@ -38,7 +45,7 @@ export async function activatef2pgame(userId: ObjectId, body: Activatef2pgameBod
   if (!body.accountName || !isIntArray(body.appids) || !body.appids) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
-  await actionsService.activatef2pgame(userId, body);
+  await steamClientService.activatef2pgame(userId, body);
 }
 
 /**
@@ -49,7 +56,7 @@ export async function cdkeyRedeem(userId: ObjectId, body: CdkeyRedeemBody) {
   if (!body.accountName || !body.cdkey || typeof body.cdkey !== "string") {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
-  await actionsService.cdkeyRedeem(userId, body);
+  await steamClientService.cdkeyRedeem(userId, body);
 }
 
 /**
@@ -60,5 +67,5 @@ export async function changePersonaState(userId: ObjectId, body: ChangePersonaSt
   if (!body.accountName || !body.state || typeof body.state !== "string") {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
-  await actionsService.changePersonaState(userId, body);
+  await steamClientService.changePersonaState(userId, body);
 }

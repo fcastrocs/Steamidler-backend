@@ -1,8 +1,8 @@
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
 import { WebSocket } from "ws";
-import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamweb.js";
-import * as SteamWebService from "../services/steamweb.js";
+import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamWeb.js";
+import * as SteamWebService from "../services/steamWeb.js";
 
 /**
  * Change steam account nickname

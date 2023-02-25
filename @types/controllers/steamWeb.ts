@@ -1,15 +1,15 @@
 import { ProfilePrivacy } from "@machiavelli/steam-web";
 
-interface ChangeAvatarBody {
+export interface ChangeAvatarBody {
   accountName: string;
   avatarDataURL: string;
 }
 
-interface ClearAliasesBody {
+export interface ClearAliasesBody {
   accountName: string;
 }
 
-interface ChangePrivacyBody {
+export interface ChangePrivacyBody {
   accountName: string;
   privacy: ProfilePrivacy;
 }

@@ -1,7 +1,7 @@
 import { ERRORS, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import retry from "@machiavelli/retry";
-import * as SteamAccountModel from "../models/steam-accounts.js";
-import SteamStore from "../models/steam-store.js";
+import * as SteamAccountModel from "../models/steamAccount.js";
+import SteamStore from "../models/steamStore.js";
 import { ObjectId } from "mongodb";
 import { FarmableGame } from "@machiavelli/steam-web";
 import { steamStore } from "../app.js";

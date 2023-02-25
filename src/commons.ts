@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
-import * as SteamAccountModel from "./models/steam-accounts.js";
+import * as SteamAccountModel from "./models/steamAccount.js";
 import { Proxy, SteamAccount } from "../@types";
 import { steamStore } from "./app.js";
 

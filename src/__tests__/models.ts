@@ -1,15 +1,14 @@
 import "dotenv/config";
 import assert from "assert";
-import * as ProxyModel from "../models/proxies.js";
-import * as InvitesModel from "../models/invites.js";
-import * as SteamServersModel from "../models/steam-servers.js";
+import * as ProxyModel from "../models/proxy.js";
+import * as InvitesModel from "../models/invite.js";
+import * as SteamServersModel from "../models/steamServer.js";
 import { AccountState, RefreshToken, SteamAccount, SteamVerify, User } from "../../@types/index.js";
-import * as SteamVerifyModel from "../models/steam-verifications.js";
-import * as SteamAccountsModel from "../models/steam-accounts.js";
-import SteamStore from "../models/steam-store.js";
+import * as SteamAccountsModel from "../models/steamAccount.js";
+import SteamStore from "../models/steamStore.js";
 const steamStore = new SteamStore();
 import * as UsersModel from "../models/users.js";
-import * as RefreshTokensModel from "../models/refresh-tokens.js";
+import * as RefreshTokensModel from "../models/refreshToken.js";
 import { ObjectId } from "mongodb";
 import Steam, { AccountData } from "@machiavelli/steam-client";
 
@@ -209,38 +208,6 @@ describe("Model steam-store", () => {
     assert.equal(steamStore.remove(userId, username + 1), steam2);
     assert.equal(steamStore.remove(userId, username + 2), null);
     assert.equal(steamStore.remove(userId2, username + 2), null);
-  });
-});
-
-describe("Model steam-verifications", async () => {
-  const steamVerify: SteamVerify = {
-    userId: new ObjectId(),
-    username: "username",
-    proxy: { ip: "123", port: 1 },
-    authType: "error",
-    createdAt: new Date(),
-  };
-
-  step("add()", async () => {
-    await SteamVerifyModel.add(steamVerify);
-    // try to add duplicate
-    await assert.rejects(SteamVerifyModel.add(steamVerify), (err: Error) => {
-      assert.equal(err.name, "MongoServerError");
-      assert.equal(err.message.includes("E11000"), true);
-      return true;
-    });
-  });
-
-  step("remove()", async () => {
-    assert.equal(await SteamVerifyModel.remove(steamVerify.userId), true);
-    assert.equal(await SteamVerifyModel.remove(steamVerify.userId), false);
-  });
-
-  it("get()", async () => {
-    await SteamVerifyModel.add(steamVerify);
-    assert.notEqual(await SteamVerifyModel.get(steamVerify.userId), null);
-    await SteamVerifyModel.remove(steamVerify.userId);
-    assert.equal(await SteamVerifyModel.get(steamVerify.userId), null);
   });
 });
 

@@ -1,7 +1,14 @@
-import * as SteamAccountModel from "../models/steam-accounts.js";
+import * as SteamAccountModel from "../models/steamAccount.js";
 import { mergeGamesArrays, SteamAccountExistsOnline } from "../commons.js";
 import { ObjectId } from "mongodb";
 import { wsServer } from "../app.js";
+import {
+  IdleGamesBody,
+  ChangePlayerNameBody,
+  Activatef2pgameBody,
+  CdkeyRedeemBody,
+  ChangePersonaStateBody,
+} from "../../@types/controllers/steamAccount.js";
 
 /**
  * Change steam account nickname
@@ -15,7 +22,7 @@ export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
   });
   wsServer.send({
     type: "Success",
-    routeName: "steamaccount/idlegames",
+    routeName: "steamclient/idlegames",
     userId,
     message: steamAccount,
   });
@@ -31,7 +38,7 @@ export async function changePlayerName(userId: ObjectId, body: ChangePlayerNameB
   await SteamAccountModel.updateField(userId, body.accountName, { "data.nickname": body.playerName });
   wsServer.send({
     type: "Success",
-    routeName: "steamaccount/changeplayername",
+    routeName: "steamclient/changeplayername",
     userId,
     message: { playerName: body.playerName },
   });
@@ -48,7 +55,7 @@ export async function activatef2pgame(userId: ObjectId, body: Activatef2pgameBod
   await SteamAccountModel.updateField(userId, body.accountName, { "data.games": merge });
   wsServer.send({
     type: "Success",
-    routeName: "steamaccount/activatef2pgame",
+    routeName: "steamclient/activatef2pgame",
     userId,
     message: { gamesActivated: difference },
   });
@@ -65,7 +72,7 @@ export async function cdkeyRedeem(userId: ObjectId, body: CdkeyRedeemBody) {
   await SteamAccountModel.updateField(userId, body.accountName, { "data.games": merge });
   wsServer.send({
     type: "Success",
-    routeName: "steamaccount/cdkeyredeem",
+    routeName: "steamclient/cdkeyredeem",
     userId,
     message: { gamesRedeemed: difference },
   });
@@ -80,7 +87,7 @@ export async function changePersonaState(userId: ObjectId, body: ChangePersonaSt
   steam.client.setPersonaState("Offline");
   wsServer.send({
     type: "Success",
-    routeName: "steamaccount/changepersonastate",
+    routeName: "steamclient/changepersonastate",
     userId,
   });
 }

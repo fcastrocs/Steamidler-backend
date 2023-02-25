@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import SteamWeb from "@machiavelli/steam-web";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { Proxy } from "../../@types/index.js";
-import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamweb.js";
+import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamWeb.js";
 import { WebSocket } from "ws";
 import { wsServer } from "../app.js";
 

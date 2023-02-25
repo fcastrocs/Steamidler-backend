@@ -1,9 +1,9 @@
 import assert from "assert";
-import SteamStore from "../models/steam-store.js";
-import * as SteamAccountsController from "../controllers/steam-accounts.js";
-import * as SteamAccountModel from "../models/steam-accounts.js";
-import * as SteamClientActions from "../controllers/steam-account-actions.js";
-import * as SteamCommunityActions from "../controllers/steamweb.js";
+import SteamStore from "../models/steamStore.js";
+import * as SteamAccountsController from "../controllers/steamAccount.js";
+import * as SteamAccountModel from "../models/steamAccount.js";
+import * as SteamClientActions from "../controllers/steamClient.js";
+import * as SteamCommunityActions from "../controllers/steamWeb.js";
 import * as Farmer from "../controllers/farmer.js";
 import fetch from "node-fetch";
 import { ObjectId } from "mongodb";

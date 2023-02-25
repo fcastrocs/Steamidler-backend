@@ -11,9 +11,9 @@ import farmer from "./routes/farmer.js";
 import index from "./routes/index.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
-import * as SteamAccountController from "./controllers/steam-accounts.js";
-import * as SteamAccountActionsController from "./controllers/steam-account-actions.js";
-import * as steamweb from "./controllers/steamweb.js";
+import * as SteamAccountController from "./controllers/steamAccount.js";
+import * as SteamClientController from "./controllers/steamClient.js";
+import * as SteamWebController from "./controllers/steamWeb.js";
 
 const steamStore = new SteamStore();
 const steamTempStore = new SteamStore();
@@ -22,7 +22,7 @@ import * as mongodb from "./db.js";
 import { SteamIdlerError } from "./commons.js";
 import http from "http";
 import WebSocketServer from "./websocket-server.js";
-import SteamStore from "./models/steam-store.js";
+import SteamStore from "./models/steamStore.js";
 
 const app = express();
 const httpServer = CreateHttpServer();
@@ -138,15 +138,15 @@ function registerRoutes() {
   wsServer.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
   wsServer.addRoute("steamaccount/cancelConfirmation", SteamAccountController.cancelConfirmation);
 
-  wsServer.addRoute("steamaccount/idlegames", SteamAccountActionsController.idleGames);
-  wsServer.addRoute("steamaccount/changeplayername", SteamAccountActionsController.changePlayerName);
-  wsServer.addRoute("steamaccount/activatef2pgame", SteamAccountActionsController.activatef2pgame);
-  wsServer.addRoute("steamaccount/cdkeyredeem", SteamAccountActionsController.cdkeyRedeem);
-  wsServer.addRoute("steamaccount/changepersonastate", SteamAccountActionsController.changePersonaState);
+  wsServer.addRoute("steamclient/idlegames", SteamClientController.idleGames);
+  wsServer.addRoute("steamclient/changeplayername", SteamClientController.changePlayerName);
+  wsServer.addRoute("steamclient/activatef2pgame", SteamClientController.activatef2pgame);
+  wsServer.addRoute("steamclient/cdkeyredeem", SteamClientController.cdkeyRedeem);
+  wsServer.addRoute("steamclient/changepersonastate", SteamClientController.changePersonaState);
 
-  wsServer.addRoute("steamweb/changeavatar", steamweb.changeAvatar);
-  wsServer.addRoute("steamweb/clearaliases", steamweb.clearAliases);
-  wsServer.addRoute("steamweb/changeprivacy", steamweb.changePrivacy);
+  wsServer.addRoute("steamweb/changeavatar", SteamWebController.changeAvatar);
+  wsServer.addRoute("steamweb/clearaliases", SteamWebController.clearAliases);
+  wsServer.addRoute("steamweb/changeprivacy", SteamWebController.changePrivacy);
 }
 
 /**

@@ -1,4 +1,4 @@
-import * as SteamAccountService from "../services/steam-account.js";
+import * as SteamAccountService from "../services/steamAccount.js";
 
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
@@ -8,7 +8,7 @@ import {
   LoginBody,
   RemoveBody,
   UpdateWithSteamGuardCodeBody,
-} from "../../@types/addSteamAccount";
+} from "../../@types/controllers/steamAccount.js";
 
 /**
  * Add new account

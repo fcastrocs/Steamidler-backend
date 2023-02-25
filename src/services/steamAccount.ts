@@ -1,26 +1,25 @@
-import * as SteamAccountModel from "../models/steam-accounts.js";
-import * as ProxyModel from "../models/proxies.js";
-import * as SteamcmModel from "../models/steam-servers.js";
+import * as SteamAccountModel from "../models/steamAccount.js";
+import * as ProxyModel from "../models/proxy.js";
+import * as SteamcmModel from "../models/steamServer.js";
 import * as Farmer from "../controllers/farmer.js";
 import Steam, { SteamClientError } from "@machiavelli/steam-client";
-import { steamWebLogin } from "../services/steamweb.js";
+import { steamWebLogin } from "./steamWeb.js";
 import retry from "@machiavelli/retry";
 
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
-import { LoginOptions } from "@machiavelli/steam-client";
+import { AuthTokens, Confirmation, LoginOptions } from "@machiavelli/steam-client";
+
+import { wsServer, steamStore, steamTempStore } from "../app.js";
 import {
   AddAccountBody,
+  UpdateWithSteamGuardCodeBody,
+  RemoveBody,
   GetBody,
   LoginBody,
   LogoutBody,
-  RemoveBody,
-  UpdateWithSteamGuardCodeBody,
-} from "../../@types/addSteamAccount.js";
-import { AuthTokens, Confirmation } from "@machiavelli/steam-client";
-
-import { wsServer, steamStore, steamTempStore } from "../app.js";
+} from "../../@types/controllers/steamAccount.js";
 
 /**
  * Add new account
