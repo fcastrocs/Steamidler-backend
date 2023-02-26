@@ -17,7 +17,7 @@ export interface CdkeyRedeemBody extends Base {
 }
 
 export interface ChangePersonaStateBody extends Base {
-  state: string;
+  state: keyof EPersonaState;
 }
 
 export interface AddAccountBody extends Base {

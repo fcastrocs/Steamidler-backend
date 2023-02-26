@@ -90,7 +90,7 @@ export async function cdkeyRedeem(userId: ObjectId, body: CdkeyRedeemBody) {
  */
 export async function changePersonaState(userId: ObjectId, body: ChangePersonaStateBody) {
   const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
-  steam.client.setPersonaState("Offline");
+  await steam.client.setPersonaState(body.state);
   wsServer.send({
     type: "Success",
     routeName: "steamclient/changepersonastate",

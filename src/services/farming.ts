@@ -1,4 +1,4 @@
-import { ERRORS, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
+import { SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import { ObjectId } from "mongodb";
 import { steamStore, wsServer } from "../app.js";
@@ -32,7 +32,7 @@ export async function start(userId: ObjectId, body: StartBody) {
   }, Number(process.env.FARMING_INTERVAL_MINUTES) * 60 * 1000);
 
   FarmingIntervals.set(body.accountName, interval);
-  wsServer.send({ userId, routeName: "farming/start", type: "Success" });
+  wsServer.send({ userId, routeName: "farming/start", type: "Success", message: { gameIds: body.gameIds } });
 }
 
 /**
@@ -60,7 +60,11 @@ async function farmingAlgo(userId: ObjectId, body: StartBody, options?: { skip?:
   const steam = steamStore.get(userId, body.accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  await steam.client.gamesPlayed([]);
+  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
+
+  if (steamAccount.state.gamesIdsFarm.length || steamAccount.state.gamesIdsIdle.length) {
+    await steam.client.gamesPlayed([]);
+  }
 
   if (!options || !options.skip) {
     const farmableGames = await getFarmableGames(userId, { accountName: body.accountName });
