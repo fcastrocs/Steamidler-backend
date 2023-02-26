@@ -14,6 +14,7 @@ import { SteamWebError } from "@machiavelli/steam-web";
 import * as SteamAccountController from "./controllers/steamAccount.js";
 import * as SteamClientController from "./controllers/steamClient.js";
 import * as SteamWebController from "./controllers/steamWeb.js";
+import * as FarmingController from "./controllers/farming.js";
 
 const steamStore = new SteamStore();
 const steamTempStore = new SteamStore();
@@ -147,6 +148,10 @@ function registerRoutes() {
   wsServer.addRoute("steamweb/changeavatar", SteamWebController.changeAvatar);
   wsServer.addRoute("steamweb/clearaliases", SteamWebController.clearAliases);
   wsServer.addRoute("steamweb/changeprivacy", SteamWebController.changePrivacy);
+  wsServer.addRoute("steamweb/getfarmablegames", SteamWebController.getFarmableGames);
+
+  wsServer.addRoute("farming/start", FarmingController.start);
+  wsServer.addRoute("farming/stop", FarmingController.stop);
 }
 
 /**

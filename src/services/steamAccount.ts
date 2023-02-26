@@ -74,9 +74,9 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
     accountName: authTokens.accountName,
     steamId: loginData.data.steamId,
     state: {
-      farming: false,
       status: "online",
       gamesIdsIdle: [],
+      gamesIdsFarm: [],
       proxy: { ip: proxy.ip, port: proxy.port },
     },
     ...loginData,

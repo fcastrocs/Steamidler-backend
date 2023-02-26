@@ -1,10 +1,15 @@
 import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
+import * as SteamAccountModel from "../models/steamAccount.js";
 import { ObjectId } from "mongodb";
-import SteamWeb from "@machiavelli/steam-web";
+import SteamWeb, { FarmableGame } from "@machiavelli/steam-web";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { Proxy } from "../../@types/index.js";
-import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamWeb.js";
-import { WebSocket } from "ws";
+import {
+  ChangeAvatarBody,
+  ChangePrivacyBody,
+  ClearAliasesBody,
+  GetFarmableGamesBody,
+} from "../../@types/controllers/steamWeb.js";
 import { wsServer } from "../app.js";
 
 /**
@@ -22,22 +27,41 @@ export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody) {
  * Clear aliases
  * @service
  */
-export async function clearAliases(userId: ObjectId, body: ClearAliasesBody, ws: WebSocket): Promise<void> {
+export async function clearAliases(userId: ObjectId, body: ClearAliasesBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   await steamWeb.clearAliases();
-  ws.sendSuccess("steamweb/clearaliases", "Aliases cleared.");
+  wsServer.send({ userId, routeName: "steamweb/clearaliases", type: "Success" });
 }
 
 /**
  * Clear aliases
  * @service
  */
-export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody, ws: WebSocket): Promise<void> {
+export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
   await steamWeb.changePrivacy(body.privacy);
-  ws.sendSuccess("steamweb/changeprivacy", "Privacy changed.");
+  wsServer.send({ userId, routeName: "steamweb/changeprivacy", type: "Success" });
+}
+
+/**
+ * Get farmable games
+ * @service
+ */
+export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesBody): Promise<FarmableGame[]> {
+  const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
+
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const farmableGames = await steamWeb.getFarmableGames();
+
+  // update farming state
+  await SteamAccountModel.updateField(userId, body.accountName, {
+    "data.farmableGames": farmableGames,
+  });
+
+  wsServer.send({ userId, routeName: "steamweb/getfarmablegames", type: "Success", message: farmableGames });
+  return farmableGames;
 }
 
 /**

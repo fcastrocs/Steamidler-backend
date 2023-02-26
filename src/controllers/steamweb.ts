@@ -1,14 +1,18 @@
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
-import { WebSocket } from "ws";
-import { ChangeAvatarBody, ChangePrivacyBody, ClearAliasesBody } from "../../@types/controllers/steamWeb.js";
+import {
+  ChangeAvatarBody,
+  ChangePrivacyBody,
+  ClearAliasesBody,
+  GetFarmableGamesBody,
+} from "../../@types/controllers/steamWeb.js";
 import * as SteamWebService from "../services/steamWeb.js";
 
 /**
  * Change steam account nickname
  * @controller
  */
-export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws: WebSocket) {
+export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody) {
   if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
@@ -24,8 +28,8 @@ export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody, ws:
  * Clear aliases
  * @controller
  */
-export async function clearAliases(userId: ObjectId, body: ClearAliasesBody, ws: WebSocket): Promise<void> {
-  if (!userId || !body || !ws) {
+export async function clearAliases(userId: ObjectId, body: ClearAliasesBody): Promise<void> {
+  if (!userId || !body) {
     throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
   }
 
@@ -33,13 +37,21 @@ export async function clearAliases(userId: ObjectId, body: ClearAliasesBody, ws:
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  await SteamWebService.clearAliases(userId, body, ws);
+  await SteamWebService.clearAliases(userId, body);
 }
 
 /**
  * Clear aliases
  * @controller
  */
-export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody, ws: WebSocket) {
-  await SteamWebService.changePrivacy(userId, body, ws);
+export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody) {
+  await SteamWebService.changePrivacy(userId, body);
+}
+
+/**
+ * Clear aliases
+ * @controller
+ */
+export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesBody) {
+  await SteamWebService.getFarmableGames(userId, body);
 }
