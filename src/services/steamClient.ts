@@ -1,5 +1,5 @@
 import * as SteamAccountModel from "../models/steamAccount.js";
-import { mergeGamesArrays, SteamAccountExistsOnline } from "../commons.js";
+import { mergeGamesArrays, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
 import { wsServer } from "../app.js";
 import {
@@ -34,7 +34,7 @@ export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
  */
 export async function changePlayerName(userId: ObjectId, body: ChangePlayerNameBody) {
   const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
-  steam.client.setPlayerName(body.playerName);
+  await steam.client.setPlayerName(body.playerName);
   await SteamAccountModel.updateField(userId, body.accountName, { "data.nickname": body.playerName });
   wsServer.send({
     type: "Success",
@@ -51,13 +51,18 @@ export async function changePlayerName(userId: ObjectId, body: ChangePlayerNameB
 export async function activatef2pgame(userId: ObjectId, body: Activatef2pgameBody) {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const games = await steam.client.requestFreeLicense(body.appids);
-  const { difference, merge } = mergeGamesArrays(steamAccount.data.games, games);
+  if (!games.length) {
+    throw new SteamIdlerError("No games activated. Bad appid(s).");
+  }
+
+  const { merge } = mergeGamesArrays(steamAccount.data.games, games);
   await SteamAccountModel.updateField(userId, body.accountName, { "data.games": merge });
+
   wsServer.send({
     type: "Success",
     routeName: "steamclient/activatef2pgame",
     userId,
-    message: { gamesActivated: difference },
+    message: { accountName: body.accountName, games },
   });
 }
 
@@ -68,13 +73,14 @@ export async function activatef2pgame(userId: ObjectId, body: Activatef2pgameBod
 export async function cdkeyRedeem(userId: ObjectId, body: CdkeyRedeemBody) {
   const { steam, steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
   const games = await steam.client.registerKey(body.cdkey);
-  const { difference, merge } = mergeGamesArrays(steamAccount.data.games, games);
+  const { merge } = mergeGamesArrays(steamAccount.data.games, games);
   await SteamAccountModel.updateField(userId, body.accountName, { "data.games": merge });
+
   wsServer.send({
     type: "Success",
     routeName: "steamclient/cdkeyredeem",
     userId,
-    message: { gamesRedeemed: difference },
+    message: { accountName: body.accountName, games },
   });
 }
 

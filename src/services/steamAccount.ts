@@ -6,7 +6,7 @@ import Steam, { SteamClientError } from "@machiavelli/steam-client";
 import { steamWebLogin } from "./steamWeb.js";
 import retry from "@machiavelli/retry";
 
-import { ERRORS, SteamIdlerError } from "../commons.js";
+import { ERRORS, mergeGamesArrays, SteamIdlerError } from "../commons.js";
 import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
 import { AuthTokens, Confirmation, LoginOptions } from "@machiavelli/steam-client";
@@ -133,6 +133,10 @@ export async function login(userId: ObjectId, body: LoginBody) {
     }
     throw error;
   }
+
+  // merge games so that activated f2p games are not lost
+  const { merge } = mergeGamesArrays(steamAccount.data.games, loginRes.data.games);
+  loginRes.data.games = merge;
 
   // login to steam web
   const { items, farmableGames } = await steamWebLogin(
@@ -395,7 +399,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
       "data.state": state,
     });
 
-    wsServer.send({ userId, routeName: "PersonaStateChanged", type: "Info", message: steamAccount });
+    wsServer.send({ userId, routeName: "steamaccount/personastatechanged", type: "Info", message: steamAccount });
   });
 
   steam.on("AccountLoggedOff", async (eresult) => {
@@ -407,9 +411,22 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
       });
     }
     console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
+    wsServer.send({
+      userId,
+      routeName: "steamaccount/accountloggedoff",
+      type: "Info",
+      message: { accountName, eresult },
+    });
   });
 
   steam.on("disconnected", async () => {
+    wsServer.send({
+      userId,
+      routeName: "steamaccount/disconnected",
+      type: "Info",
+      message: { accountName },
+    });
+
     // remove from online accounts
     steamStore.remove(userId, accountName);
 
