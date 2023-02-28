@@ -1,4 +1,5 @@
 import { AuthTokens } from "@machiavelli/steam-client/@types/services/Auth";
+import { EPersonaState } from "@machiavelli/steam-client/@types/client";
 import { ObjectId } from "mongodb";
 import { AccountAuth, AccountData } from "@machiavelli/steam-client";
 import { State } from "./addSteamAccount";
@@ -67,6 +68,7 @@ declare module "@machiavelli/steam-client" {
 
 interface AccountState {
   status: "online" | "offline" | "reconnecting" | "AccessDenied" | "ingame";
+  personaState: keyof EPersonaState;
   gamesIdsIdle: number[];
   gamesIdsFarm: number[];
   proxy: Proxy;

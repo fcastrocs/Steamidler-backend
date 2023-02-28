@@ -78,6 +78,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
       gamesIdsIdle: [],
       gamesIdsFarm: [],
       proxy: { ip: proxy.ip, port: proxy.port },
+      personaState: "Offline",
     },
     ...loginData,
   };
@@ -159,6 +160,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   // restore account state
   await restoreState(userId, body.accountName, steamAccount.state);
+
   // add listeners
   SteamEventListeners(userId, steamAccount.accountName);
 
@@ -373,17 +375,17 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
   const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  //steam.client.setPersonaState(state.personaState.personaState);
+  steam.client.setPersonaState(state.personaState);
 
   // restore farming
-  // if (state.farming) {
-  //   return await Farmer.start(userId, username);
-  // }
+  if (state.gamesIdsFarm.length) {
+    return await Farmer.start(userId, accountName);
+  }
 
   // restore idling
-  // if (state.gamesIdsIdle.length) {
-  //   await steam.client.gamesPlayed(state.gamesIdsIdle);
-  // }
+  if (state.gamesIdsIdle.length) {
+    await steam.client.gamesPlayed(state.gamesIdsIdle);
+  }
 }
 
 /**
