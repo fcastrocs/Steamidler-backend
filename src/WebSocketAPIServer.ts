@@ -2,8 +2,6 @@ import { RawData, WebSocket, WebSocketServer } from "ws";
 import { WebSocketReqBody } from "../@types";
 import http from "http";
 import Cookie from "cookie";
-import { SteamIdlerError } from "./commons.js";
-import { SteamClientError } from "@machiavelli/steam-client";
 import { verifyAuth } from "./services/user.js";
 import { ObjectId } from "mongodb";
 

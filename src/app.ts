@@ -22,7 +22,7 @@ const steamTempStore = new SteamStore();
 import * as mongodb from "./db.js";
 import { SteamIdlerError } from "./commons.js";
 import http from "http";
-import WebSocketServer from "./websocket-server.js";
+import WebSocketServer from "./WebSocketAPIServer.js";
 import SteamStore from "./models/steamStore.js";
 
 const app = express();
