@@ -15,3 +15,5 @@ export interface ChangePrivacyBody extends Base {
 }
 
 export interface GetFarmableGamesBody extends Base {}
+
+export interface GetAvatarFrameBody extends Base {}

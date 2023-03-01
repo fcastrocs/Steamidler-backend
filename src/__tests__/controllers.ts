@@ -4,7 +4,6 @@ import * as SteamAccountsController from "../controllers/steamAccount.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import * as SteamClientActions from "../controllers/steamClient.js";
 import * as SteamCommunityActions from "../controllers/steamWeb.js";
-import * as Farmer from "../controllers/farmer.js";
 import fetch from "node-fetch";
 import { ObjectId } from "mongodb";
 

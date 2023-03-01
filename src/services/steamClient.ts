@@ -9,6 +9,7 @@ import {
   CdkeyRedeemBody,
   ChangePersonaStateBody,
 } from "../../@types/controllers/steamAccount.js";
+import { SteamAccount } from "../../@types/index.js";
 
 /**
  * Change steam account nickname
@@ -19,6 +20,7 @@ export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
   await steam.client.gamesPlayed(body.gameIds, { forcePlay: body.forcePlay });
   const steamAccount = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.gamesIdsIdle": body.gameIds,
+    "state.status": (body.gameIds.length ? "ingame" : "online") as SteamAccount["state"]["status"],
   });
   wsServer.send({
     type: "Success",

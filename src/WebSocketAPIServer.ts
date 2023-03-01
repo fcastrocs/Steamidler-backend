@@ -117,6 +117,7 @@ export default class WebSocketAPIServer {
     try {
       await service(userId, message.body);
     } catch (error) {
+      console.log(error)
       this.send({ type: "Error", userId, routeName: error.name, message: error.message });
     }
   }

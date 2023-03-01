@@ -1,7 +1,7 @@
 import * as SteamAccountModel from "../models/steamAccount.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamcmModel from "../models/steamServer.js";
-import * as Farmer from "../controllers/farmer.js";
+import * as Farming from "../services/farming.js";
 import Steam, { SteamClientError } from "@machiavelli/steam-client";
 import { steamWebLogin } from "./steamWeb.js";
 import retry from "@machiavelli/retry";
@@ -63,9 +63,10 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
 
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam servers." });
 
-  const { items, farmableGames } = await steamWebLogin(authTokens.accessToken, proxy);
+  const { items, farmableGames, avatarFrame } = await steamWebLogin(authTokens.accessToken, proxy);
   loginData.data.items = items;
   loginData.data.farmableGames = farmableGames;
+  loginData.data.avatarFrame = avatarFrame;
 
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
@@ -140,7 +141,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.games = merge;
 
   // login to steam web
-  const { items, farmableGames } = await steamWebLogin(
+  const { items, farmableGames, avatarFrame } = await steamWebLogin(
     steamAccount.auth.authTokens.refreshToken,
     steamAccount.state.proxy
   );
@@ -149,6 +150,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   // update account
   loginRes.data.items = items;
   loginRes.data.farmableGames = farmableGames;
+  loginRes.data.avatarFrame = avatarFrame;
 
   const nonSensitiveAccount = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "online" as SteamAccount["state"]["status"],
@@ -375,11 +377,13 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
   const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  steam.client.setPersonaState(state.personaState);
+  if (state.personaState !== "Invisible") {
+    await steam.client.setPersonaState(state.personaState);
+  }
 
   // restore farming
   if (state.gamesIdsFarm.length) {
-    return await Farmer.start(userId, accountName);
+    return await Farming.start(userId, { accountName, gameIds: state.gamesIdsFarm });
   }
 
   // restore idling

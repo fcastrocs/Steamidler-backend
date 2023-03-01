@@ -63,6 +63,7 @@ declare module "@machiavelli/steam-client" {
   interface AccountData {
     farmableGames: FarmableGame[];
     items: Item[];
+    avatarFrame: string;
   }
 }
 
@@ -99,7 +100,7 @@ interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
 /**
  * SteamAccount Object sent to requests
  */
-type SteamAccountNonSensitive = Omit<SteamAccount, "userId" | "auth">;
+type SteamAccountNonSensitive = Omit<SteamAccount, "auth">;
 
 // model - steamcm
 interface SteamCM {

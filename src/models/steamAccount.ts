@@ -80,9 +80,10 @@ export async function get(filter: { steamId?: string; accountName?: string }) {
 /**
  * Return all steam accounts without sensitive information
  */
-export async function getAll(userId: ObjectId): Promise<SteamAccountNonSensitive[]> {
+export async function getAll(userId?: ObjectId): Promise<SteamAccountNonSensitive[]> {
   const collection = await getCollection(collectionName);
-  const cursor = collection.find({ userId }, { projection: { auth: 0, userId: 0 } });
+  const filter = userId ? { userId } : {};
+  const cursor = collection.find(filter, { projection: { auth: 0 } });
   return (await cursor.toArray()) as unknown as SteamAccountNonSensitive[];
 }
 

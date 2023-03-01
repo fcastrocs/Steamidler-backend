@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { steamStore, wsServer } from "../app.js";
 import { StartBody } from "../../@types/controllers/farming.js";
 import { getFarmableGames } from "./steamWeb.js";
+import { SteamAccount } from "../../@types/index.js";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 
@@ -12,8 +13,6 @@ const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
  * @Service
  */
 export async function start(userId: ObjectId, body: StartBody) {
-  await SteamAccountExistsOnline(userId, body.accountName);
-
   if (FarmingIntervals.has(body.accountName)) {
     throw new SteamIdlerError("Already farming.");
   }
@@ -40,7 +39,7 @@ export async function start(userId: ObjectId, body: StartBody) {
  * @Service
  */
 export async function stop(userId: ObjectId, body: StartBody) {
-  await SteamAccountExistsOnline(userId, body.accountName);
+  const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
 
   const interval = FarmingIntervals.get(body.accountName);
   if (!interval) {
@@ -48,24 +47,27 @@ export async function stop(userId: ObjectId, body: StartBody) {
   }
 
   clearInterval(interval);
+  FarmingIntervals.delete(body.accountName);
 
-  const steam = steamStore.get(userId, body.accountName);
   if (steam) await steam.client.gamesPlayed([]);
 
-  await SteamAccountModel.updateField(userId, body.accountName, { "state.gamesIdsFarm": [] });
+  await SteamAccountModel.updateField(userId, body.accountName, {
+    "state.gamesIdsFarm": [],
+    "state.status": "online" as SteamAccount["state"]["status"],
+  });
+
   wsServer.send({ userId, routeName: "farming/stop", type: "Success" });
 }
 
 async function farmingAlgo(userId: ObjectId, body: StartBody, options?: { skip?: boolean }) {
-  const steam = steamStore.get(userId, body.accountName);
-  if (!steam) throw new SteamIdlerError("Account is not online.");
+  const { steam, steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
 
-  const steamAccount = await SteamAccountModel.getByUserId(userId, { accountName: body.accountName });
-
-  if (steamAccount.state.gamesIdsFarm.length || steamAccount.state.gamesIdsIdle.length) {
+  // stop all idling
+  if (steamAccount.data.state.gamePlayedAppId) {
     await steam.client.gamesPlayed([]);
   }
 
+  // don't fetch games the first time this gets executed
   if (!options || !options.skip) {
     const farmableGames = await getFarmableGames(userId, { accountName: body.accountName });
     if (!farmableGames.length) {
@@ -75,5 +77,8 @@ async function farmingAlgo(userId: ObjectId, body: StartBody, options?: { skip?:
   }
 
   await steam.client.gamesPlayed(body.gameIds);
-  await SteamAccountModel.updateField(userId, body.accountName, { "state.gamesIdsFarm": body.gameIds });
+  await SteamAccountModel.updateField(userId, body.accountName, {
+    "state.gamesIdsFarm": body.gameIds,
+    "state.status": "ingame" as SteamAccount["state"]["status"],
+  });
 }

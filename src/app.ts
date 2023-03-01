@@ -7,7 +7,6 @@ import cors from "cors";
 
 import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
-import farmer from "./routes/farmer.js";
 import index from "./routes/index.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
@@ -24,6 +23,8 @@ import { SteamIdlerError } from "./commons.js";
 import http from "http";
 import WebSocketServer from "./WebSocketAPIServer.js";
 import SteamStore from "./models/steamStore.js";
+import restoreAccounts from "./restoreAccounts.js";
+const REQUEST_BODY_SIZE = 1048576; // 1 MB
 
 const app = express();
 const httpServer = CreateHttpServer();
@@ -32,16 +33,17 @@ wsServer.upgrade(httpServer);
 
 export { wsServer, steamStore, steamTempStore };
 
-const REQUEST_BODY_SIZE = 1048576; // 1 MB
-
 // Start the app
 (async () => {
   console.log("Connecting to DB...");
   const client = await mongodb.connect();
   const db = client.db();
 
-  console.log("Creating collection...");
+  console.log("Creating collections...");
   await createCollections(db);
+
+  console.log("Restoring accounts...");
+  const results = await restoreAccounts();
 
   console.log("Applying before middleware...");
   beforeMiddleware(client);
@@ -127,7 +129,6 @@ function registerRoutes() {
   app.use("/", index);
   app.use("/", adminRoutes);
   app.use("/", userRoutes);
-  app.use("/", farmer);
 
   wsServer.addRoute("steamaccount/get", SteamAccountController.get);
   wsServer.addRoute("steamaccount/getall", SteamAccountController.getAll);
@@ -149,6 +150,7 @@ function registerRoutes() {
   wsServer.addRoute("steamweb/clearaliases", SteamWebController.clearAliases);
   wsServer.addRoute("steamweb/changeprivacy", SteamWebController.changePrivacy);
   wsServer.addRoute("steamweb/getfarmablegames", SteamWebController.getFarmableGames);
+  wsServer.addRoute("steamweb/getavatarframe", SteamWebController.getAvatarFrame);
 
   wsServer.addRoute("farming/start", FarmingController.start);
   wsServer.addRoute("farming/stop", FarmingController.stop);

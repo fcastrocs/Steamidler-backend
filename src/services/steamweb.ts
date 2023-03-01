@@ -8,6 +8,7 @@ import {
   ChangeAvatarBody,
   ChangePrivacyBody,
   ClearAliasesBody,
+  GetAvatarFrameBody,
   GetFarmableGamesBody,
 } from "../../@types/controllers/steamWeb.js";
 import { wsServer } from "../app.js";
@@ -65,13 +66,31 @@ export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesB
 }
 
 /**
+ * Clear aliases
+ * @service
+ */
+export async function getAvatarFrame(userId: ObjectId, body: GetAvatarFrameBody) {
+  const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const url = await steamWeb.getAvatarFrame();
+
+  // update farming state
+  const account = await SteamAccountModel.updateField(userId, body.accountName, {
+    "data.avatarFrame": url,
+  });
+
+  wsServer.send({ userId, routeName: "steamweb/getavatarframe", type: "Success", message: account });
+}
+
+/**
  * Login to Steam via web
  */
 export async function steamWebLogin(refreshToken: string, proxy: Proxy) {
   const steamWeb = await loginHandler(refreshToken, proxy);
   const items = await steamWeb.getCardsInventory();
   const farmableGames = await steamWeb.getFarmableGames();
-  return { items, farmableGames };
+  const avatarFrame = await steamWeb.getAvatarFrame();
+  return { items, farmableGames, avatarFrame };
 }
 
 /**

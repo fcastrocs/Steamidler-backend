@@ -4,6 +4,7 @@ import {
   ChangeAvatarBody,
   ChangePrivacyBody,
   ClearAliasesBody,
+  GetAvatarFrameBody,
   GetFarmableGamesBody,
 } from "../../@types/controllers/steamWeb.js";
 import * as SteamWebService from "../services/steamWeb.js";
@@ -49,9 +50,17 @@ export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody) {
 }
 
 /**
- * Clear aliases
+ * Get Farmable games
  * @controller
  */
 export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesBody) {
   await SteamWebService.getFarmableGames(userId, body);
+}
+
+/**
+ * Get Avatar Frame url
+ * @controller
+ */
+export async function getAvatarFrame(userId: ObjectId, body: GetAvatarFrameBody) {
+  await SteamWebService.getAvatarFrame(userId, body);
 }
