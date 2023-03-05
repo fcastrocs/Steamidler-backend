@@ -46,6 +46,8 @@ export interface GetBody extends Base {
   steamId?: string;
 }
 
+export interface CancelConfirmationBody extends Base {}
+
 export interface State {
   personaState: keyof EPersonaState;
   playerName: string;

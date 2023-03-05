@@ -13,7 +13,6 @@ const verifyAdminKey = (adminKey: string) => {
 };
 
 /**
- *  Add proxies to database
  * @controller
  */
 export async function addProxies(proxies: string, adminKey: string): Promise<number> {
@@ -24,7 +23,6 @@ export async function addProxies(proxies: string, adminKey: string): Promise<num
 }
 
 /**
- * Fetch and renew Steam servers
  * @controller
  */
 export async function renewSteamServers(adminKey: string): Promise<void> {
@@ -33,7 +31,6 @@ export async function renewSteamServers(adminKey: string): Promise<void> {
 }
 
 /**
- * create a new invite
  * @controller
  */
 export async function createInvite(email: string, adminKey: string): Promise<string> {

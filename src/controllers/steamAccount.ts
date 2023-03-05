@@ -4,6 +4,7 @@ import { ERRORS, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
 import {
   AddAccountBody,
+  CancelConfirmationBody,
   GetBody,
   LoginBody,
   RemoveBody,
@@ -15,24 +16,8 @@ import {
  * @controller
  */
 export async function add(userId: ObjectId, body: AddAccountBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.authType) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
-  if (body.authType !== "QRcode" && body.authType !== "SteamGuardCode") {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
-  if (body.authType === "SteamGuardCode" && !body.accountName && !body.password) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
-  // lowercase accountName
-  if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
+  // normalize
+  body.accountName = body.accountName.toLocaleLowerCase();
 
   await SteamAccountService.add(userId, body);
 }
@@ -54,14 +39,7 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
  * @controller
  */
 export async function login(userId: ObjectId, body: LoginBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.accountName) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
+  body.accountName = body.accountName.toLocaleLowerCase();
   await SteamAccountService.login(userId, body);
 }
 
@@ -70,14 +48,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
  * @controller
  */
 export async function logout(userId: ObjectId, body: LoginBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.accountName) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
+  body.accountName = body.accountName.toLocaleLowerCase();
   await SteamAccountService.logout(userId, body);
 }
 
@@ -86,25 +57,11 @@ export async function logout(userId: ObjectId, body: LoginBody) {
  * @controller
  */
 export async function authRenew(userId: ObjectId, body: AddAccountBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.authType) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
-  if (body.authType !== "QRcode" && body.authType !== "SteamGuardCode") {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
   if (body.authType === "SteamGuardCode" && !body.accountName && !body.password) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  // lowercase accountName
-  if (body.accountName) body.accountName = body.accountName.toLocaleLowerCase();
-
+  body.accountName = body.accountName.toLocaleLowerCase();
   await SteamAccountService.authRenew(userId, body);
 }
 
@@ -113,14 +70,7 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody) {
  * @controller
  */
 export async function remove(userId: ObjectId, body: RemoveBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.accountName) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
+  body.accountName = body.accountName.toLocaleLowerCase();
   await SteamAccountService.remove(userId, body);
 }
 
@@ -129,14 +79,6 @@ export async function remove(userId: ObjectId, body: RemoveBody) {
  * @controller
  */
 export async function get(userId: ObjectId, body: GetBody) {
-  if (!userId || !body) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
-  if (!body.accountName && !body.steamId) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
-
   await SteamAccountService.get(userId, body);
 }
 
@@ -145,10 +87,6 @@ export async function get(userId: ObjectId, body: GetBody) {
  * @controller
  */
 export async function getAll(userId: ObjectId, body: any) {
-  if (!userId) {
-    throw new SteamIdlerError(ERRORS.BAD_PARAMETERS);
-  }
-
   await SteamAccountService.getAll(userId);
 }
 
@@ -156,6 +94,7 @@ export async function getAll(userId: ObjectId, body: any) {
  * cancel confirmation
  * @controller
  */
-export async function cancelConfirmation(userId: ObjectId, body: { accountName: string }) {
+export async function cancelConfirmation(userId: ObjectId, body: CancelConfirmationBody) {
+  body.accountName = body.accountName.toLocaleLowerCase();
   await SteamAccountService.cancelConfirmation(userId, body);
 }

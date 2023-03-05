@@ -19,6 +19,7 @@ import {
   GetBody,
   LoginBody,
   LogoutBody,
+  CancelConfirmationBody,
 } from "../../@types/controllers/steamAccount.js";
 
 /**
@@ -206,7 +207,7 @@ async function getAuthtokens(userId: ObjectId, body: AddAccountBody, steam: Stea
  * @service
  * emits "steamaccount/cancelconfirmation" -> null
  */
-export async function cancelConfirmation(userId: ObjectId, body: { accountName: string }) {
+export async function cancelConfirmation(userId: ObjectId, body: CancelConfirmationBody) {
   const steam = steamTempStore.remove(userId, body.accountName);
   if (steam) {
     steam.removeAllListeners("waitingForConfirmation");

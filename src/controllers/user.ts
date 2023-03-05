@@ -16,18 +16,23 @@ const EMAIL_REX =
 const USERNAME_REX = /[a-zA-Z0-9]{3,12}/;
 
 /**
- * Register a new user
  * @Controller
  */
 export async function register(body: RegisterBody) {
   // validate username
-  if (!USERNAME_REX.test(body.username)) throw new SteamIdlerError("Invalid username.");
+  if (!USERNAME_REX.test(body.username)) {
+    throw new SteamIdlerError("Invalid username.");
+  }
 
   // validate email
-  if (!EMAIL_REX.test(body.email)) throw new SteamIdlerError("Invalid email.");
+  if (!EMAIL_REX.test(body.email)) {
+    throw new SteamIdlerError("Invalid email.");
+  }
 
   // validate password
-  if (!PASSWORD_REGEX.test(body.password)) throw new SteamIdlerError("Invalid password.");
+  if (!PASSWORD_REGEX.test(body.password)) {
+    throw new SteamIdlerError("Invalid password.");
+  }
 
   // sanitize email
   body.email = body.email.toLowerCase();
@@ -36,7 +41,6 @@ export async function register(body: RegisterBody) {
 }
 
 /**
- * Login
  * @Controller
  */
 export async function login(body: LoginBody) {
@@ -46,7 +50,6 @@ export async function login(body: LoginBody) {
 }
 
 /**
- * Logout
  * @Controller
  */
 export async function logout(body: LogoutBody) {
@@ -54,7 +57,6 @@ export async function logout(body: LogoutBody) {
 }
 
 /**
- * Verify authentication
  * @Controller
  */
 export async function verifyAuth(body: VerifyAuthBody) {
@@ -62,7 +64,6 @@ export async function verifyAuth(body: VerifyAuthBody) {
 }
 
 /**
- * Reset user password
  * @Controller
  */
 export async function resetPassword(body: ResetPasswordBody) {
@@ -70,12 +71,13 @@ export async function resetPassword(body: ResetPasswordBody) {
 }
 
 /**
- * Change user password
  * @Controller
  */
 export async function updatePassword(body: UpdatePasswordBody) {
   // validate password
-  if (!PASSWORD_REGEX.test(body.password)) throw new SteamIdlerError("Invalid password.");
+  if (!PASSWORD_REGEX.test(body.password)) {
+    throw new SteamIdlerError("Invalid password.");
+  }
 
   // sanitize email
   body.email = body.email.toLowerCase();

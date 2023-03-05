@@ -26,9 +26,6 @@ router.post(ROUTE + "/login", async (req, res, next) => {
   }
 });
 
-/**
- * Terminate user session
- */
 router.post(ROUTE + "/logout", async (req, res, next) => {
   try {
     await UsersController.logout(req.body);
