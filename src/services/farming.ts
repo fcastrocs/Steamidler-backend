@@ -51,12 +51,12 @@ export async function stop(userId: ObjectId, body: StartBody) {
 
   if (steam) await steam.client.gamesPlayed([]);
 
-  await SteamAccountModel.updateField(userId, body.accountName, {
+  const account = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.gamesIdsFarm": [],
     "state.status": "online" as SteamAccount["state"]["status"],
   });
 
-  wsServer.send({ userId, routeName: "farming/stop", type: "Success" });
+  wsServer.send({ userId, routeName: "farming/stop", type: "Success", message: account });
 }
 
 async function farmingAlgo(userId: ObjectId, body: StartBody, options?: { skip?: boolean }) {

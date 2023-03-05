@@ -1,5 +1,12 @@
 import { SteamIdlerError } from "../commons.js";
-import { LoginBody, LogoutBody, RegisterBody } from "../../@types/controllers/user.js";
+import {
+  LoginBody,
+  LogoutBody,
+  ResetPasswordBody,
+  RegisterBody,
+  UpdatePasswordBody,
+  VerifyAuthBody,
+} from "../../@types/controllers/user.js";
 import * as UserService from "../services/user.js";
 
 // https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
@@ -25,34 +32,53 @@ export async function register(body: RegisterBody) {
   // sanitize email
   body.email = body.email.toLowerCase();
 
-  return await UserService.register(body);
+  return UserService.register(body);
 }
 
 /**
- * Authenticate user
+ * Login
  * @Controller
  */
 export async function login(body: LoginBody) {
-  // validate email
-  if (!EMAIL_REX.test(body.email)) throw new SteamIdlerError("InvalidEmail");
-
   // sanitize email
   body.email = body.email.toLowerCase();
-  return await UserService.login(body);
+  return UserService.login(body);
 }
 
 /**
- * Authenticate user
+ * Logout
  * @Controller
  */
 export async function logout(body: LogoutBody) {
-  return await UserService.logout(body);
+  return UserService.logout(body);
 }
 
 /**
- * Authenticate user
+ * Verify authentication
  * @Controller
  */
-export async function verifyAuth(body: { accessToken: string; refreshToken: string }) {
-  return await UserService.verifyAuth(body.accessToken, body.refreshToken);
+export async function verifyAuth(body: VerifyAuthBody) {
+  return UserService.verifyAuth(body.accessToken, body.refreshToken);
+}
+
+/**
+ * Reset user password
+ * @Controller
+ */
+export async function resetPassword(body: ResetPasswordBody) {
+  return UserService.resetPassword(body);
+}
+
+/**
+ * Change user password
+ * @Controller
+ */
+export async function updatePassword(body: UpdatePasswordBody) {
+  // validate password
+  if (!PASSWORD_REGEX.test(body.password)) throw new SteamIdlerError("Invalid password.");
+
+  // sanitize email
+  body.email = body.email.toLowerCase();
+
+  return UserService.updatePassword(body);
 }

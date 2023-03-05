@@ -29,6 +29,8 @@ declare global {
       STEAM_WEBAPI: string;
       API_ADMIN_KEY: string;
       RECAPTCHA_SECRET: string;
+      EMAIL_USER: string;
+      EMAIL_PASS: string;
     }
   }
 }
@@ -161,4 +163,10 @@ interface GetCMListResponse {
 interface GoogleRecaptchaResponse {
   success: boolean;
   "error-codes": string[];
+}
+
+interface PassResetToken {
+  email: string;
+  userId: ObjectId;
+  token: string;
 }

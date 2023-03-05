@@ -8,7 +8,7 @@ export async function add(email: string): Promise<string> {
   email = email.toLowerCase();
 
   const collection = await getCollection(collectionName);
-  const code = crypto.randomBytes(32).toString("hex"); // generates string of length 16
+  const code = crypto.randomBytes(32).toString("hex");
   const invite: Invite = { email, code, createdAt: new Date() };
   await collection.insertOne(invite);
   return code;

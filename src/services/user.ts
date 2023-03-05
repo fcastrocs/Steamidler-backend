@@ -1,25 +1,35 @@
 import { SteamIdlerError } from "../commons.js";
 import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
 import { ObjectId } from "mongodb";
-import argon2 from "argon2";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invite.js";
 import * as RefreshTokensModel from "../models/refreshToken.js";
+import * as PassResetTokensModel from "../models/passResetToken.js";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import fetch from "node-fetch";
-import { RegisterBody, LoginBody, LogoutBody } from "../../@types/controllers/user.js";
+import Mailer from "../mailer/index.js";
+import argon2 from "argon2";
+import {
+  RegisterBody,
+  LoginBody,
+  LogoutBody,
+  ResetPasswordBody,
+  UpdatePasswordBody,
+} from "../../@types/controllers/user.js";
 
 /**
  * @Service
  */
 export async function register(body: RegisterBody) {
-  // check if this email has an invite
+  // validate invite
   if (!(await InviteModel.exits({ email: body.email, code: body.inviteCode }))) {
     throw new SteamIdlerError("Invalid invite code.");
   }
 
   // check if user exists
-  if (await UsersModel.get({ email: body.email })) throw new SteamIdlerError("Email already exists.");
+  if (await UsersModel.get({ email: body.email })) {
+    throw new SteamIdlerError("Email already exists.");
+  }
 
   const user: User = {
     _id: new ObjectId(),
@@ -27,22 +37,17 @@ export async function register(body: RegisterBody) {
     email: body.email,
     password: body.password,
     ip: body.ip,
-  } as User;
+    createdAt: new Date(),
+  };
 
-  // finish creating user
-  user.password = await argon2.hash(user.password);
-  user.createdAt = new Date();
-
-  // store user to database
+  // save user
   await UsersModel.add(user);
 
   // remove invite
   await InviteModel.remove(user.email);
 
   // create authentication
-  const auth = await createAuthentication(user._id);
-
-  return { accessToken: auth.accessToken, refreshToken: auth.refreshToken };
+  return createAuthentication(user._id);
 }
 
 /**
@@ -56,16 +61,16 @@ export async function login(body: LoginBody) {
 
   // check if user exists
   const user = await UsersModel.get({ email: body.email });
-  if (!user) throw new SteamIdlerError("Check your credentials.");
+  if (!user) {
+    throw new SteamIdlerError("Check your credentials.");
+  }
 
   // Verify password
   if (!(await argon2.verify(user.password, body.password))) {
     throw new SteamIdlerError("Check your credentials.");
   }
 
-  // create authentication
-  const auth = await createAuthentication(user._id);
-  return { accessToken: auth.accessToken, refreshToken: auth.refreshToken };
+  return createAuthentication(user._id);
 }
 
 /**
@@ -73,6 +78,45 @@ export async function login(body: LoginBody) {
  */
 export async function logout(body: LogoutBody) {
   await RefreshTokensModel.remove(body.userId);
+}
+
+/**
+ * @Service
+ */
+export async function resetPassword(body: ResetPasswordBody) {
+  // check if user exists
+  const user = await UsersModel.get({ email: body.email });
+  if (!user) return;
+
+  const token = await PassResetTokensModel.add(user._id, user.email);
+  const mailer = new Mailer();
+  await mailer.sendPasswordReset(user.email, token);
+}
+
+/**
+ * @Service
+ */
+export async function updatePassword(body: UpdatePasswordBody) {
+  // check if user exists
+  const user = await UsersModel.get({ email: body.email });
+  if (!user) {
+    throw new SteamIdlerError("Something went wrong.");
+  }
+
+  // validate token
+  const token = await PassResetTokensModel.get({ userId: user._id, email: body.email });
+  if (!token || token !== body.token) {
+    throw new SteamIdlerError("Something went wrong.");
+  }
+
+  // update password
+  await UsersModel.updatePassword(user._id, body.password);
+
+  // remove invite
+  await PassResetTokensModel.remove(user._id);
+
+  // create authentication
+  return createAuthentication(user._id);
 }
 
 /**

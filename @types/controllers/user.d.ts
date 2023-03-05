@@ -18,3 +18,20 @@ export interface LoginBody {
 export interface LogoutBody {
   userId: ObjectId;
 }
+
+export interface ResetPasswordBody {
+  email: string;
+  g_response: string;
+}
+
+export interface UpdatePasswordBody {
+  email: string;
+  token: string;
+  g_response: string;
+  password: string;
+}
+
+export interface VerifyAuthBody {
+  accessToken: string;
+  refreshToken: string;
+}

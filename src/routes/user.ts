@@ -40,6 +40,26 @@ router.post(ROUTE + "/logout", async (req, res, next) => {
   }
 });
 
+router.post(ROUTE + "/resetpassword", async (req, res, next) => {
+  try {
+    await UsersController.resetPassword(req.body);
+    res.send({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(ROUTE + "/updatepassword", async (req, res, next) => {
+  try {
+    const auth = await UsersController.updatePassword(req.body);
+    setCookie("access-token", auth.accessToken, res);
+    setCookie("refresh-token", auth.refreshToken, res);
+    res.send({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get(ROUTE + "/verifyauth", async (req, res, next) => {
   if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
     return res.status(401).send({ authenticated: false });
