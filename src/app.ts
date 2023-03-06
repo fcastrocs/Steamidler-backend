@@ -79,6 +79,9 @@ async function createCollections(db: Db) {
 
   await db.collection("pass-reset-tokens").createIndex(["userId", "email"], { unique: true });
   await db.collection("pass-reset-tokens").createIndex("createdAt", { expireAfterSeconds: 30 * 60 });
+
+  await db.collection("confirmation-codes").createIndex("userId", { unique: true });
+  await db.collection("confirmation-codes").createIndex("createdAt", { expireAfterSeconds: 5 * 60 });
 }
 
 /**
@@ -107,7 +110,12 @@ function beforeMiddleware(client: MongoClient) {
   // check for authentication
   app.use(async (req, res, next) => {
     // skip user paths
-    if (["/user/login", "/user/register", "user/verifyauth", "user/resetpassword"].includes(req.path)) return next();
+    if (
+      ["/user/initlogin", "/user/finalizelogin", "/user/register", "user/verifyauth", "user/resetpassword"].includes(
+        req.path
+      )
+    )
+      return next();
 
     // skip admin paths, for now ...
     if (req.path.includes("/admin/")) return next();

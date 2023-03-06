@@ -15,6 +15,11 @@ export interface LoginBody {
   g_response: string;
 }
 
+export interface FinalizeLoginBody {
+  code: string;
+  initLoginToken: string;
+}
+
 export interface LogoutBody {
   userId: ObjectId;
 }

@@ -5,6 +5,7 @@ import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invite.js";
 import * as RefreshTokensModel from "../models/refreshToken.js";
 import * as PassResetTokensModel from "../models/passResetToken.js";
+import * as ConfirmationCodesModel from "../models/confirmationCode.js";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import fetch from "node-fetch";
 import Mailer from "../mailer/index.js";
@@ -15,6 +16,7 @@ import {
   LogoutBody,
   ResetPasswordBody,
   UpdatePasswordBody,
+  FinalizeLoginBody,
 } from "../../@types/controllers/user.js";
 
 /**
@@ -53,7 +55,7 @@ export async function register(body: RegisterBody) {
 /**
  * @Service
  */
-export async function login(body: LoginBody) {
+export async function initLogin(body: LoginBody) {
   // verify google recaptcha
   if (process.env.NODE_ENV === "production") {
     await recaptchaVerify(body.g_response);
@@ -70,7 +72,31 @@ export async function login(body: LoginBody) {
     throw new SteamIdlerError("Check your credentials.");
   }
 
-  return createAuthentication(user._id);
+  const code = await ConfirmationCodesModel.add(user._id);
+  const mailer = new Mailer();
+  mailer.sendConfirmationCode(user.email, code);
+
+  return genInitLoginToken(user._id);
+}
+
+/**
+ * @Service
+ */
+export async function finalizeLogin(body: FinalizeLoginBody) {
+  const userId = validateInitLoginToken(body.initLoginToken);
+
+  const code = await ConfirmationCodesModel.get(userId);
+  if (!code) {
+    throw new SteamIdlerError("Confirmation code expired.");
+  }
+
+  if (code !== body.code) {
+    throw new SteamIdlerError("Confirmation code does not match.");
+  }
+
+  await ConfirmationCodesModel.remove(userId);
+
+  return createAuthentication(userId);
 }
 
 /**
@@ -196,4 +222,22 @@ function genRefreshToken(userId: ObjectId) {
     audience: "refresh",
     subject: userId.toString(),
   });
+}
+
+function genInitLoginToken(userId: ObjectId) {
+  return jwt.sign({}, process.env.ACCESS_SECRET, {
+    expiresIn: "5m",
+    audience: "initLogin",
+    subject: userId.toString(),
+  });
+}
+
+function validateInitLoginToken(token: string) {
+  try {
+    const payload = jwt.verify(token, process.env.ACCESS_SECRET) as JwtPayload;
+    if (payload.aud !== "initLogin") throw "bad";
+    return new ObjectId(payload.sub);
+  } catch (error) {
+    throw new SteamIdlerError("NotAuthenticated");
+  }
 }

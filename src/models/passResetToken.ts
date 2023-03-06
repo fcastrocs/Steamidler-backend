@@ -10,7 +10,7 @@ import crypto from "crypto";
 export async function add(userId: ObjectId, email: string): Promise<string> {
   const collection = await getCollection(collectionName);
   const token = crypto.randomBytes(16).toString("hex");
-  await collection.replaceOne({ userId, email }, { userId, email, token }, { upsert: true });
+  await collection.replaceOne({ userId, email }, { userId, email, token, createdAt: new Date() }, { upsert: true });
   return token;
 }
 

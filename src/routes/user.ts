@@ -15,9 +15,21 @@ router.post(ROUTE + "/register", async (req, res, next) => {
   }
 });
 
-router.post(ROUTE + "/login", async (req, res, next) => {
+router.post(ROUTE + "/initlogin", async (req, res, next) => {
   try {
-    const auth = await UsersController.login(req.body);
+    const token = await UsersController.initLogin(req.body);
+    setCookie("init-login-token", token, res);
+    res.send({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(ROUTE + "/finalizelogin", async (req, res, next) => {
+  try {
+    req.body.initLoginToken = req.cookies["init-login-token"];
+    const auth = await UsersController.finalizeLogin(req.body);
+    res.clearCookie("init-login-token");
     setCookie("access-token", auth.accessToken, res);
     setCookie("refresh-token", auth.refreshToken, res);
     res.send({ success: true });

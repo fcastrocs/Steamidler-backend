@@ -6,6 +6,7 @@ import {
   RegisterBody,
   UpdatePasswordBody,
   VerifyAuthBody,
+  FinalizeLoginBody,
 } from "../../@types/controllers/user.js";
 import * as UserService from "../services/user.js";
 
@@ -43,10 +44,18 @@ export async function register(body: RegisterBody) {
 /**
  * @Controller
  */
-export async function login(body: LoginBody) {
+export async function initLogin(body: LoginBody) {
   // sanitize email
   body.email = body.email.toLowerCase();
-  return UserService.login(body);
+  return UserService.initLogin(body);
+}
+
+/**
+ * @Controller
+ */
+export async function finalizeLogin(body: FinalizeLoginBody) {
+  body.code = body.code.toLowerCase();
+  return UserService.finalizeLogin(body);
 }
 
 /**

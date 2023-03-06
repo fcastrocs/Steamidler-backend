@@ -52,9 +52,25 @@ class Mailer {
     socket.close();
   }
 
+  public async sendConfirmationCode(to: string, code: string) {
+    const socket = this.connect();
+
+    let html = await this.readFile("confirmationCode");
+    html = html.replaceAll("{code}", code.toUpperCase());
+
+    await socket.sendMail({
+      ...this.options,
+      to,
+      subject: "Confirmation code.",
+      html,
+    });
+
+    socket.close();
+  }
+
   private readFile(file: string): Promise<string> {
     return new Promise((resolve) => {
-      fs.readFile(`./templates/${file}.html`, { encoding: "utf8" }, (err, data) => {
+      fs.readFile(`./mail-templates/${file}.html`, { encoding: "utf8" }, (err, data) => {
         if (err) throw err;
         resolve(data);
       });
