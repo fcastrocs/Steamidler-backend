@@ -1,4 +1,3 @@
-import { PassResetToken } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "pass-reset-tokens";
 import { ObjectId } from "mongodb";

@@ -8,12 +8,14 @@ import cors from "cors";
 import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import index from "./routes/index.js";
+import proxyStatusRouter from "./routes/proxyStatus.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
 import * as SteamAccountController from "./controllers/steamAccount.js";
 import * as SteamClientController from "./controllers/steamClient.js";
 import * as SteamWebController from "./controllers/steamWeb.js";
 import * as FarmingController from "./controllers/farming.js";
+import * as ProxyStatusService from "./services/proxyStatus.js";
 
 const steamStore = new SteamStore();
 const steamTempStore = new SteamStore();
@@ -54,6 +56,9 @@ export { wsServer, steamStore, steamTempStore };
   console.log("Applying after middleware...");
   afterMiddleWare();
 
+  console.log("Starting proxy status service...");
+  await ProxyStatusService.start();
+
   console.log("\nREADY\n");
 })();
 
@@ -82,6 +87,8 @@ async function createCollections(db: Db) {
 
   await db.collection("confirmation-codes").createIndex("userId", { unique: true });
   await db.collection("confirmation-codes").createIndex("createdAt", { expireAfterSeconds: 5 * 60 });
+
+  await db.collection("proxies-status").createIndex("proxyId", { unique: true });
 }
 
 /**
@@ -140,6 +147,7 @@ function registerRoutes() {
   app.use("/", index);
   app.use("/", adminRoutes);
   app.use("/", userRoutes);
+  app.use("/", proxyStatusRouter);
 
   wsServer.addRoute("steamaccount/get", SteamAccountController.get);
   wsServer.addRoute("steamaccount/getall", SteamAccountController.getAll);

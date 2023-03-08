@@ -1,4 +1,3 @@
-import { User } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "users";
 import { ObjectId } from "mongodb";

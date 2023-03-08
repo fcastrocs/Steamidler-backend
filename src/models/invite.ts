@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { Invite } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "invites";
 

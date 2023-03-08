@@ -1,9 +1,9 @@
-import { RawData, WebSocket, WebSocketServer } from "ws";
-import { WebSocketReqBody } from "../@types";
 import http from "http";
 import Cookie from "cookie";
 import { verifyAuth } from "./services/user.js";
 import { ObjectId } from "mongodb";
+import { WebSocket, WebSocketServer, RawData } from "ws";
+import { WebSocketReqBody } from "../@types/WebSocketAPIServer.js";
 
 export default class WebSocketAPIServer {
   private readonly websockets: Map<string, WebSocket> = new Map();

@@ -1,8 +1,7 @@
 import { ObjectId, UpdateFilter } from "mongodb";
 import { getCollection } from "../db.js";
-
-import { SteamAccount, SteamAccountEncrypted, SteamAccountNonSensitive } from "../../@types";
 import { decrypt, encrypt, ERRORS, SteamIdlerError } from "../commons.js";
+import { SteamAccount, SteamAccountEncrypted, SteamAccountNonSensitive } from "../../@types/models/steamAccount.js";
 const collectionName = "steam-accounts";
 
 /**

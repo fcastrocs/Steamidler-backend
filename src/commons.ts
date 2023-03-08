@@ -1,12 +1,12 @@
 import crypto from "crypto";
 import { SocksProxyAgentOptions } from "socks-proxy-agent";
 import * as SteamAccountModel from "./models/steamAccount.js";
-import { Proxy, SteamAccount } from "../@types";
 import { steamStore } from "./app.js";
 
 import { Response } from "express";
 import { ObjectId } from "mongodb";
 import Steam, { Game } from "@machiavelli/steam-client";
+import { SteamAccount } from "../@types/models/steamAccount.js";
 
 export class SteamIdlerError extends Error {
   constructor(message: string) {

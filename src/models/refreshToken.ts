@@ -1,5 +1,4 @@
 import { ObjectId } from "mongodb";
-import { RefreshToken } from "../../@types/index.js";
 import { getCollection } from "../db.js";
 const collectionName = "refresh-tokens";
 

@@ -9,7 +9,7 @@ import {
   CdkeyRedeemBody,
   ChangePersonaStateBody,
 } from "../../@types/controllers/steamAccount.js";
-import { SteamAccount } from "../../@types/index.js";
+import { SteamAccount } from "../../@types/models/steamAccount.js";
 
 /**
  * Change steam account nickname

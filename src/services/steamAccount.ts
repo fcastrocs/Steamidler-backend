@@ -7,7 +7,6 @@ import { steamWebLogin } from "./steamWeb.js";
 import retry from "@machiavelli/retry";
 
 import { ERRORS, mergeGamesArrays, SteamIdlerError } from "../commons.js";
-import { AccountState, Proxy, SteamAccount } from "../../@types";
 import { ObjectId } from "mongodb";
 import { AuthTokens, Confirmation, LoginOptions } from "@machiavelli/steam-client";
 
@@ -21,6 +20,7 @@ import {
   LogoutBody,
   CancelConfirmationBody,
 } from "../../@types/controllers/steamAccount.js";
+import { SteamAccount, AccountState } from "../../@types/models/steamAccount.js";
 
 /**
  * Add new account
@@ -79,7 +79,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
       status: "online",
       gamesIdsIdle: [],
       gamesIdsFarm: [],
-      proxy: { ip: proxy.ip, port: proxy.port },
+      proxyId: proxy._id,
       personaState: "Offline",
     },
     ...loginData,
@@ -94,7 +94,6 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
   SteamEventListeners(userId, steamaccount.accountName);
 
   delete steamaccount.auth;
-  delete steamaccount.state.proxy;
 
   wsServer.send({ ...wsBody, type: "Success", message: steamaccount });
 }
@@ -117,8 +116,15 @@ export async function login(userId: ObjectId, body: LoginBody) {
     throw new SteamIdlerError("Account is already online.");
   }
 
+  // get proxy
+  let proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  if (!proxy) {
+    proxy = await ProxyModel.getOne();
+    steamAccount.state.proxyId = proxy._id;
+  }
+
   // connect to steam
-  const { steam } = await connectToSteam(steamAccount.state.proxy);
+  const { steam } = await connectToSteam(proxy);
 
   wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
@@ -142,10 +148,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.games = merge;
 
   // login to steam web
-  const { items, farmableGames, avatarFrame } = await steamWebLogin(
-    steamAccount.auth.authTokens.refreshToken,
-    steamAccount.state.proxy
-  );
+  const { items, farmableGames, avatarFrame } = await steamWebLogin(steamAccount.auth.authTokens.refreshToken, proxy);
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   // update account
@@ -155,6 +158,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   const nonSensitiveAccount = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "online" as SteamAccount["state"]["status"],
+    "state.proxyId": proxy._id,
     data: loginRes.data,
   });
 
@@ -285,8 +289,10 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody) {
     throw new SteamIdlerError("Account does not need to renew auth tokens.");
   }
 
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+
   // connect to steam
-  const { steam } = await connectToSteam(steamAccount.state.proxy);
+  const { steam } = await connectToSteam(proxy);
   wsServer.send({ userId, routeName: "steamaccount/authrenew", type: "Info", message: "Connected to Steam." });
 
   // get auth tokens
@@ -315,7 +321,7 @@ export async function remove(userId: ObjectId, body: RemoveBody) {
   const steamAccount = await SteamAccountModel.remove(userId, body.accountName);
   wsServer.send({ userId, routeName: "steamaccount/remove", type: "Info", message: "Account removed from database." });
 
-  await ProxyModel.decreaseLoad(steamAccount.state.proxy);
+  await ProxyModel.decreaseLoad(steamAccount.state.proxyId);
   wsServer.send({ userId, routeName: "steamaccount/remove", type: "Success", message: steamAccount.accountName });
 }
 

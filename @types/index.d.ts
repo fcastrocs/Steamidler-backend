@@ -1,10 +1,3 @@
-import { AuthTokens } from "@machiavelli/steam-client/@types/services/Auth";
-import { EPersonaState } from "@machiavelli/steam-client/@types/client";
-import { ObjectId } from "mongodb";
-import { AccountAuth, AccountData } from "@machiavelli/steam-client";
-import { State } from "./addSteamAccount";
-import { FarmableGame, Item } from "@machiavelli/steam-web";
-
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
@@ -41,116 +34,6 @@ declare module "http" {
   }
 }
 
-declare module "ws" {
-  interface WebSocket {
-    isAlive: boolean;
-    userId: string;
-    sendSuccess: (type: string, message?: any) => void;
-    sendError: (name: string, message: string) => void;
-    sendInfo: (type: string, message: any) => void;
-  }
-}
-
-interface WebSocketReqBody {
-  type: string;
-  body: { [key: string]: T };
-}
-
-declare module "@machiavelli/steam-client" {
-  export interface AccountAuth {
-    password?: string;
-    authTokens: AuthTokens;
-  }
-
-  interface AccountData {
-    farmableGames: FarmableGame[];
-    items: Item[];
-    avatarFrame: string;
-  }
-}
-
-interface AccountState {
-  status: "online" | "offline" | "reconnecting" | "AccessDenied" | "ingame";
-  personaState: keyof EPersonaState;
-  gamesIdsIdle: number[];
-  gamesIdsFarm: number[];
-  proxy: Proxy;
-}
-
-interface SteamAccount {
-  userId: ObjectId;
-  accountName: string;
-  steamId: string;
-  auth: AccountAuth;
-  data: AccountData;
-  state: AccountState;
-}
-
-interface LoginRes {
-  auth: AccountAuth;
-  data: AccountData;
-  steam: Steam;
-}
-
-/**
- * SteamAccount Object stored in database
- */
-interface SteamAccountEncrypted extends Omit<SteamAccount, "auth"> {
-  auth: string;
-}
-
-/**
- * SteamAccount Object sent to requests
- */
-type SteamAccountNonSensitive = Omit<SteamAccount, "auth">;
-
-// model - steamcm
-interface SteamCM {
-  ip: string;
-  port: number;
-}
-
-// model - steam-verify
-interface SteamVerify {
-  userId: ObjectId;
-  username: string;
-  proxy: Proxy;
-  authType: SteamGuardError;
-  createdAt: Date;
-}
-
-// model proxy
-interface Proxy {
-  ip: string;
-  port: number;
-}
-
-// model User
-interface User {
-  _id: ObjectId;
-  username: string;
-  email: string;
-  password: string;
-  createdAt: Date;
-  ip: string;
-}
-
-interface RefreshToken {
-  userId: ObjectId;
-  token: string;
-}
-
-interface Cookies {
-  "refresh-token": string;
-  "access-jwt": string;
-}
-
-interface Invite {
-  email: string;
-  code: string;
-  createdAt: Date;
-}
-
 interface GetCMListResponse {
   response: {
     serverlist: string[];
@@ -163,10 +46,4 @@ interface GetCMListResponse {
 interface GoogleRecaptchaResponse {
   success: boolean;
   "error-codes": string[];
-}
-
-interface PassResetToken {
-  email: string;
-  userId: ObjectId;
-  token: string;
 }

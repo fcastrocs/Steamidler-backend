@@ -1,19 +1,16 @@
+import { ObjectId } from "mongodb";
 import { ERRORS, SteamIdlerError } from "../commons.js";
-import { Proxy } from "../../@types";
 import { getCollection } from "../db.js";
 const collectionName = "proxies";
 
-/**
- * Fetches proxies from proxies provider
- */
 export async function add(proxies: string[]): Promise<number> {
   const collection = await getCollection(collectionName);
 
-  const documents: Proxy[] = proxies.map((proxy) => {
+  const documents: Proxy[] = proxies.map((proxy, index) => {
     const split = proxy.split(":");
     if (!validate(`${split[0]}:${split[1]}`)) throw new SteamIdlerError(ERRORS.PROXY_NOT_VALID);
-    const p: Proxy = { ip: split[0], port: Number(split[1]) };
-    return { ...p, load: 0 };
+    const p: Proxy = { name: `Server  ${index + 1}`, ip: split[0], port: Number(split[1]), load: 0 };
+    return p;
   });
 
   // delete existing proxies
@@ -24,10 +21,10 @@ export async function add(proxies: string[]): Promise<number> {
 /**
  * Increase load value by one
  */
-export async function increaseLoad(proxy: Proxy): Promise<boolean> {
+export async function increaseLoad(_id: ObjectId): Promise<boolean> {
   const collection = await getCollection(collectionName);
   const res = await collection.updateOne(
-    { ip: proxy.ip, port: proxy.port, load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } },
+    { _id, load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } },
     { $inc: { load: 1 } },
     { upsert: false }
   );
@@ -37,13 +34,9 @@ export async function increaseLoad(proxy: Proxy): Promise<boolean> {
 /**
  * Decrease load value by one
  */
-export async function decreaseLoad(proxy: Proxy): Promise<boolean> {
+export async function decreaseLoad(_id: ObjectId): Promise<boolean> {
   const collection = await getCollection(collectionName);
-  const res = await collection.updateOne(
-    { ip: proxy.ip, port: proxy.port, load: { $gt: 0 } },
-    { $inc: { load: -1 } },
-    { upsert: false }
-  );
+  const res = await collection.updateOne({ _id, load: { $gt: 0 } }, { $inc: { load: -1 } }, { upsert: false });
   return !!res.modifiedCount;
 }
 
@@ -57,6 +50,16 @@ export async function getOne(): Promise<Proxy> {
   // no proxies or limit reached
   if (!proxies.length) throw new SteamIdlerError(ERRORS.PROXY_LIMIT_REACHED);
   return proxies[Math.floor(Math.random() * proxies.length)] as unknown as Proxy;
+}
+
+export async function getAll() {
+  const collection = await getCollection(collectionName);
+  return (await collection.find({}).toArray()) as unknown as Proxy[];
+}
+
+export async function getById(_id: ObjectId) {
+  const collection = await getCollection(collectionName);
+  return collection.findOne({ _id }) as unknown as Proxy;
 }
 
 export async function remove(proxy: Proxy): Promise<void> {

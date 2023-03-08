@@ -1,9 +1,8 @@
-import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
-import { ObjectId } from "mongodb";
 import SteamWeb, { FarmableGame } from "@machiavelli/steam-web";
 import { SocksProxyAgent } from "socks-proxy-agent";
-import { Proxy } from "../../@types/index.js";
+import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
+import { ObjectId } from "mongodb";
 import {
   ChangeAvatarBody,
   ChangePrivacyBody,
@@ -11,6 +10,7 @@ import {
   GetAvatarFrameBody,
   GetFarmableGamesBody,
 } from "../../@types/controllers/steamWeb.js";
+import * as ProxyModel from "../models/proxy.js";
 import { wsServer } from "../app.js";
 
 /**
@@ -19,7 +19,8 @@ import { wsServer } from "../app.js";
  */
 export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
-  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, proxy);
   const avatarURL = await steamWeb.changeAvatar(body.avatarDataURL);
   wsServer.send({ userId, routeName: "steamweb/changeavatar", type: "Success", message: avatarURL });
 }
@@ -30,7 +31,8 @@ export async function changeAvatar(userId: ObjectId, body: ChangeAvatarBody) {
  */
 export async function clearAliases(userId: ObjectId, body: ClearAliasesBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
-  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, proxy);
   await steamWeb.clearAliases();
   wsServer.send({ userId, routeName: "steamweb/clearaliases", type: "Success" });
 }
@@ -41,7 +43,8 @@ export async function clearAliases(userId: ObjectId, body: ClearAliasesBody) {
  */
 export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
-  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, proxy);
   await steamWeb.changePrivacy(body.privacy);
   wsServer.send({ userId, routeName: "steamweb/changeprivacy", type: "Success" });
 }
@@ -52,8 +55,8 @@ export async function changePrivacy(userId: ObjectId, body: ChangePrivacyBody) {
  */
 export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesBody): Promise<FarmableGame[]> {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
-
-  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, proxy);
   const farmableGames = await steamWeb.getFarmableGames();
 
   // update farming state
@@ -71,7 +74,8 @@ export async function getFarmableGames(userId: ObjectId, body: GetFarmableGamesB
  */
 export async function getAvatarFrame(userId: ObjectId, body: GetAvatarFrameBody) {
   const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
-  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, steamAccount.state.proxy);
+  const proxy = await ProxyModel.getById(steamAccount.state.proxyId);
+  const steamWeb = await loginHandler(steamAccount.auth.authTokens.refreshToken, proxy);
   const url = await steamWeb.getAvatarFrame();
 
   // update farming state

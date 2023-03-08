@@ -1,10 +1,10 @@
 import { SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import { ObjectId } from "mongodb";
-import { steamStore, wsServer } from "../app.js";
+import { wsServer } from "../app.js";
 import { StartBody } from "../../@types/controllers/farming.js";
 import { getFarmableGames } from "./steamWeb.js";
-import { SteamAccount } from "../../@types/index.js";
+import { SteamAccount } from "../../@types/models/steamAccount.js";
 
 const FarmingIntervals: Map<string, NodeJS.Timer> = new Map();
 

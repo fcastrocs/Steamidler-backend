@@ -1,6 +1,3 @@
-import { SteamIdlerError } from "../commons.js";
-import { GoogleRecaptchaResponse, User } from "../../@types/index.js";
-import { ObjectId } from "mongodb";
 import * as UsersModel from "../models/users.js";
 import * as InviteModel from "../models/invite.js";
 import * as RefreshTokensModel from "../models/refreshToken.js";
@@ -10,6 +7,8 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import fetch from "node-fetch";
 import Mailer from "../mailer/index.js";
 import argon2 from "argon2";
+import { SteamIdlerError } from "../commons.js";
+import { ObjectId } from "mongodb";
 import {
   RegisterBody,
   LoginBody,
