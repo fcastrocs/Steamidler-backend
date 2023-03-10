@@ -3,7 +3,7 @@ import { ResultsMap } from "../../@types/services/proxyStatus";
 import { getCollection } from "../db.js";
 const collectionName = "proxies-status";
 
-const MAXSIZE = 40;
+const MAXSIZE = 100;
 
 /**
  * Fetches proxies from proxies provider
@@ -49,20 +49,23 @@ async function get() {
 }
 
 export async function getResults() {
-  // const collection = await getCollection("proxies");
-  // const cursor = collection.aggregate([
-  //   {
-  //     $lookup: {
-  //       from: "proxies-status",
-  //       localField: "_id",
-  //       foreignField: "proxyId",
-  //       as: "results",
-  //     },
-  //   },
-  // ]);
+  const collection = await getCollection("proxies");
+  const cursor = collection.aggregate([
+    {
+      $lookup: {
+        from: "proxies-status",
+        localField: "_id",
+        foreignField: "proxyId",
+        as: "results",
+      },
+    },
+    { $project: { ip: 0, port: 0, load: 0 } },
+  ]);
 
-  const collection = await getCollection(collectionName);
-
-  const cursor = collection.find({});
   return cursor.toArray() as unknown as ProxyStatusResults[];
+}
+
+export async function deleteAll() {
+  const collection = await getCollection(collectionName);
+  return collection.deleteMany({});
 }

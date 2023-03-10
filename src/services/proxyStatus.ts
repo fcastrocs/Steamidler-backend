@@ -12,7 +12,7 @@ export async function start() {
     throw new SteamIdlerError("Proxies status service is already running.");
   }
   await runResults();
-  intervalId = setInterval(runResults, 1 * 60 * 1000);
+  intervalId = setInterval(runResults, 10 * 60 * 1000);
 }
 
 export async function stop() {

@@ -1,20 +1,16 @@
 import { ObjectId } from "mongodb";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 import { getCollection } from "../db.js";
+import * as ProxyStatusModel from "./proxyStatus.js";
 const collectionName = "proxies";
 
-export async function add(proxies: string[]): Promise<number> {
+export async function add(proxies: Proxy[]): Promise<number> {
   const collection = await getCollection(collectionName);
 
-  const documents: Proxy[] = proxies.map((proxy, index) => {
-    const split = proxy.split(":");
-    if (!validate(`${split[0]}:${split[1]}`)) throw new SteamIdlerError(ERRORS.PROXY_NOT_VALID);
-    const p: Proxy = { name: `Server  ${index + 1}`, ip: split[0], port: Number(split[1]), load: 0 };
-    return p;
-  });
-
   // delete existing proxies
-  const res = await collection.insertMany(documents);
+  await collection.deleteMany({});
+  const res = await collection.insertMany(proxies);
+  await ProxyStatusModel.deleteAll();
   return res.insertedCount;
 }
 
@@ -65,9 +61,4 @@ export async function getById(_id: ObjectId) {
 export async function remove(proxy: Proxy): Promise<void> {
   const collection = await getCollection(collectionName);
   await collection.deleteOne(proxy);
-}
-
-function validate(proxy: string) {
-  const regex = /(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d{1,5})/;
-  return regex.test(proxy);
 }

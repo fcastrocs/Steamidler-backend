@@ -8,12 +8,11 @@ const ROUTE = "/admin";
  * Add proxies
  */
 router.post(ROUTE + "/add-proxies", async (req, res, next) => {
-  const proxies = req.body.proxies;
-  const key = req.body.key;
+  const key = req.get("api-key");
 
   try {
-    const insertedCount = await AdminController.addProxies(proxies, key);
-    return res.send(insertedCount.toString());
+    const inserted = await AdminController.addProxies(req.body, key);
+    return res.send({ inserted });
   } catch (error) {
     return next(error);
   }
@@ -23,7 +22,7 @@ router.post(ROUTE + "/renew-steam-servers", async (req, res, next) => {
   const key = req.body.key;
 
   try {
-    await AdminController.renewSteamServers(key);
+    await AdminController.fetchSteamServers(key);
   } catch (error) {
     return next(error);
   }

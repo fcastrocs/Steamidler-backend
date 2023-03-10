@@ -104,6 +104,8 @@ function beforeMiddleware(client: MongoClient) {
   );
 
   app.use(cookieParser());
+
+  app.all("/admin/*", express.text());
   app.use(express.json({ limit: REQUEST_BODY_SIZE }));
 
   // handle bad JSON

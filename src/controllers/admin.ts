@@ -1,7 +1,8 @@
 import { ERRORS, SteamIdlerError } from "../commons.js";
-import * as ProxieModel from "../models/proxy.js";
-import * as SteamServerModel from "../models/steamServer.js";
+import * as ProxyModel from "../models/proxy.js";
+import * as SteamServerService from "../services/steamServer.js";
 import * as InviteModel from "../models/invite.js";
+import { SteamClientError } from "@machiavelli/steam-client";
 
 const verifyAdminKey = (adminKey: string) => {
   if (!process.env.API_ADMIN_KEY) throw new SteamIdlerError(ERRORS.UNEXPECTED);
@@ -15,19 +16,32 @@ const verifyAdminKey = (adminKey: string) => {
 /**
  * @controller
  */
-export async function addProxies(proxies: string, adminKey: string): Promise<number> {
+export async function addProxies(rawProxies: string, adminKey: string): Promise<number> {
   verifyAdminKey(adminKey);
-  const array = proxies.split(/\r?\n/).filter((proxy) => proxy);
-  if (!array.length) throw new SteamIdlerError("InvalidBody");
-  return await ProxieModel.add(array);
+
+  if (!rawProxies) {
+    throw new SteamClientError("Empty body.");
+  }
+
+  const proxies = rawProxies
+    .split(/\r?\n/)
+    .filter((proxy) => validate(proxy))
+    .map((proxy, index) => {
+      const split = proxy.split(":");
+      const p: Proxy = { name: `Server ${index + 1}`, ip: split[0], port: Number(split[1]), load: 0 };
+      return p;
+    });
+
+  if (!proxies.length) throw new SteamIdlerError("No proxies passed.");
+  return await ProxyModel.add(proxies);
 }
 
 /**
  * @controller
  */
-export async function renewSteamServers(adminKey: string): Promise<void> {
+export async function fetchSteamServers(adminKey: string): Promise<void> {
   verifyAdminKey(adminKey);
-  await SteamServerModel.renew();
+  await SteamServerService.fetchCMs();
 }
 
 /**
@@ -36,4 +50,9 @@ export async function renewSteamServers(adminKey: string): Promise<void> {
 export async function createInvite(email: string, adminKey: string): Promise<string> {
   verifyAdminKey(adminKey);
   return await InviteModel.add(email);
+}
+
+function validate(proxy: string) {
+  const regex = /(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):(\d{1,5})/;
+  return regex.test(proxy);
 }
