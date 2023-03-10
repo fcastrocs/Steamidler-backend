@@ -41,10 +41,8 @@ export async function decreaseLoad(_id: ObjectId): Promise<boolean> {
  */
 export async function getOne(): Promise<Proxy> {
   const collection = await getCollection(collectionName);
-  console.log(process.env.PROXY_LOAD_LIMIT)
   const cursor = collection.find({ load: { $lt: Number(process.env.PROXY_LOAD_LIMIT) } }, { projection: { load: 0 } });
   const proxies = await cursor.toArray();
-  console.log(proxies)
   // no proxies or limit reached
   if (!proxies.length) throw new SteamIdlerError(ERRORS.PROXY_LIMIT_REACHED);
   return proxies[Math.floor(Math.random() * proxies.length)] as unknown as Proxy;
