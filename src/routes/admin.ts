@@ -19,7 +19,7 @@ router.post(ROUTE + "/add-proxies", async (req, res, next) => {
 });
 
 router.post(ROUTE + "/renew-steam-servers", async (req, res, next) => {
-  const key = req.body.key;
+  const key = req.get("api-key");
 
   try {
     await AdminController.fetchSteamServers(key);
@@ -30,7 +30,7 @@ router.post(ROUTE + "/renew-steam-servers", async (req, res, next) => {
 });
 
 router.post(ROUTE + "/create-invite", async (req, res, next) => {
-  const key = req.body.key;
+  const key = req.get("api-key");
   const email = req.body.email;
 
   try {
