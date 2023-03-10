@@ -2,6 +2,7 @@ import { ERRORS, SteamIdlerError } from "../commons.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamServerService from "../services/steamServer.js";
 import * as InviteModel from "../models/invite.js";
+import Mailer from "../mailer/index.js";
 import { SteamClientError } from "@machiavelli/steam-client";
 
 const verifyAdminKey = (adminKey: string) => {
@@ -49,7 +50,10 @@ export async function fetchSteamServers(adminKey: string): Promise<void> {
  */
 export async function createInvite(email: string, adminKey: string): Promise<string> {
   verifyAdminKey(adminKey);
-  return await InviteModel.add(email);
+  const invite = await InviteModel.add(email);
+  const mailer = new Mailer();
+  await mailer.sendInvite(email, invite);
+  return invite;
 }
 
 function validate(proxy: string) {
