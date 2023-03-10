@@ -56,6 +56,7 @@ async function runResults() {
     if (obj.status === "fulfilled") {
       map.set(obj.value._id.toString(), obj.value);
     } else {
+      console.log(obj.reason)
       map.set(obj.reason._id.toString(), obj.reason);
     }
     return map;
