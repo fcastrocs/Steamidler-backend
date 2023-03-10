@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@fcastrocs/retry": "^1.0.0",
+    "@fcastrocs/steam-client-crypto": "^1.0.0",
     "@fcastrocs/steamclient": "^1.0.0",
     "@fcastrocs/steamweb": "^1.0.0",
     "argon2": "^0.30.3",
