@@ -119,15 +119,18 @@ function beforeMiddleware(client: MongoClient) {
 
   // check for authentication
   app.use(async (req, res, next) => {
+    console.log(req.path);
     // skip user paths
     if (
       [
         "/user/initlogin",
         "/user/finalizelogin",
         "/user/register",
-        "user/verifyauth",
-        "user/resetpassword",
-        "/admin",
+        "/user/verifyauth",
+        "/user/resetpassword",
+        "/admin/add-proxies",
+        "/admin/renew-steam-servers",
+        "/admin/create-invite",
       ].includes(req.path)
     ) {
       return next();
