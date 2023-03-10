@@ -27,6 +27,9 @@ async function runResults() {
   const proxies = await ProxyModel.getAll();
   if (!proxies.length) return;
 
+  const steamCMcount = await SteamServerModel.getCount();
+  if (!steamCMcount) return;
+
   const isAlive = [];
   const isSteamConnectable = [];
 

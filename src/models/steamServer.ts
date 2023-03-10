@@ -21,3 +21,8 @@ export async function getOne(): Promise<SteamCM> {
   if (!server) throw new SteamIdlerError("Steam CM list is empty.");
   return server as SteamCM;
 }
+
+export async function getCount() {
+  const collection = await getCollection(collectionName);
+  return collection.countDocuments({});
+}
