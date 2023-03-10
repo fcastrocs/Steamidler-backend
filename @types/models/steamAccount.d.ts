@@ -1,11 +1,11 @@
-import { AuthTokens } from "@machiavelli/steam-client/@types/services/Auth";
-import { EPersonaState } from "@machiavelli/steam-client/@types/client";
+import { AuthTokens } from "@fcastrocs/steamclient/@types/services/Auth";
+import { EPersonaState } from "@fcastrocs/steamclient/@types/client";
 import { ObjectId } from "mongodb";
-import { AccountAuth, AccountData } from "@machiavelli/steam-client";
+import { AccountAuth, AccountData } from "@fcastrocs/steamclient";
 import { State } from "./addSteamAccount";
-import { FarmableGame, Item } from "@machiavelli/steam-web";
+import { FarmableGame, Item } from "@fcastrocs/steamclient";
 
-declare module "@machiavelli/steam-client" {
+declare module "@fcastrocs/steamclient" {
   export interface AccountAuth {
     password?: string;
     authTokens: AuthTokens;

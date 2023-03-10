@@ -1,4 +1,4 @@
-import { EPersonaState } from "@machiavelli/steam-client/@types/client";
+import { EPersonaState } from "@fcastrocs/steamclient/@types/client";
 
 interface Base {
   accountName?: string;

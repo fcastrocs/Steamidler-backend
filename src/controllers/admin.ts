@@ -3,7 +3,7 @@ import * as ProxyModel from "../models/proxy.js";
 import * as SteamServerService from "../services/steamServer.js";
 import * as InviteModel from "../models/invite.js";
 import Mailer from "../mailer/index.js";
-import { SteamClientError } from "@machiavelli/steam-client";
+import { SteamClientError } from "@fcastrocs/steamclient";
 
 const verifyAdminKey = (adminKey: string) => {
   if (!process.env.API_ADMIN_KEY) throw new SteamIdlerError(ERRORS.UNEXPECTED);

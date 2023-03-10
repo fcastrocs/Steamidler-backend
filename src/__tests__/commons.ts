@@ -1,7 +1,7 @@
 import "dotenv/config";
 import assert from "assert";
 import { decrypt, encrypt, mergeGamesArrays } from "../commons.js";
-import { Game } from "@machiavelli/steam-client";
+import { Game } from "@fcastrocs/steamclient";
 
 describe("common functions", () => {
   it("encrypt() and decrypt()", async () => {

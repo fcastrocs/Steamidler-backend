@@ -1,5 +1,5 @@
 import * as SteamAccountModel from "../models/steamAccount.js";
-import SteamWeb, { FarmableGame } from "@machiavelli/steam-web";
+import SteamWeb, { FarmableGame } from "@fcastrocs/steamweb";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { getAgentOptions, SteamAccountExistsOnline } from "../commons.js";
 import { ObjectId } from "mongodb";

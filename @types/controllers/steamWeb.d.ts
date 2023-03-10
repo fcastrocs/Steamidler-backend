@@ -1,4 +1,4 @@
-import { ProfilePrivacy } from "@machiavelli/steam-web";
+import { ProfilePrivacy } from "@fcastrocs/steamclient";
 
 interface Base {
   accountName?: string;

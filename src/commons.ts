@@ -5,7 +5,7 @@ import { steamStore } from "./app.js";
 
 import { Response } from "express";
 import { ObjectId } from "mongodb";
-import Steam, { Game } from "@machiavelli/steam-client";
+import Steam, { Game } from "@fcastrocs/steamclient";
 import { SteamAccount } from "../@types/models/steamAccount.js";
 
 export class SteamIdlerError extends Error {

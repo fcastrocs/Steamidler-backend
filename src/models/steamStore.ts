@@ -1,7 +1,7 @@
 /**
  * Online steam accounts Steam instance are stored by userId
  */
-import Steam from "@machiavelli/steam-client";
+import Steam from "@fcastrocs/steamclient";
 import { ObjectId } from "mongodb";
 import { ERRORS, SteamIdlerError } from "../commons.js";
 

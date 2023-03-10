@@ -2,13 +2,13 @@ import * as SteamAccountModel from "../models/steamAccount.js";
 import * as ProxyModel from "../models/proxy.js";
 import * as SteamcmModel from "../models/steamServer.js";
 import * as Farming from "../services/farming.js";
-import Steam, { SteamClientError } from "@machiavelli/steam-client";
+import Steam, { SteamClientError } from "@fcastrocs/steamclient";
 import { steamWebLogin } from "./steamWeb.js";
-import retry from "@machiavelli/retry";
+import retry from "@fcastrocs/retry";
 
 import { ERRORS, mergeGamesArrays, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
-import { AuthTokens, Confirmation, LoginOptions } from "@machiavelli/steam-client";
+import { AuthTokens, Confirmation, LoginOptions } from "@fcastrocs/steamclient";
 
 import { wsServer, steamStore, steamTempStore } from "../app.js";
 import {
@@ -166,7 +166,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   steamStore.add(userId, steamAccount.accountName, steam);
 
   // restore account state
-  // await restoreState(userId, body.accountName, steamAccount.state);
+  await restoreState(userId, body.accountName, steamAccount.state);
 
   // add listeners
   SteamEventListeners(userId, steamAccount.accountName);
@@ -384,9 +384,9 @@ async function restoreState(userId: ObjectId, accountName: string, state: Accoun
   const steam = steamStore.get(userId, accountName);
   if (!steam) throw new SteamIdlerError("Account is not online.");
 
-  if (state.personaState !== "Invisible") {
-    await steam.client.setPersonaState(state.personaState);
-  }
+  // if (state.personaState !== "Invisible") {
+  //   await steam.client.setPersonaState(state.personaState);
+  // }
 
   // restore farming
   if (state.gamesIdsFarm.length) {

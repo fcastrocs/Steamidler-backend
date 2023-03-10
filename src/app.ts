@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { Response, Request, NextFunction } from "express";
 import { Db, MongoClient } from "mongodb";
-import rateLimiter from "@machiavelli/express-rate-limiter";
+import rateLimiter from "@fcastrocs/retry";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -9,8 +9,8 @@ import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import index from "./routes/index.js";
 import proxyStatusRouter from "./routes/proxyStatus.js";
-import { SteamClientError } from "@machiavelli/steam-client";
-import { SteamWebError } from "@machiavelli/steam-web";
+import { SteamClientError } from "@fcastrocs/steamclient";
+import { SteamWebError } from "@fcastrocs/steamweb";
 import * as SteamAccountController from "./controllers/steamAccount.js";
 import * as SteamClientController from "./controllers/steamClient.js";
 import * as UserController from "./controllers/user.js";
