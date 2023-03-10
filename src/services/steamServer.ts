@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { SteamCM } from "../../@types/models/steamServer.js";
+import * as SteamServerModel from "../models/steamServer.js";
 import { SteamIdlerError } from "../commons.js";
 
 const STEAMCMS_URL = "https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?format=json&cellid=0";
@@ -37,6 +38,8 @@ const fetchCMs = async () => {
   if (!filteredSteamCMList.length) {
     throw new SteamIdlerError("Could not get US/Ashburn Steam CM servers.");
   }
+
+  await SteamServerModel.add(filteredSteamCMList);
 };
 
 export { fetchCMs };
