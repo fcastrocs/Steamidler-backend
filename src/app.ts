@@ -13,6 +13,7 @@ import { SteamClientError } from "@machiavelli/steam-client";
 import { SteamWebError } from "@machiavelli/steam-web";
 import * as SteamAccountController from "./controllers/steamAccount.js";
 import * as SteamClientController from "./controllers/steamClient.js";
+import * as UserController from "./controllers/user.js";
 import * as SteamWebController from "./controllers/steamWeb.js";
 import * as FarmingController from "./controllers/farming.js";
 import * as ProxyStatusService from "./services/proxyStatus.js";
@@ -21,7 +22,7 @@ const steamStore = new SteamStore();
 const steamTempStore = new SteamStore();
 
 import * as mongodb from "./db.js";
-import { SteamIdlerError } from "./commons.js";
+import { setCookie, SteamIdlerError } from "./commons.js";
 import http from "http";
 import WebSocketServer from "./WebSocketAPIServer.js";
 import SteamStore from "./models/steamStore.js";
@@ -120,17 +121,37 @@ function beforeMiddleware(client: MongoClient) {
   app.use(async (req, res, next) => {
     // skip user paths
     if (
-      ["/user/initlogin", "/user/finalizelogin", "/user/register", "user/verifyauth", "user/resetpassword"].includes(
-        req.path
-      )
-    )
+      [
+        "/user/initlogin",
+        "/user/finalizelogin",
+        "/user/register",
+        "user/verifyauth",
+        "user/resetpassword",
+        "/admin",
+      ].includes(req.path)
+    ) {
       return next();
+    }
 
-    // skip admin paths, for now ...
-    if (req.path.includes("/admin/")) return next();
+    if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
+      return res.status(401).send({ authenticated: false });
+    }
 
-    app.post("/user/verifyAuth");
-    next();
+    try {
+      const auth = await UserController.verifyAuth({
+        accessToken: req.cookies["access-token"],
+        refreshToken: req.cookies["refresh-token"],
+      });
+      // set new access token
+      if (auth.accessToken) {
+        setCookie("access-token", auth.accessToken, res);
+      }
+      return next();
+    } catch (error) {
+      res.clearCookie("access-token");
+      res.clearCookie("refresh-token");
+      return next(error);
+    }
   });
 
   // rate limit routes

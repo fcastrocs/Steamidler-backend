@@ -69,7 +69,7 @@ router.post(ROUTE + "/updatepassword", async (req, res, next) => {
   }
 });
 
-router.get(ROUTE + "/verifyauth", async (req, res, next) => {
+router.post(ROUTE + "/verifyauth", async (req, res, next) => {
   if (!req.cookies || !req.cookies["access-token"] || !req.cookies["refresh-token"]) {
     return res.status(401).send({ authenticated: false });
   }
