@@ -119,7 +119,6 @@ function beforeMiddleware(client: MongoClient) {
 
   // check for authentication
   app.use(async (req, res, next) => {
-    console.log(req.path);
     // skip user paths
     if (
       [
