@@ -166,7 +166,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   steamStore.add(userId, steamAccount.accountName, steam);
 
   // restore account state
-  await restoreState(userId, body.accountName, steamAccount.state);
+  // await restoreState(userId, body.accountName, steamAccount.state);
 
   // add listeners
   SteamEventListeners(userId, steamAccount.accountName);
