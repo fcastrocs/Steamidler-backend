@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express, { Response, Request, NextFunction } from "express";
 import { Db, MongoClient } from "mongodb";
-import rateLimiter from "@fcastrocs/retry";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 

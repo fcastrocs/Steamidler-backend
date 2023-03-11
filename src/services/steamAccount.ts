@@ -6,7 +6,7 @@ import Steam, { SteamClientError } from "@fcastrocs/steamclient";
 import { steamWebLogin } from "./steamWeb.js";
 import retry from "@fcastrocs/retry";
 
-import { ERRORS, mergeGamesArrays, SteamIdlerError } from "../commons.js";
+import { ERRORS, mergeGamesArrays, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";
 import { AuthTokens, Confirmation, LoginOptions } from "@fcastrocs/steamclient";
 
@@ -20,7 +20,7 @@ import {
   LogoutBody,
   CancelConfirmationBody,
 } from "../../@types/controllers/steamAccount.js";
-import { SteamAccount, AccountState } from "../../@types/models/steamAccount.js";
+import { SteamAccount, AccountState, SteamAccountNonSensitive } from "../../@types/models/steamAccount.js";
 
 /**
  * Add new account
@@ -91,7 +91,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
   steamStore.add(userId, authTokens.accountName, steam);
 
   // add listeners
-  SteamEventListeners(userId, steamaccount.accountName);
+  SteamEventListeners(steam, userId, steamaccount.accountName);
 
   delete steamaccount.auth;
 
@@ -156,20 +156,22 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.farmableGames = farmableGames;
   loginRes.data.avatarFrame = avatarFrame;
 
+  // store steam instance
+  steamStore.add(userId, steamAccount.accountName, steam);
+
+  // set account data
+  steamAccount.data = loginRes.data;
+
+  // restore account state
+  await restoreState(userId, steam, steamAccount);
+
   const nonSensitiveAccount = await SteamAccountModel.updateField(userId, body.accountName, {
-    "state.status": "online" as SteamAccount["state"]["status"],
     "state.proxyId": proxy._id,
     data: loginRes.data,
   });
 
-  // store steam instance
-  steamStore.add(userId, steamAccount.accountName, steam);
-
-  // restore account state
-  await restoreState(userId, body.accountName, steamAccount.state);
-
   // add listeners
-  SteamEventListeners(userId, steamAccount.accountName);
+  SteamEventListeners(steam, userId, steamAccount.accountName);
 
   wsServer.send({ ...wsBody, type: "Success", message: nonSensitiveAccount });
 }
@@ -380,32 +382,36 @@ async function connectToSteam(proxy?: Proxy) {
 /**
  * Restore account state:  personastate, farming, and idling after login
  */
-async function restoreState(userId: ObjectId, accountName: string, state: AccountState) {
-  const steam = steamStore.get(userId, accountName);
-  if (!steam) throw new SteamIdlerError("Account is not online.");
-
+async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | SteamAccountNonSensitive) {
   // if (state.personaState !== "Invisible") {
   //   await steam.client.setPersonaState(state.personaState);
   // }
 
-  // restore farming
-  if (state.gamesIdsFarm.length) {
-    return await Farming.start(userId, { accountName, gameIds: state.gamesIdsFarm });
+  // restore idling or idling
+  if (!s.data.playingState.playingBlocked) {
+    // restore farming
+    if (s.state.gamesIdsFarm.length) {
+      await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
+    }
+
+    // restore idling
+    if (s.state.gamesIdsIdle.length) {
+      await steam.client.gamesPlayed(s.state.gamesIdsIdle);
+    }
   }
 
-  // restore idling
-  if (state.gamesIdsIdle.length) {
-    await steam.client.gamesPlayed(state.gamesIdsIdle);
-  }
+  await SteamAccountModel.updateField(userId, s.accountName, {
+    "state.status":
+      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !s.data.playingState.playingBlocked
+        ? "ingame"
+        : ("online" as SteamAccount["state"]["status"]),
+  });
 }
 
 /**
  * Handle account disconnects
  */
-function SteamEventListeners(userId: ObjectId, accountName: string) {
-  const steam = steamStore.get(userId, accountName);
-  if (!steam) throw new SteamIdlerError("Account is not online.");
-
+function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string) {
   // state change on this steam account
   steam.on("PersonaStateChanged", async (state) => {
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
@@ -415,24 +421,50 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
     wsServer.send({ userId, routeName: "steamaccount/personastatechanged", type: "Info", message: steamAccount });
   });
 
+  steam.on("PlayingStateChanged", async (state) => {
+    // restore
+
+    const oldSteamAccount = await SteamAccountModel.getByUserId(userId, { accountName });
+
+    const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
+      "data.playingState": state,
+    });
+
+    // stated changed from blocked to not blocked
+    if (
+      oldSteamAccount.data.playingState.playingBlocked &&
+      !state.playingBlocked &&
+      oldSteamAccount.state.status === "online"
+    ) {
+      await restoreState(userId, steam, steamAccount);
+    }
+
+    wsServer.send({ userId, routeName: "steamaccount/playingstatechanged", type: "Info", message: steamAccount });
+  });
+
   steam.on("AccountLoggedOff", async (eresult) => {
-    await logout(userId, { accountName });
+    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
+
     // access revoked
     if (eresult === "Revoked") {
       await SteamAccountModel.updateField(userId, accountName, {
         "state.status": "AccessDenied" as SteamAccount["state"]["status"],
       });
     }
-    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
+
     wsServer.send({
       userId,
       routeName: "steamaccount/accountloggedoff",
       type: "Info",
       message: { accountName, eresult },
     });
+
+    reconnect(eresult);
   });
 
-  steam.on("disconnected", async () => {
+  steam.on("disconnected", () => {
+    console.log(`ACCOUNT ${accountName} DISCONNECTED`);
+
     wsServer.send({
       userId,
       routeName: "steamaccount/disconnected",
@@ -440,11 +472,24 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
       message: { accountName },
     });
 
+    reconnect();
+  });
+
+  async function reconnect(eresult?: string) {
+    // stop farmer
+    try {
+      await Farming.stop(userId, { accountName });
+    } catch (error) {
+      if (error.message !== "Not farming.") throw error;
+    }
+
     // remove from online accounts
     steamStore.remove(userId, accountName);
 
-    // stop farmer
-    //await Farmer.stop(userId, username);
+    // stop
+    if (eresult && eresult === "Revoked") {
+      return;
+    }
 
     // set state.status to 'reconnecting'
     await SteamAccountModel.updateField(userId, accountName, {
@@ -459,13 +504,12 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
 
     // attempt login
     operation.attempt(async (currentAttempt: number) => {
-      console.log(`${accountName}: attempting reconnect...`);
-
       try {
         await login(userId, { accountName });
-        console.log(`${accountName}: reconnected successfully`);
+        console.log(`${accountName}: reconnected successfully.`);
       } catch (error) {
-        console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}`);
+        console.log(error);
+        console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}.`);
 
         // error originated in steam-client
         if (error instanceof SteamClientError) {
@@ -492,5 +536,5 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
         });
       }
     });
-  });
+  }
 }

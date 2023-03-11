@@ -6,4 +6,4 @@ export interface StartBody extends Base {
   gameIds: number[];
 }
 
-export interface stopBody extends Base {}
+export interface StopBody extends Base {}

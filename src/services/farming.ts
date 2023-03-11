@@ -2,7 +2,7 @@ import { SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import { ObjectId } from "mongodb";
 import { wsServer } from "../app.js";
-import { StartBody } from "../../@types/controllers/farming.js";
+import { StartBody, StopBody } from "../../@types/controllers/farming.js";
 import { getFarmableGames } from "./steamWeb.js";
 import { SteamAccount } from "../../@types/models/steamAccount.js";
 
@@ -38,7 +38,7 @@ export async function start(userId: ObjectId, body: StartBody) {
  * Stop Farming
  * @Service
  */
-export async function stop(userId: ObjectId, body: StartBody) {
+export async function stop(userId: ObjectId, body: StopBody) {
   const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
 
   const interval = FarmingIntervals.get(body.accountName);
