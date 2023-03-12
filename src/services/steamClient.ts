@@ -1,3 +1,11 @@
+/**
+ * 'steamclient/idlegames'
+ * 'steamclient/changeplayername'
+ * 'steamclient/activatef2pgame'
+ * 'steamclient/cdkeyredeem'
+ * 'steamclient/changepersonastate'
+ */
+
 import * as SteamAccountModel from "../models/steamAccount.js";
 import { mergeGamesArrays, SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
 import { ObjectId } from "mongodb";

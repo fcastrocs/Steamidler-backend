@@ -1,3 +1,11 @@
+/**
+ * 'steamweb/changeavatar'
+ * 'steamweb/clearaliases'
+ * 'steamweb/changeprivacy'
+ * 'steamweb/getfarmablegames'
+ * 'steamweb/getavatarframe'
+ */
+
 import * as SteamAccountModel from "../models/steamAccount.js";
 import SteamWeb, { FarmableGame } from "@fcastrocs/steamweb";
 import { SocksProxyAgent } from "socks-proxy-agent";

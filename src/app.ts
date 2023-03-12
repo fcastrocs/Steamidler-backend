@@ -173,15 +173,15 @@ function registerRoutes() {
   app.use("/", userRoutes);
   app.use("/", proxyStatusRouter);
 
-  wsServer.addRoute("steamaccount/get", SteamAccountController.get);
-  wsServer.addRoute("steamaccount/getall", SteamAccountController.getAll);
   wsServer.addRoute("steamaccount/add", SteamAccountController.add);
   wsServer.addRoute("steamaccount/login", SteamAccountController.login);
   wsServer.addRoute("steamaccount/logout", SteamAccountController.logout);
-  wsServer.addRoute("steamaccount/authrenew", SteamAccountController.authRenew);
   wsServer.addRoute("steamaccount/remove", SteamAccountController.remove);
-  wsServer.addRoute("steamaccount/updateWithSteamGuardCode", SteamAccountController.updateWithSteamGuardCode);
-  wsServer.addRoute("steamaccount/cancelConfirmation", SteamAccountController.cancelConfirmation);
+  wsServer.addRoute("steamaccount/updatewithsteamguardcode", SteamAccountController.updateWithSteamGuardCode);
+  wsServer.addRoute("steamaccount/cancelconfirmation", SteamAccountController.cancelConfirmation);
+  wsServer.addRoute("steamaccount/authrenew", SteamAccountController.authRenew);
+  wsServer.addRoute("steamaccount/get", SteamAccountController.get);
+  wsServer.addRoute("steamaccount/getall", SteamAccountController.getAll);
 
   wsServer.addRoute("steamclient/idlegames", SteamClientController.idleGames);
   wsServer.addRoute("steamclient/changeplayername", SteamClientController.changePlayerName);
