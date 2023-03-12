@@ -21,7 +21,7 @@ const steamStore = new SteamStore();
 const steamConfirmationStore = new SteamStore();
 
 import * as mongodb from "./db.js";
-import { setCookie, SteamIdlerError } from "./commons.js";
+import { clearCookie, setCookie, SteamIdlerError } from "./commons.js";
 import http from "http";
 import WebSocketServer from "./WebSocketAPIServer.js";
 import SteamStore from "./models/steamStore.js";
@@ -149,8 +149,8 @@ function beforeMiddleware(client: MongoClient) {
       }
       return next();
     } catch (error) {
-      res.clearCookie("access-token");
-      res.clearCookie("refresh-token");
+      clearCookie(res, "access-token");
+      clearCookie(res, "refresh-token");
       return next(error);
     }
   });

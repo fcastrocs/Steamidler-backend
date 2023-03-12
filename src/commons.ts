@@ -111,3 +111,9 @@ export function setCookie(name: string, value: string, res: Response) {
     domain: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "stage" ? ".steamidler.com" : "localhost",
   });
 }
+
+export function clearCookie(res: Response, name: string) {
+  res.clearCookie(name, {
+    domain: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "stage" ? ".steamidler.com" : "localhost",
+  });
+}

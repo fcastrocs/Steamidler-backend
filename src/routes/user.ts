@@ -1,4 +1,4 @@
-import { setCookie } from "../commons.js";
+import { clearCookie, setCookie } from "../commons.js";
 import { Router } from "express";
 import * as UsersController from "../controllers/user.js";
 const router = Router();
@@ -29,7 +29,7 @@ router.post(ROUTE + "/finalizelogin", async (req, res, next) => {
   try {
     req.body.initLoginToken = req.cookies["init-login-token"];
     const auth = await UsersController.finalizeLogin(req.body);
-    res.clearCookie("init-login-token");
+    clearCookie(res, "init-login-token");
     setCookie("access-token", auth.accessToken, res);
     setCookie("refresh-token", auth.refreshToken, res);
     res.send({ success: true });
@@ -41,8 +41,8 @@ router.post(ROUTE + "/finalizelogin", async (req, res, next) => {
 router.post(ROUTE + "/logout", async (req, res, next) => {
   try {
     await UsersController.logout(req.body);
-    res.clearCookie("access-token");
-    res.clearCookie("refresh-token");
+    clearCookie(res, "access-token");
+    clearCookie(res, "refresh-token");
     res.send({ success: true });
   } catch (error) {
     next(error);
@@ -85,8 +85,8 @@ router.post(ROUTE + "/verifyauth", async (req, res, next) => {
     }
     return res.send({ success: true });
   } catch (error) {
-    res.clearCookie("access-token");
-    res.clearCookie("refresh-token");
+    clearCookie(res, "access-token");
+    clearCookie(res, "refresh-token");
     return next(error);
   }
 });
