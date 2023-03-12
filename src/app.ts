@@ -18,7 +18,7 @@ import * as FarmingController from "./controllers/farming.js";
 import * as ProxyStatusService from "./services/proxyStatus.js";
 
 const steamStore = new SteamStore();
-const steamTempStore = new SteamStore();
+const steamConfirmationStore = new SteamStore();
 
 import * as mongodb from "./db.js";
 import { setCookie, SteamIdlerError } from "./commons.js";
@@ -33,7 +33,7 @@ const httpServer = CreateHttpServer();
 const wsServer = new WebSocketServer();
 wsServer.upgrade(httpServer);
 
-export { wsServer, steamStore, steamTempStore };
+export { wsServer, steamStore, steamConfirmationStore };
 
 // Start the app
 (async () => {
