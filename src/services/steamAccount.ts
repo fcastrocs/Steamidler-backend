@@ -433,14 +433,14 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
     if (s.state.gamesIdsIdle.length) {
       await steam.client.gamesPlayed(s.state.gamesIdsIdle);
     }
-
-    await SteamAccountModel.updateField(userId, s.accountName, {
-      "state.status":
-        s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length
-          ? "ingame"
-          : ("online" as SteamAccount["state"]["status"]),
-    });
   }
+
+  await SteamAccountModel.updateField(userId, s.accountName, {
+    "state.status":
+      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !s.data.playingState.playingBlocked
+        ? "ingame"
+        : ("online" as SteamAccount["state"]["status"]),
+  });
 }
 
 /**
