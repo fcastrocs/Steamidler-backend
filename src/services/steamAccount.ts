@@ -275,13 +275,15 @@ export async function logout(userId: ObjectId, body: LogoutBody) {
     throw new SteamIdlerError("Account was not found.");
 
   // account is online
-  const steam = steamStore.remove(userId, body.accountName);
+  const steam = steamStore.get(userId, body.accountName);
   if (steam) {
     await stopFarming(userId, body.accountName);
     steam.disconnect();
   } else {
     throw new SteamIdlerError("Account is not online.");
   }
+
+  steamStore.remove(userId, body.accountName);
 
   const nonSensitiveAcc = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.status": "offline" as SteamAccount["state"]["status"],
@@ -405,7 +407,10 @@ async function stopFarming(userId: ObjectId, accountName: string) {
   try {
     await Farming.stop(userId, { accountName });
   } catch (error) {
-    if (error.message !== "Not farming.") throw error;
+    if (error.message !== "Not farming.") {
+      steamStore.remove(userId, accountName);
+      throw error;
+    }
   }
 }
 
@@ -523,6 +528,7 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
       try {
         await login(userId, { accountName });
         console.log(`${accountName}: reconnected successfully.`);
+        return;
       } catch (error) {
         console.log(error);
         console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}.`);
