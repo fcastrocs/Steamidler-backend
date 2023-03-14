@@ -85,8 +85,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
 
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam servers." });
 
-  const { items, farmableGames, avatarFrame } = await steamWebLogin(authTokens.accessToken, proxy);
-  loginData.data.items = items;
+  const { farmableGames, avatarFrame } = await steamWebLogin(authTokens.accessToken, proxy);
   loginData.data.farmableGames = farmableGames;
   loginData.data.avatarFrame = avatarFrame;
 
@@ -169,11 +168,10 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.games = merge;
 
   // login to steam web
-  const { items, farmableGames, avatarFrame } = await steamWebLogin(steamAccount.auth.authTokens.refreshToken, proxy);
+  const { farmableGames, avatarFrame } = await steamWebLogin(steamAccount.auth.authTokens.refreshToken, proxy);
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   // update account
-  loginRes.data.items = items;
   loginRes.data.farmableGames = farmableGames;
   loginRes.data.avatarFrame = avatarFrame;
   steamAccount.data = loginRes.data;

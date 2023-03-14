@@ -13,7 +13,6 @@ declare module "@fcastrocs/steamclient" {
 
   interface AccountData {
     farmableGames: FarmableGame[];
-    items: Item[];
     avatarFrame: string;
   }
 }

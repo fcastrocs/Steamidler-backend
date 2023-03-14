@@ -99,10 +99,9 @@ export async function getAvatarFrame(userId: ObjectId, body: GetAvatarFrameBody)
  */
 export async function steamWebLogin(refreshToken: string, proxy: Proxy) {
   const steamWeb = await loginHandler(refreshToken, proxy);
-  const items = await steamWeb.getCardsInventory();
   const farmableGames = await steamWeb.getFarmableGames();
   const avatarFrame = await steamWeb.getAvatarFrame();
-  return { items, farmableGames, avatarFrame };
+  return { farmableGames, avatarFrame };
 }
 
 /**
