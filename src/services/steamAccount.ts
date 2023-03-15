@@ -487,17 +487,6 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
   });
 
   async function reconnect(eresult?: string) {
-    // stop farmer
-    await stopFarming(userId, accountName);
-
-    // remove from online accounts
-    steamStore.remove(userId, accountName);
-
-    // stop
-    if (eresult && eresult === "Revoked") {
-      return;
-    }
-
     // set state.status to 'reconnecting'
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
       "state.status": "reconnecting" as SteamAccount["state"]["status"],
@@ -509,6 +498,17 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
       type: "Info",
       message: { steamAccount, eresult: eresult },
     });
+
+    // stop farmer
+    await stopFarming(userId, accountName);
+
+    // remove from online accounts
+    steamStore.remove(userId, accountName);
+
+    // stop
+    if (eresult && eresult === "Revoked") {
+      return;
+    }
 
     // generate a number between 1 and 20
     // this is done so that when steam goes offline, the backend doesn't overload.
