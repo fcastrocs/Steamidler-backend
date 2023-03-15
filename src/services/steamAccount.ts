@@ -442,6 +442,8 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
     }
   }
 
+  console.log("restored ", s.accountName);
+
   await SteamAccountModel.updateField(userId, s.accountName, {
     "state.status":
       (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !s.data.playingState.playingBlocked
