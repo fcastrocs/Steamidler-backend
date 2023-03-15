@@ -430,16 +430,13 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
   console.log("\n");
 
   // restore idling or idling
-  if (!s.data.playingState.playingBlocked) {
-    // restore farming
-    if (s.state.gamesIdsFarm.length) {
-      await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
-    }
+  if (s.state.gamesIdsFarm.length) {
+    await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
+  }
 
-    // restore idling
-    if (s.state.gamesIdsIdle.length) {
-      await steam.client.gamesPlayed(s.state.gamesIdsIdle);
-    }
+  // restore idling
+  if (!s.data.playingState.playingBlocked && s.state.gamesIdsIdle.length) {
+    await steam.client.gamesPlayed(s.state.gamesIdsIdle);
   }
 
   console.log("restored ", s.accountName);

@@ -17,6 +17,13 @@ export async function start(userId: ObjectId, body: StartBody) {
     throw new SteamIdlerError("Already farming.");
   }
 
+  const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
+
+  // account is playing elsewhere.
+  if (steamAccount.data.playingState.playingBlocked) {
+    throw new SteamIdlerError("Account has a playing session elsewhere.");
+  }
+
   await farmingAlgo(userId, body, { skip: true });
 
   // run farming algo at process.env.FARMING_INTERVAL_MINUTES
@@ -25,7 +32,7 @@ export async function start(userId: ObjectId, body: StartBody) {
     try {
       await farmingAlgo(userId, body);
     } catch (error) {
-      // don't throw on fail
+      // don't throw on fail or app will crash.
       console.log(error);
     }
   }, Number(process.env.FARMING_INTERVAL_MINUTES) * 60 * 1000);
@@ -49,7 +56,10 @@ export async function stop(userId: ObjectId, body: StopBody) {
   clearInterval(interval);
   FarmingIntervals.delete(body.accountName);
 
-  if (steam) await steam.client.gamesPlayed([]);
+  // stop idling
+  if (steam) {
+    await steam.client.gamesPlayed([]);
+  }
 
   const account = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.gamesIdsFarm": [],
