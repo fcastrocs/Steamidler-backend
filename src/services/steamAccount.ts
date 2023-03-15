@@ -426,7 +426,7 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
   //   await steam.client.setPersonaState(state.personaState);
   // }
 
-  console.log("restoring account ", s.accountName, s.data);
+  console.log("restoring account ", s.accountName, s.data.playingState);
   console.log("\n");
 
   // restore idling or idling
