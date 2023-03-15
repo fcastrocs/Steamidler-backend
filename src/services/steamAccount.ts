@@ -148,8 +148,6 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
-  console.log("attemping logging: ", steamAccount.accountName);
-
   // login to steam
   let loginRes;
   try {
@@ -165,8 +163,6 @@ export async function login(userId: ObjectId, body: LoginBody) {
     throw error;
   }
 
-  console.log("logged in: ", steamAccount.accountName);
-
   // merge games so that activated f2p games are not lost
   const { merge } = mergeGamesArrays(steamAccount.data.games, loginRes.data.games);
   loginRes.data.games = merge;
@@ -179,8 +175,6 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.farmableGames = farmableGames;
   loginRes.data.avatarFrame = avatarFrame;
   steamAccount.data = loginRes.data;
-
-  console.log("steamweb logged in: ", steamAccount.accountName);
 
   steamStore.add(userId, steamAccount.accountName, steam);
 
@@ -422,28 +416,21 @@ async function stopFarming(userId: ObjectId, accountName: string) {
  * Restore account state:  personastate, farming, and idling after login
  */
 async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | SteamAccountNonSensitive) {
-  // if (state.personaState !== "Invisible") {
-  //   await steam.client.setPersonaState(state.personaState);
-  // }
+  if (!steam.isPlayingBlocked) {
+    // restore idling or idling
+    if (s.state.gamesIdsFarm.length) {
+      await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
+    }
 
-  console.log("restoring account ", s.accountName, s.data.playingState);
-  console.log("\n");
-
-  // restore idling or idling
-  if (s.state.gamesIdsFarm.length) {
-    await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
+    // restore idling
+    if (s.state.gamesIdsIdle.length) {
+      await steam.client.gamesPlayed(s.state.gamesIdsIdle);
+    }
   }
-
-  // restore idling
-  if (!s.data.playingState.playingBlocked && s.state.gamesIdsIdle.length) {
-    await steam.client.gamesPlayed(s.state.gamesIdsIdle);
-  }
-
-  console.log("restored ", s.accountName);
 
   await SteamAccountModel.updateField(userId, s.accountName, {
     "state.status":
-      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !s.data.playingState.playingBlocked
+      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !steam.isPlayingBlocked
         ? "ingame"
         : ("online" as SteamAccount["state"]["status"]),
   });

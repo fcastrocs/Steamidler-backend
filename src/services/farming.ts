@@ -1,7 +1,7 @@
-import { SteamAccountExistsOnline, SteamIdlerError } from "../commons.js";
+import { SteamIdlerError } from "../commons.js";
 import * as SteamAccountModel from "../models/steamAccount.js";
 import { ObjectId } from "mongodb";
-import { wsServer } from "../app.js";
+import { steamStore, wsServer } from "../app.js";
 import { StartBody, StopBody } from "../../@types/controllers/farming.js";
 import { getFarmableGames } from "./steamWeb.js";
 import { SteamAccount } from "../../@types/models/steamAccount.js";
@@ -17,11 +17,18 @@ export async function start(userId: ObjectId, body: StartBody) {
     throw new SteamIdlerError("Already farming.");
   }
 
-  const { steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
+  const steam = steamStore.get(userId, body.accountName);
+  if (!steam) {
+    throw new SteamIdlerError("Account is not online.");
+  }
 
   // account is playing elsewhere.
-  if (steamAccount.data.playingState.playingBlocked) {
+  if (steam.isPlayingBlocked) {
     throw new SteamIdlerError("Account has a playing session elsewhere.");
+  }
+
+  if (!body.gameIds.length) {
+    throw new SteamIdlerError("Could not start farming, no gameIds passed.");
   }
 
   await farmingAlgo(userId, body, { skip: true });
@@ -46,7 +53,10 @@ export async function start(userId: ObjectId, body: StartBody) {
  * @Service
  */
 export async function stop(userId: ObjectId, body: StopBody) {
-  const { steam } = await SteamAccountExistsOnline(userId, body.accountName);
+  const steam = steamStore.get(userId, body.accountName);
+  if (!steam) {
+    throw new SteamIdlerError("Account is not online.");
+  }
 
   const interval = FarmingIntervals.get(body.accountName);
   if (!interval) {
@@ -57,9 +67,7 @@ export async function stop(userId: ObjectId, body: StopBody) {
   FarmingIntervals.delete(body.accountName);
 
   // stop idling
-  if (steam) {
-    await steam.client.gamesPlayed([]);
-  }
+  await steam.client.gamesPlayed([]);
 
   const account = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.gamesIdsFarm": [],
@@ -70,12 +78,10 @@ export async function stop(userId: ObjectId, body: StopBody) {
 }
 
 async function farmingAlgo(userId: ObjectId, body: StartBody, options?: { skip?: boolean }) {
-  const { steam, steamAccount } = await SteamAccountExistsOnline(userId, body.accountName);
+  const steam = steamStore.get(userId, body.accountName);
 
   // stop all idling
-  if (steamAccount.data.state.gamePlayedAppId) {
-    await steam.client.gamesPlayed([]);
-  }
+  await steam.client.gamesPlayed([]);
 
   // don't fetch games the first time this gets executed
   if (!options || !options.skip) {

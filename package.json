@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@fcastrocs/retry": "^1.0.2",
-    "@fcastrocs/steamclient": "^1.0.12",
+    "@fcastrocs/steamclient": "^1.0.13",
     "@fcastrocs/steamweb": "^1.0.0",
     "argon2": "^0.30.3",
     "connect-mongo": "^4.6.0",
