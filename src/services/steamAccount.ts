@@ -148,6 +148,8 @@ export async function login(userId: ObjectId, body: LoginBody) {
 
   wsServer.send({ ...wsBody, type: "Info", message: "Connected to Steam." });
 
+  console.log("attemping logging: ", steamAccount.accountName);
+
   // login to steam
   let loginRes;
   try {
@@ -163,6 +165,8 @@ export async function login(userId: ObjectId, body: LoginBody) {
     throw error;
   }
 
+  console.log("logged in: ", steamAccount.accountName);
+
   // merge games so that activated f2p games are not lost
   const { merge } = mergeGamesArrays(steamAccount.data.games, loginRes.data.games);
   loginRes.data.games = merge;
@@ -175,6 +179,8 @@ export async function login(userId: ObjectId, body: LoginBody) {
   loginRes.data.farmableGames = farmableGames;
   loginRes.data.avatarFrame = avatarFrame;
   steamAccount.data = loginRes.data;
+
+  console.log("steamweb logged in: ", steamAccount.accountName);
 
   steamStore.add(userId, steamAccount.accountName, steam);
 
@@ -419,6 +425,9 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
   // if (state.personaState !== "Invisible") {
   //   await steam.client.setPersonaState(state.personaState);
   // }
+
+  console.log("restoring account ", s.accountName, s.data);
+  console.log("\n");
 
   // restore idling or idling
   if (!s.data.playingState.playingBlocked) {
