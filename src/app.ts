@@ -8,8 +8,6 @@ import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
 import index from "./routes/index.js";
 import proxyStatusRouter from "./routes/proxyStatus.js";
-import { SteamClientError } from "@fcastrocs/steamclient";
-import { SteamWebError } from "@fcastrocs/steamweb";
 import * as SteamAccountController from "./controllers/steamAccount.js";
 import * as SteamClientController from "./controllers/steamClient.js";
 import * as UserController from "./controllers/user.js";
@@ -21,7 +19,7 @@ const steamStore = new SteamStore();
 const steamConfirmationStore = new SteamStore();
 
 import * as mongodb from "./db.js";
-import { clearCookie, setCookie, SteamIdlerError } from "./commons.js";
+import { clearCookie, setCookie } from "./commons.js";
 import http from "http";
 import WebSocketServer from "./WebSocketAPIServer.js";
 import SteamStore from "./models/steamStore.js";
@@ -83,7 +81,7 @@ async function createCollections(db: Db) {
   await db.collection("refresh-tokens").createIndex(["userId", "token"], { unique: true });
 
   await db.collection("pass-reset-tokens").createIndex(["userId", "email"], { unique: true });
-  await db.collection("pass-reset-tokens").createIndex("createdAt", { expireAfterSeconds: 30 * 60 });
+  await db.collection("pass-reset-tokens").createIndex("createdAt", { expireAfterSeconds: 15 * 60 });
 
   await db.collection("confirmation-codes").createIndex("userId", { unique: true });
   await db.collection("confirmation-codes").createIndex("createdAt", { expireAfterSeconds: 5 * 60 });
@@ -207,13 +205,6 @@ function afterMiddleWare() {
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     if (err) {
       console.log(err);
-
-      // excepted exceptions
-      if (err instanceof SteamWebError || err instanceof SteamClientError || err instanceof SteamIdlerError) {
-        return res.status(400).send({ name: err.name, message: err.message });
-      }
-
-      // unexpected exceptions
       return res.status(400).send({ name: err.name, message: err.message });
     }
 

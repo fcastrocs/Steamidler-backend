@@ -74,7 +74,6 @@ export default class WebSocketAPIServer {
         if (ws.isAlive) {
           ws.isAlive = false;
           ws.terminate();
-          // this.websockets.delete(userId);
         }
       });
 
@@ -117,7 +116,7 @@ export default class WebSocketAPIServer {
     try {
       await service(userId, message.body);
     } catch (error) {
-      console.log(error)
+      console.log(error);
       this.send({ type: "Error", userId, routeName: error.name, message: error.message });
     }
   }
