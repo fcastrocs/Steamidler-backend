@@ -17,9 +17,6 @@ export async function idleGames(userId: ObjectId, body: IdleGamesBody) {
     throw new SteamIdlerError(ERRORS.INVALID_BODY);
   }
 
-  if (body.gameIds.length > 32) {
-    throw new SteamIdlerError(ERRORS.INVALID_BODY);
-  }
   await steamClientService.idleGames(userId, body);
 }
 

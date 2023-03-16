@@ -22,6 +22,11 @@ import {
  * @Service
  */
 export async function register(body: RegisterBody) {
+  // verify google recaptcha
+  if (process.env.NODE_ENV === "production") {
+    await recaptchaVerify(body.g_response);
+  }
+
   // validate invite
   if (!(await InviteModel.exits({ email: body.email, code: body.inviteCode }))) {
     throw new SteamIdlerError("Invalid invite code.");
@@ -109,6 +114,11 @@ export async function logout(body: LogoutBody) {
  * @Service
  */
 export async function resetPassword(body: ResetPasswordBody) {
+  // verify google recaptcha
+  if (process.env.NODE_ENV === "production") {
+    await recaptchaVerify(body.g_response);
+  }
+
   // check if user exists
   const user = await UsersModel.get({ email: body.email });
   if (!user) return;

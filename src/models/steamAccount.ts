@@ -8,6 +8,7 @@ const collectionName = "steam-accounts";
  * Add steamAccount to collection
  */
 export async function add(steamAccount: SteamAccount) {
+  steamAccount.accountName = steamAccount.accountName.toLowerCase();
   const collection = await getCollection(collectionName);
   const encrypedAccount = encryptSteamAccount(steamAccount);
   steamAccount = (await collection.insertOne(encrypedAccount)) as unknown as SteamAccount;

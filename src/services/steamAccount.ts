@@ -111,7 +111,7 @@ export async function add(userId: ObjectId, body: AddAccountBody) {
   steamStore.add(userId, authTokens.accountName, steam);
 
   // add listeners
-  SteamEventListeners(steam, userId, steamaccount.accountName);
+  SteamEventListeners(userId, steamaccount.accountName);
 
   delete steamaccount.auth;
 
@@ -163,22 +163,21 @@ export async function login(userId: ObjectId, body: LoginBody) {
     throw error;
   }
 
-  // merge games so that activated f2p games are not lost
-  const { merge } = mergeGamesArrays(steamAccount.data.games, loginRes.data.games);
-  loginRes.data.games = merge;
-
   // login to steam web
   const { farmableGames, avatarFrame } = await steamWebLogin(steamAccount.auth.authTokens.refreshToken, proxy);
   wsServer.send({ ...wsBody, type: "Info", message: "Signed in to steam web." });
 
   // update account
+  // merge games so that activated f2p games are not lost
+  const { merge } = mergeGamesArrays(steamAccount.data.games, loginRes.data.games);
+  loginRes.data.games = merge;
   loginRes.data.farmableGames = farmableGames;
   loginRes.data.avatarFrame = avatarFrame;
   steamAccount.data = loginRes.data;
 
   steamStore.add(userId, steamAccount.accountName, steam);
 
-  await restoreState(userId, steam, steamAccount);
+  await restoreState(steamAccount);
 
   const nonSensitiveAccount = await SteamAccountModel.updateField(userId, body.accountName, {
     "state.proxyId": proxy._id,
@@ -186,7 +185,7 @@ export async function login(userId: ObjectId, body: LoginBody) {
   });
 
   // add listeners
-  SteamEventListeners(steam, userId, steamAccount.accountName);
+  SteamEventListeners(userId, steamAccount.accountName);
 
   wsServer.send({ ...wsBody, type: "Success", message: nonSensitiveAccount });
 }
@@ -266,7 +265,7 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
 /**
  * Logout a Steam account
  * @service
- * emits "steamaccount/logout" -> null
+ * emits "steamaccount/logout" -> steamAccount
  */
 export async function logout(userId: ObjectId, body: LogoutBody) {
   if (!(await SteamAccountModel.getByUserId(userId, { accountName: body.accountName })))
@@ -333,14 +332,12 @@ export async function authRenew(userId: ObjectId, body: AddAccountBody) {
 /**
  * Remove a Steam account
  * @Service
- * emits "steamaccount/remove" -> null
+ * emits "steamaccount/remove" -> steamAccount
  */
 export async function remove(userId: ObjectId, body: RemoveBody) {
   const steam = steamStore.get(userId, body.accountName);
   if (steam) {
-    steam.disconnect();
-    steamStore.remove(userId, body.accountName);
-    wsServer.send({ userId, routeName: "steamaccount/remove", type: "Info", message: "Account logged out." });
+    throw new SteamIdlerError("Account is online, logout first.");
   }
   const steamAccount = await SteamAccountModel.remove(userId, body.accountName);
   wsServer.send({ userId, routeName: "steamaccount/remove", type: "Info", message: "Account removed from database." });
@@ -362,6 +359,7 @@ export async function get(userId: ObjectId, body: GetBody) {
 
 /**
  * Get all Steam account
+ * Only use this within the app as it contains sensitive account data.
  * @Service
  * emits "steamaccount/getall" -> steamAccounts[]
  */
@@ -415,7 +413,10 @@ async function stopFarming(userId: ObjectId, accountName: string) {
 /**
  * Restore account state:  personastate, farming, and idling after login
  */
-async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | SteamAccountNonSensitive) {
+async function restoreState(s: SteamAccount | SteamAccountNonSensitive) {
+  const userId = s.userId;
+  const steam = steamStore.get(userId, s.accountName);
+
   if (!steam.isPlayingBlocked) {
     // restore idling or idling
     if (s.state.gamesIdsFarm.length) {
@@ -439,14 +440,15 @@ async function restoreState(userId: ObjectId, steam: Steam, s: SteamAccount | St
 /**
  * Handle steam account events
  */
-function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string) {
-  // state change on this steam account
+function SteamEventListeners(userId: ObjectId, accountName: string) {
+  const steam = steamStore.get(userId, accountName);
+
   steam.on("PersonaStateChanged", async (state) => {
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
       "data.state": state,
     });
 
-    wsServer.send({ userId, routeName: "steamaccount/personastatechanged", type: "Info", message: steamAccount });
+    wsServer.send({ userId, routeName: "steamaccount/personastatechanged", type: "Success", message: steamAccount });
   });
 
   steam.on("PlayingStateChanged", async (state) => {
@@ -456,20 +458,20 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
       "data.playingState": state,
     });
 
-    // stated changed from blocked to not blocked
+    // stated changed from blocked to not blocked, and account was waiting on this
     if (
       oldSteamAccount.data.playingState.playingBlocked &&
       !state.playingBlocked &&
       oldSteamAccount.state.status === "online"
     ) {
-      await restoreState(userId, steam, steamAccount);
+      await restoreState(steamAccount);
     }
 
-    wsServer.send({ userId, routeName: "steamaccount/playingstatechanged", type: "Info", message: steamAccount });
+    wsServer.send({ userId, routeName: "steamaccount/playingstatechanged", type: "Success", message: steamAccount });
   });
 
   steam.on("AccountLoggedOff", async (eresult) => {
-    console.log(`ACCOUNT ${accountName} LOGGED OFF eresult: ${eresult}`);
+    console.log(`ACCOUNT LOGGED OFF eresult ${eresult}: ${accountName}`);
 
     // access revoked
     if (eresult === "Revoked") {
@@ -482,11 +484,18 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
   });
 
   steam.on("disconnected", () => {
-    console.log(`ACCOUNT ${accountName} DISCONNECTED.`);
+    console.log(`ACCOUNT DISCONNECTED: ${accountName}`);
     reconnect();
   });
 
   async function reconnect(eresult?: string) {
+    // stop
+    if (eresult && eresult === "Revoked") {
+      return;
+    }
+
+    console.log(`ACCOUNT RECONNECTING: ${accountName}`);
+
     // set state.status to 'reconnecting'
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
       "state.status": "reconnecting" as SteamAccount["state"]["status"],
@@ -505,14 +514,9 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
     // remove from online accounts
     steamStore.remove(userId, accountName);
 
-    // stop
-    if (eresult && eresult === "Revoked") {
-      return;
-    }
-
-    // generate a number between 1 and 20
+    // generate a number between 1 and 60
     // this is done so that when steam goes offline, the backend doesn't overload.
-    const seconds = Math.floor(Math.random() * 20 + 1);
+    const seconds = Math.floor(Math.random() * 60 + 1);
     const retries = Number(process.env.STEAM_RECONNECTS_RETRIES);
     const operation = new retry({ retries, interval: seconds * 1000 });
 
@@ -520,21 +524,21 @@ function SteamEventListeners(steam: Steam, userId: ObjectId, accountName: string
     operation.attempt(async (currentAttempt: number) => {
       try {
         await login(userId, { accountName });
-        console.log(`${accountName}: reconnected successfully.`);
+        console.log(`ACCOUNT RECONNECTED: ${accountName}`);
         return;
       } catch (error) {
-        console.log(error);
-        console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}.`);
+        //console.log(`${accountName}: reconnect failed try #${currentAttempt} of ${retries}.`);
 
         // error originated in steam-client
         if (error instanceof SteamClientError) {
-          // relogin failed after 1st attempt because of AccessDenied
-          if (currentAttempt > 1 && error.message === "AccessDenied") return;
+          // relogin because of AccessDenied
+          if (error.message === "AccessDenied") {
+            return;
+          }
 
           // Steam is down
           if (error.message === "ServiceUnavailable") {
-            console.log(`${accountName}: STEAM IS DOWN, increasing retry interval to 10 minutes`);
-            // increase interval to 10 minutes
+            console.log(`STEAM IS DOWN, increasing retry interval to 10 minutes: ${accountName}`);
             operation.setNewConfig({
               retries: Number(process.env.STEAM_DOWN_RETRIES),
               interval: Number(process.env.STEAM_DOWN_INTERVAL),

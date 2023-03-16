@@ -18,7 +18,6 @@ import {
 export async function add(userId: ObjectId, body: AddAccountBody) {
   // normalize
   body.accountName = body.accountName.toLocaleLowerCase();
-
   await SteamAccountService.add(userId, body);
 }
 
