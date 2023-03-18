@@ -483,8 +483,8 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
     reconnect(eresult);
   });
 
-  steam.on("disconnected", () => {
-    console.log(`ACCOUNT DISCONNECTED: ${accountName}`);
+  steam.on("disconnected", (error) => {
+    console.log(`ACCOUNT DISCONNECTED: ${accountName}: ${error.message}`);
     reconnect();
   });
 
