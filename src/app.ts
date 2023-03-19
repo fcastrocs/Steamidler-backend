@@ -96,7 +96,10 @@ function beforeMiddleware(client: MongoClient) {
   // cors
   app.use(
     cors({
-      origin: process.env.ORIGIN || "http://localhost:3000",
+      origin:
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:3000"
+          : ["https://steamidler.com", /\.steamidler\.com$/],
       credentials: true,
     })
   );
