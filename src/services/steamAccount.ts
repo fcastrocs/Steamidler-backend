@@ -253,7 +253,7 @@ export async function updateWithSteamGuardCode(userId: ObjectId, body: UpdateWit
     });
   }
 
-  await steam.service.auth.updateWithSteamGuardCode(body.code, body.guardType);
+  await steam.service.auth.updateWithSteamGuardCode(body.code);
 
   return wsServer.send({
     userId,
@@ -371,7 +371,7 @@ export async function getAll(userId: ObjectId) {
 async function steamcmLogin(steam: Steam, authtokens: AuthTokens, machineName?: string) {
   const loginOptions: LoginOptions = {
     accountName: authtokens.accountName,
-    accessToken: authtokens.refreshToken,
+    refreshToken: authtokens.refreshToken,
     machineName,
   };
   return steam.login(loginOptions);
@@ -417,7 +417,7 @@ async function restoreState(s: SteamAccount | SteamAccountNonSensitive) {
   const userId = s.userId;
   const steam = steamStore.get(userId, s.accountName);
 
-  if (!steam.isPlayingBlocked) {
+  if (!steam.client.isPlayingBlocked) {
     // restore idling or idling
     if (s.state.gamesIdsFarm.length) {
       await Farming.start(userId, { accountName: s.accountName, gameIds: s.state.gamesIdsFarm });
@@ -431,7 +431,7 @@ async function restoreState(s: SteamAccount | SteamAccountNonSensitive) {
 
   await SteamAccountModel.updateField(userId, s.accountName, {
     "state.status":
-      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !steam.isPlayingBlocked
+      (s.state.gamesIdsFarm.length || s.state.gamesIdsIdle.length) && !steam.client.isPlayingBlocked
         ? "ingame"
         : ("online" as SteamAccount["state"]["status"]),
   });
@@ -443,7 +443,7 @@ async function restoreState(s: SteamAccount | SteamAccountNonSensitive) {
 function SteamEventListeners(userId: ObjectId, accountName: string) {
   const steam = steamStore.get(userId, accountName);
 
-  steam.on("PersonaStateChanged", async (state) => {
+  steam.on("personaStateChanged", async (state) => {
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
       "data.state": state,
     });
@@ -451,7 +451,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
     wsServer.send({ userId, routeName: "steamaccount/personastatechanged", type: "Success", message: steamAccount });
   });
 
-  steam.on("PlayingStateChanged", async (state) => {
+  steam.on("playingStateChanged", async (state) => {
     const oldSteamAccount = await SteamAccountModel.getByUserId(userId, { accountName });
 
     const steamAccount = await SteamAccountModel.updateField(userId, accountName, {
@@ -470,7 +470,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
     wsServer.send({ userId, routeName: "steamaccount/playingstatechanged", type: "Success", message: steamAccount });
   });
 
-  steam.on("AccountLoggedOff", async (eresult) => {
+  steam.on("accountLoggedOff", async (eresult) => {
     console.log(`ACCOUNT LOGGED OFF eresult ${eresult}: ${accountName}`);
 
     // access revoked

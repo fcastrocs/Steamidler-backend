@@ -23,7 +23,7 @@ export async function start(userId: ObjectId, body: StartBody) {
   }
 
   // account is playing elsewhere.
-  if (steam.isPlayingBlocked) {
+  if (steam.client.isPlayingBlocked) {
     throw new SteamIdlerError("Account has a playing session elsewhere.");
   }
 
