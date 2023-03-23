@@ -531,7 +531,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
 
         // error originated in steam-client
         if (error instanceof SteamClientError) {
-          // relogin because of AccessDenied
+          // do not retry
           if (error.message === "AccessDenied") {
             return;
           }
@@ -550,6 +550,7 @@ function SteamEventListeners(userId: ObjectId, accountName: string) {
         if (operation.retry()) return;
 
         // reconnect failed
+        console.log(`ACCOUNT RECONNECT FAILED: ${accountName}`);
         await SteamAccountModel.updateField(userId, accountName, {
           "state.status": "offline" as SteamAccount["state"]["status"],
         });
